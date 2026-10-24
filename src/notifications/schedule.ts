@@ -1,4 +1,5 @@
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
 
 import { buildAlerts, type Alert } from '../domain/alerts';
 import { getHomeDashboardSnapshot } from '../data/epic3';
@@ -54,6 +55,7 @@ const enqueueReschedule = createDebouncedRescheduler(reschedule, (error) =>
 );
 
 export function scheduleNotificationRefresh(): void {
+  if (Platform.OS === 'web') return;
   enqueueReschedule(getActiveAlerts());
 }
 

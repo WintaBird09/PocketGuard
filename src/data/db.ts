@@ -13,7 +13,7 @@ export type DatabaseLike = {
 
 export async function openAppDatabase(name = 'pocket-guard.db'): Promise<DatabaseLike> {
   const sqlite = await import('expo-sqlite');
-  const database = sqlite.openDatabaseSync(name, { enableChangeListener: false });
+  const database = await sqlite.openDatabaseAsync(name, { enableChangeListener: false });
 
   return {
     execSync: (sql) => database.execSync(sql),

@@ -1,11 +1,16 @@
 import { describe, expect, it } from 'vitest';
 
+import Database from 'better-sqlite3';
+
+import { initializeLocalApp } from './bootstrap';
+import { getHomeDashboardSnapshot } from './dashboard';
 import {
   getAddTransactionReview,
   getBudgetOverview,
   getDebtsSnapshot,
   getSavingsSnapshot,
 } from './epic3';
+import { transactions } from './repos';
 
 describe('Epic 3: add transaction review', () => {
   it('blocks a new entry on a hard-cap line when the transaction exceeds the remaining amount', () => {
@@ -79,5 +84,62 @@ describe('Epic 3: add transaction review', () => {
   it('marks a debt overdue after its deadline and leaves a not-yet-due debt open', () => {
     expect(getDebtsSnapshot('2026-11', new Date('2026-12-01T12:00:00'))[0].status).toBe('OVERDUE');
     expect(getDebtsSnapshot('2026-11', new Date('2026-12-01T12:00:00'))[1].status).toBe('OPEN');
+  });
+
+  it('updates the Home snapshot from persisted transactions and seeded plan data', () => {
+    const db = new Database(':memory:');
+    const { householdId } = initializeLocalApp(db as never);
+
+    transactions.add(db as never, householdId, {
+      occurred_at: '2026-10-10T08:00:00.000Z',
+      amount: 520000,
+      direction: 'income',
+    });
+    transactions.add(db as never, householdId, {
+      occurred_at: '2026-10-12T08:00:00.000Z',
+      amount: 20000,
+      direction: 'expense',
+      line_id: 'line-fuel',
+    });
+    transactions.add(db as never, householdId, {
+      occurred_at: '2026-10-13T08:00:00.000Z',
+      amount: 50000,
+      direction: 'expense',
+      line_id: 'line-debt-mom',
+      debt_id: 'debt-mom',
+    });
+    transactions.add(db as never, householdId, {
+      occurred_at: '2026-10-14T08:00:00.000Z',
+      amount: 100000,
+      direction: 'transfer',
+    });
+
+    const dashboard = getHomeDashboardSnapshot(
+      db as never,
+      householdId,
+      '2026-10',
+      new Date('2026-10-24T12:00:00'),
+    );
+
+    expect(dashboard.summary).toMatchObject({
+      income: 520000,
+      spent: 70000,
+      remaining: 450000,
+      savingsTarget: 2000000,
+      savingsSaved: 0,
+      debtRemaining: 480000,
+      daysLeft: 7,
+      savingsStatus: 'Behind',
+    });
+    expect(dashboard.lines.find((line) => line.id === 'line-fuel')).toMatchObject({
+      planned: 120000,
+      spent: 20000,
+      remaining: 100000,
+      status: 'ok',
+    });
+    expect(dashboard.lines.find((line) => line.id === 'line-debt-mom')).toMatchObject({
+      spent: 50000,
+      remaining: 100000,
+    });
   });
 });
