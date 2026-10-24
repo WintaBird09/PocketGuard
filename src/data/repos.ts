@@ -53,7 +53,7 @@ const runInTransaction = <T>(db: SqlDatabase, fn: () => T): T => {
   return fn();
 };
 
-const appendOutboxEntry = (
+export const appendOutboxEntry = (
   db: SqlDatabase,
   householdId: string,
   tableName: string,

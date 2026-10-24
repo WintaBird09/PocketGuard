@@ -28,13 +28,17 @@ export default function BudgetScreen() {
           <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
             Unallocated
           </Text>
-          <Text className="mt-2 text-xl font-bold text-emerald-900">{formatXAF(overview.unallocated)}</Text>
+          <Text className="mt-2 text-xl font-bold text-emerald-900">
+            {formatXAF(overview.unallocated)}
+          </Text>
         </View>
         <View className="flex-1 rounded-2xl bg-slate-100 p-4">
           <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-600">
             Flexible
           </Text>
-          <Text className="mt-2 text-xl font-bold text-slate-900">{formatXAF(overview.flexible)}</Text>
+          <Text className="mt-2 text-xl font-bold text-slate-900">
+            {formatXAF(overview.flexible)}
+          </Text>
         </View>
       </View>
     </PageLayout>

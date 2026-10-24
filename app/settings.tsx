@@ -1,30 +1,94 @@
 import { useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, Text, TextInput, View } from 'react-native';
 
+import { openAppDatabase } from '@/src/data/db';
+import { settings } from '@/src/data/repos';
 import {
+  getPersistedPaceAlertMargin,
+  getPersistedSavingsReminderDays,
+  parseSavingsReminderDays,
+  paceAlertMarginKey,
+  savingsReminderDaysKey,
+} from '@/src/notifications/persisted-alerts';
+import {
+  dailySummarySettingKey,
+  defaultDailySummaryTime,
+  getPersistedDailySummaryTime,
+} from '@/src/notifications/daily-summary';
+import {
+  getExactAlarmPermission,
   getNotificationPermission,
+  requestExactAlarmPermission,
   requestNotificationPermission,
   scheduleTestNotification,
   type NotificationPermissionState,
 } from '@/src/notifications/permissions';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
+import { parseDailySummaryTime } from '@/src/notifications/scheduler';
 import { PageLayout } from '@/src/ui/PageLayout';
 
 export default function SettingsScreen() {
   const [permission, setPermission] = useState<NotificationPermissionState | 'checking'>(
     'checking',
   );
+  const [exactAlarmPermission, setExactAlarmPermission] = useState<
+    'granted' | 'denied' | 'checking'
+  >('checking');
+  const [exactAlarmMessage, setExactAlarmMessage] = useState<string | null>(null);
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
   const [openingSettings, setOpeningSettings] = useState(false);
+  const [dailySummaryTime, setDailySummaryTime] = useState(defaultDailySummaryTime);
+  const [loadingDailySummaryTime, setLoadingDailySummaryTime] = useState(true);
+  const [savingDailySummaryTime, setSavingDailySummaryTime] = useState(false);
+  const [summaryMessage, setSummaryMessage] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [paceMargin, setPaceMargin] = useState('20');
+  const [savingsReminderDays, setSavingsReminderDays] = useState('7, 2, 0');
+  const [alertSettingsMessage, setAlertSettingsMessage] = useState<string | null>(null);
+  const [alertSettingsError, setAlertSettingsError] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
 
+    const loadDailySummaryTime = async () => {
+      try {
+        const db = await openAppDatabase();
+        const savedTime = getPersistedDailySummaryTime(db);
+        const household = db
+          .prepare?.(
+            'SELECT id FROM households WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1;',
+          )
+          .get();
+        if (!household || typeof household.id !== 'string') {
+          throw new Error('The local household has not been initialized.');
+        }
+        if (active) {
+          setDailySummaryTime(savedTime);
+          setPaceMargin(String(getPersistedPaceAlertMargin(db, household.id)));
+          setSavingsReminderDays(getPersistedSavingsReminderDays(db, household.id).join(', '));
+        }
+      } catch (cause) {
+        if (active) {
+          setSummaryError(
+            cause instanceof Error ? cause.message : 'Unable to load the daily summary time.',
+          );
+        }
+      } finally {
+        if (active) setLoadingDailySummaryTime(false);
+      }
+    };
+
     const loadPermission = async () => {
       try {
-        const current = await getNotificationPermission();
-        if (active) setPermission(current);
+        const [current, exactAlarmGranted] = await Promise.all([
+          getNotificationPermission(),
+          getExactAlarmPermission(),
+        ]);
+        if (active) {
+          setPermission(current);
+          setExactAlarmPermission(exactAlarmGranted ? 'granted' : 'denied');
+        }
       } catch (cause) {
         if (active) {
           setNotificationError(
@@ -34,11 +98,68 @@ export default function SettingsScreen() {
       }
     };
 
+    void loadDailySummaryTime();
     void loadPermission();
     return () => {
       active = false;
     };
   }, []);
+
+  const saveDailySummaryTime = async () => {
+    setSummaryError(null);
+    setSummaryMessage(null);
+    try {
+      parseDailySummaryTime(dailySummaryTime);
+      setSavingDailySummaryTime(true);
+      const db = await openAppDatabase();
+      const household = db
+        .prepare?.(
+          'SELECT id FROM households WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1;',
+        )
+        .get();
+      if (!household || typeof household.id !== 'string') {
+        throw new Error('The local household has not been initialized.');
+      }
+      settings.set(db, household.id, dailySummarySettingKey, dailySummaryTime);
+      scheduleNotificationRefresh();
+      setSummaryMessage('Daily summary time saved.');
+    } catch (cause) {
+      setSummaryError(
+        cause instanceof Error ? cause.message : 'Unable to save the daily summary time.',
+      );
+    } finally {
+      setSavingDailySummaryTime(false);
+    }
+  };
+
+  const saveAlertSettings = async () => {
+    setAlertSettingsError(null);
+    setAlertSettingsMessage(null);
+    try {
+      const margin = Number(paceMargin);
+      if (!Number.isInteger(margin) || margin < 0 || margin > 100) {
+        throw new Error('Pace alert margin must be a whole number from 0 to 100.');
+      }
+      const reminderDays = parseSavingsReminderDays(savingsReminderDays);
+      const db = await openAppDatabase();
+      const household = db
+        .prepare?.(
+          'SELECT id FROM households WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1;',
+        )
+        .get();
+      if (!household || typeof household.id !== 'string') {
+        throw new Error('The local household has not been initialized.');
+      }
+      settings.set(db, household.id, paceAlertMarginKey, margin);
+      settings.set(db, household.id, savingsReminderDaysKey, JSON.stringify(reminderDays));
+      scheduleNotificationRefresh();
+      setAlertSettingsMessage('Alert preferences saved.');
+    } catch (cause) {
+      setAlertSettingsError(
+        cause instanceof Error ? cause.message : 'Unable to save alert preferences.',
+      );
+    }
+  };
 
   const enableNotifications = async () => {
     setNotificationError(null);
@@ -54,6 +175,27 @@ export default function SettingsScreen() {
     } catch (cause) {
       setNotificationError(
         cause instanceof Error ? cause.message : 'Unable to request notification permission.',
+      );
+    }
+  };
+
+  const enableExactAlarmDelivery = async () => {
+    setNotificationError(null);
+    setExactAlarmMessage(null);
+    setExactAlarmPermission('checking');
+    try {
+      const granted = await requestExactAlarmPermission();
+      setExactAlarmPermission(granted ? 'granted' : 'denied');
+      setExactAlarmMessage(
+        granted
+          ? 'Exact-time delivery is enabled.'
+          : 'Exact-time access was not granted. Reminders will use best-effort delivery.',
+      );
+      if (granted) scheduleNotificationRefresh();
+    } catch (cause) {
+      setExactAlarmPermission('denied');
+      setNotificationError(
+        cause instanceof Error ? cause.message : 'Unable to request exact alarm access.',
       );
     }
   };
@@ -115,6 +257,28 @@ export default function SettingsScreen() {
         {notificationError ? (
           <Text className="mt-3 text-sm font-medium text-red-700">{notificationError}</Text>
         ) : null}
+        {Platform.OS === 'android' ? (
+          <>
+            <Text className="mt-4 text-sm text-slate-600">
+              Exact-time delivery: {exactAlarmPermission}
+            </Text>
+            {exactAlarmPermission !== 'granted' ? (
+              <Pressable
+                accessibilityRole="button"
+                disabled={exactAlarmPermission === 'checking'}
+                onPress={enableExactAlarmDelivery}
+                className="mt-3 rounded-xl border border-slate-200 px-4 py-3"
+              >
+                <Text className="text-center font-bold text-slate-900">
+                  Allow exact-time reminders
+                </Text>
+              </Pressable>
+            ) : null}
+            {exactAlarmMessage ? (
+              <Text className="mt-3 text-sm font-medium text-emerald-700">{exactAlarmMessage}</Text>
+            ) : null}
+          </>
+        ) : null}
       </View>
 
       <View className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
@@ -136,9 +300,90 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <Text className="text-lg font-bold text-slate-900">Daily summary</Text>
+        <Text className="mt-2 text-sm text-slate-600">
+          Choose when your daily spending and budget update arrives (local time).
+        </Text>
+        <View className="mt-4 flex-row items-center gap-3">
+          <TextInput
+            accessibilityLabel="Daily summary time"
+            className="min-w-28 rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-900"
+            editable={!loadingDailySummaryTime && !savingDailySummaryTime}
+            keyboardType="numbers-and-punctuation"
+            maxLength={5}
+            onChangeText={(value) => {
+              setDailySummaryTime(value);
+              setSummaryMessage(null);
+              setSummaryError(null);
+            }}
+            placeholder="20:00"
+            value={dailySummaryTime}
+          />
+          <Pressable
+            accessibilityRole="button"
+            disabled={loadingDailySummaryTime || savingDailySummaryTime}
+            onPress={saveDailySummaryTime}
+            className="flex-1 rounded-xl bg-emerald-600 px-4 py-3"
+          >
+            <Text className="text-center font-bold text-white">
+              {savingDailySummaryTime ? 'Saving…' : 'Save time'}
+            </Text>
+          </Pressable>
+        </View>
+        {summaryMessage ? (
+          <Text className="mt-3 text-sm font-medium text-emerald-700">{summaryMessage}</Text>
+        ) : null}
+        {summaryError ? (
+          <Text className="mt-3 text-sm font-medium text-red-700">{summaryError}</Text>
+        ) : null}
+      </View>
+
+      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <Text className="text-lg font-bold text-slate-900">Alert preferences</Text>
+        <Text className="mt-2 text-sm text-slate-600">
+          Pace alerts compare line usage to elapsed month progress. Savings reminders use days
+          before each monthly commitment is due; overdue commitments remind daily.
+        </Text>
+        <Text className="mt-4 text-sm font-semibold text-slate-700">
+          Pace margin (percentage points)
+        </Text>
+        <TextInput
+          accessibilityLabel="Pace alert margin"
+          className="mt-2 rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-900"
+          keyboardType="number-pad"
+          maxLength={3}
+          onChangeText={setPaceMargin}
+          value={paceMargin}
+        />
+        <Text className="mt-4 text-sm font-semibold text-slate-700">
+          Savings reminder days before due
+        </Text>
+        <TextInput
+          accessibilityLabel="Savings reminder days"
+          className="mt-2 rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-900"
+          keyboardType="numbers-and-punctuation"
+          onChangeText={setSavingsReminderDays}
+          placeholder="7, 2, 0"
+          value={savingsReminderDays}
+        />
+        <Pressable
+          accessibilityRole="button"
+          onPress={saveAlertSettings}
+          className="mt-4 rounded-xl bg-emerald-600 px-4 py-3"
+        >
+          <Text className="text-center font-bold text-white">Save alert preferences</Text>
+        </Pressable>
+        {alertSettingsMessage ? (
+          <Text className="mt-3 text-sm font-medium text-emerald-700">{alertSettingsMessage}</Text>
+        ) : null}
+        {alertSettingsError ? (
+          <Text className="mt-3 text-sm font-medium text-red-700">{alertSettingsError}</Text>
+        ) : null}
+      </View>
+
       <View className="gap-3">
         {[
-          { label: 'Daily summary time', value: '8:00 pm' },
           { label: 'Hard caps', value: 'Enabled' },
           { label: 'Voice confidence', value: 'High' },
           { label: 'Offline mode', value: 'Ready' },

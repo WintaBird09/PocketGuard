@@ -6,13 +6,20 @@ const notifications = vi.hoisted(() => ({
   setNotificationChannelAsync: vi.fn(async () => undefined),
   getPermissionsAsync: vi.fn(),
   requestPermissionsAsync: vi.fn(),
+  getExactAlarmPermissionsAsync: vi.fn(),
+  requestExactAlarmPermissionsAsync: vi.fn(),
   scheduleNotificationAsync: vi.fn(),
 }));
 
 vi.mock('expo-notifications', () => notifications);
 vi.mock('react-native', () => ({ Platform: { OS: 'android' } }));
 
-import { requestNotificationPermission, scheduleTestNotification } from './permissions';
+import {
+  getExactAlarmPermission,
+  requestExactAlarmPermission,
+  requestNotificationPermission,
+  scheduleTestNotification,
+} from './permissions';
 
 describe('notification permission and test notification flow', () => {
   beforeEach(() => {
@@ -22,6 +29,14 @@ describe('notification permission and test notification flow', () => {
       status: 'undetermined',
     });
     notifications.requestPermissionsAsync.mockResolvedValue({ granted: true, status: 'granted' });
+    notifications.getExactAlarmPermissionsAsync.mockResolvedValue({
+      granted: false,
+      status: 'denied',
+    });
+    notifications.requestExactAlarmPermissionsAsync.mockResolvedValue({
+      granted: true,
+      status: 'granted',
+    });
     notifications.scheduleNotificationAsync.mockResolvedValue('test-notification');
   });
 
@@ -65,5 +80,12 @@ describe('notification permission and test notification flow', () => {
       'Notification permission is not granted.',
     );
     expect(notifications.scheduleNotificationAsync).not.toHaveBeenCalled();
+  });
+
+  it('checks and requests Android exact-alarm access separately', async () => {
+    await expect(getExactAlarmPermission()).resolves.toBe(false);
+    await expect(requestExactAlarmPermission()).resolves.toBe(true);
+    expect(notifications.getExactAlarmPermissionsAsync).toHaveBeenCalledOnce();
+    expect(notifications.requestExactAlarmPermissionsAsync).toHaveBeenCalledOnce();
   });
 });

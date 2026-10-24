@@ -28,9 +28,19 @@ export default function TransactionsScreen() {
             <Pressable
               key={filter}
               onPress={() => setActiveFilter(filter)}
-              className={isActive ? 'rounded-full bg-slate-900 px-3 py-2' : 'rounded-full bg-slate-100 px-3 py-2'}
+              className={
+                isActive
+                  ? 'rounded-full bg-slate-900 px-3 py-2'
+                  : 'rounded-full bg-slate-100 px-3 py-2'
+              }
             >
-              <Text className={isActive ? 'text-sm font-semibold text-white' : 'text-sm font-medium text-slate-700'}>
+              <Text
+                className={
+                  isActive
+                    ? 'text-sm font-semibold text-white'
+                    : 'text-sm font-medium text-slate-700'
+                }
+              >
                 {filter}
               </Text>
             </Pressable>

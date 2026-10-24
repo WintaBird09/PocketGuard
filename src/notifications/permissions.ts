@@ -45,6 +45,14 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
   return permission.status;
 }
 
+export async function getExactAlarmPermission(): Promise<boolean> {
+  return (await Notifications.getExactAlarmPermissionsAsync()).granted;
+}
+
+export async function requestExactAlarmPermission(): Promise<boolean> {
+  return (await Notifications.requestExactAlarmPermissionsAsync()).granted;
+}
+
 export async function scheduleTestNotification(): Promise<string> {
   const permission = await requestNotificationPermission();
   if (permission !== 'granted') {
