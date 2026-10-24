@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { getAddTransactionReview, getBudgetOverview, getSavingsSnapshot } from './epic3';
+import {
+  getAddTransactionReview,
+  getBudgetOverview,
+  getDebtsSnapshot,
+  getSavingsSnapshot,
+} from './epic3';
 
 describe('Epic 3: add transaction review', () => {
   it('blocks a new entry on a hard-cap line when the transaction exceeds the remaining amount', () => {
@@ -48,5 +53,31 @@ describe('Epic 3: add transaction review', () => {
 
   it('uses the selected month commitment for the savings plan', () => {
     expect(getSavingsSnapshot('2026-11').monthlyCommitment).toBe(394500);
+  });
+
+  it('derives debt balances, monthly payment schedules, and payment histories', () => {
+    const debts = getDebtsSnapshot('2026-09', new Date('2026-10-24T12:00:00'));
+
+    expect(debts).toMatchObject([
+      {
+        id: 'debt-mom',
+        balance: 150000,
+        status: 'OPEN',
+        scheduledThisMonth: 150000,
+        payments: [{ id: 't3', amount: 150000 }],
+      },
+      {
+        id: 'debt-petra',
+        balance: 230000,
+        status: 'OPEN',
+        scheduledThisMonth: 0,
+        payments: [],
+      },
+    ]);
+  });
+
+  it('marks a debt overdue after its deadline and leaves a not-yet-due debt open', () => {
+    expect(getDebtsSnapshot('2026-11', new Date('2026-12-01T12:00:00'))[0].status).toBe('OVERDUE');
+    expect(getDebtsSnapshot('2026-11', new Date('2026-12-01T12:00:00'))[1].status).toBe('OPEN');
   });
 });

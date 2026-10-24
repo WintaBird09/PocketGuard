@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
 import { buildAlerts } from './alerts';
-import { debtBalance, lineStatus, monthSummary, savingsProgress } from './budget';
+import {
+  debtBalance,
+  lineStatus,
+  monthSummary,
+  savingsProgress,
+  sumTransactionTotals,
+} from './budget';
 import { evaluateSpendCheck } from './spendCheck';
 import { loadPlanSep2026, plannedSavingsTotalForMonths, seedShortfall } from '../data/seed';
 
@@ -30,6 +36,16 @@ describe('Epic 2: budget engine', () => {
       gap: 700000,
     });
     expect(debtBalance(300000, 150000)).toBe(150000);
+  });
+
+  it('keeps transfers separate from expenses when totaling transactions', () => {
+    expect(
+      sumTransactionTotals([
+        { amount: 120000, direction: 'income' },
+        { amount: 20000, direction: 'expense' },
+        { amount: 50000, direction: 'transfer' },
+      ]),
+    ).toEqual({ income: 120000, expenses: 20000, transfers: 50000 });
   });
 });
 

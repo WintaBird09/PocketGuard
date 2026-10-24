@@ -72,4 +72,29 @@ describe('data repositories', () => {
     expect(tx.amount).toBe(20000);
     expect(outbox.count).toBe(1);
   });
+
+  it.each(['income', 'transfer'] as const)(
+    'persists a %s entry without assigning it to a budget line',
+    (direction) => {
+      const db = new Database(':memory:');
+
+      runMigrations(db as never);
+
+      const tx = transactions.add(db as never, 'household-1', {
+        occurred_at: '2026-10-24T08:00:00.000Z',
+        amount: 250000,
+        direction,
+        note: direction === 'income' ? 'Salary' : 'Bank to MoMo',
+      });
+
+      expect(tx.direction).toBe(direction);
+      expect(tx.line_id).toBeNull();
+      expect(
+        db.prepare('SELECT direction, line_id FROM transactions WHERE id = ?').get(tx.id) as {
+          direction: string;
+          line_id: string | null;
+        },
+      ).toEqual({ direction, line_id: null });
+    },
+  );
 });

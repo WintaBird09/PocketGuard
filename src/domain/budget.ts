@@ -16,6 +16,32 @@ export type MonthSummaryInput = {
   plannedSavings?: number;
 };
 
+export type TransactionForTotals = {
+  amount: number;
+  direction: 'expense' | 'income' | 'transfer';
+};
+
+export type TransactionTotals = {
+  expenses: number;
+  income: number;
+  transfers: number;
+};
+
+export function sumTransactionTotals(
+  transactions: readonly TransactionForTotals[],
+): TransactionTotals {
+  return transactions.reduce(
+    (totals, transaction) => {
+      const amount = Number.isFinite(transaction.amount) ? Math.trunc(transaction.amount) : 0;
+      if (transaction.direction === 'expense') totals.expenses += amount;
+      else if (transaction.direction === 'income') totals.income += amount;
+      else totals.transfers += amount;
+      return totals;
+    },
+    { expenses: 0, income: 0, transfers: 0 },
+  );
+}
+
 export function lineStatus(
   planned: number,
   spent: number,

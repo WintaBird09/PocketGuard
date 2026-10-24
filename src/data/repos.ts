@@ -21,6 +21,8 @@ type BudgetLineDraft = {
 
 type SettingsValue = string | number | boolean | null;
 
+export type TransactionDirection = 'expense' | 'income' | 'transfer';
+
 const makeId = () => {
   if (
     typeof globalThis !== 'undefined' &&
@@ -187,7 +189,7 @@ export const transactions = {
     draft: {
       occurred_at: string;
       amount: number;
-      direction: string;
+      direction: TransactionDirection;
       line_id?: string | null;
       debt_id?: string | null;
       note?: string | null;

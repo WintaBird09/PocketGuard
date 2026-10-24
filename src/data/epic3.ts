@@ -1,3 +1,4 @@
+import { debtBalance } from '../domain/budget';
 import { evaluateSpendCheck, type SpendCheckResult } from '../domain/spendCheck';
 
 import { loadPlanSep2026 } from './seed';
@@ -33,6 +34,26 @@ export type TransactionItem = {
   amount: number;
   date: string;
   source: string;
+  debtId?: string;
+};
+
+export type DebtPayment = {
+  id: string;
+  title: string;
+  amount: number;
+  date: string;
+  source: string;
+};
+
+export type DebtSnapshot = {
+  id: string;
+  name: string;
+  originalAmount: number;
+  balance: number;
+  due: string;
+  status: 'OPEN' | 'PAID' | 'OVERDUE';
+  scheduledThisMonth: number;
+  payments: DebtPayment[];
 };
 
 export type DashboardSummary = {
@@ -114,7 +135,10 @@ export function getHomeDashboardSnapshot(monthKey = '2026-09') {
     remaining: 520000 - totalSpent,
     savingsTarget: plan.savingsGoal.target_amount,
     savingsSaved: 892000,
-    debtRemaining: Math.max(0, plan.debts.reduce((sum, debt) => sum + debt.original_amount, 0) - 80000),
+    debtRemaining: Math.max(
+      0,
+      plan.debts.reduce((sum, debt) => sum + debt.original_amount, 0) - 80000,
+    ),
   };
 
   return {
@@ -132,8 +156,9 @@ export function getAddTransactionReview(
   const plan = loadPlanSep2026();
   const line = plan.lines.find((item) => item.id === lineId) ?? plan.lines[0];
   const planned =
-    plan.allocations.find((allocation) => allocation.line_id === line.id && allocation.month === monthKey)
-      ?.planned_amount ?? 0;
+    plan.allocations.find(
+      (allocation) => allocation.line_id === line.id && allocation.month === monthKey,
+    )?.planned_amount ?? 0;
   const spent = defaultSpentByLine[line.id] ?? 0;
   const remaining = planned - spent;
   const result = evaluateSpendCheck({
@@ -189,6 +214,46 @@ export function getSavingsSnapshot(monthKey = '2026-09'): SavingsSnapshot {
   };
 }
 
+export function getDebtsSnapshot(monthKey = '2026-09', asOfDate = new Date()): DebtSnapshot[] {
+  const plan = loadPlanSep2026();
+  const asOfKey = [
+    asOfDate.getFullYear(),
+    String(asOfDate.getMonth() + 1).padStart(2, '0'),
+    String(asOfDate.getDate()).padStart(2, '0'),
+  ].join('-');
+
+  return plan.debts.map((debt) => {
+    const payments = recentTransactions
+      .filter((transaction) => transaction.debtId === debt.id)
+      .map(({ id, title, amount, date, source }) => ({ id, title, amount, date, source }));
+    const paidAmount = payments.reduce((sum, payment) => sum + payment.amount, 0);
+    const balance = debtBalance(debt.original_amount, paidAmount);
+    const scheduledThisMonth =
+      plan.allocations.find(
+        (allocation) => allocation.line_id === `line-${debt.id}` && allocation.month === monthKey,
+      )?.planned_amount ?? 0;
+    let status: DebtSnapshot['status'] = 'OPEN';
+    if (balance === 0) status = 'PAID';
+    else if (debt.deadline && debt.deadline < asOfKey) status = 'OVERDUE';
+
+    return {
+      id: debt.id,
+      name: debt.creditor,
+      originalAmount: debt.original_amount,
+      balance,
+      due: new Date(`${debt.deadline}T00:00:00.000Z`).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        timeZone: 'UTC',
+        year: 'numeric',
+      }),
+      status,
+      scheduledThisMonth,
+      payments,
+    };
+  });
+}
+
 export const monthSummary = getHomeDashboardSnapshot().summary;
 export const budgetLines: BudgetLine[] = getHomeDashboardSnapshot().lines;
 export const budgetOverview = getBudgetOverview();
@@ -210,6 +275,7 @@ export const recentTransactions: TransactionItem[] = [
     amount: 150000,
     date: 'Mon',
     source: 'manual',
+    debtId: 'debt-mom',
   },
   {
     id: 't4',
@@ -223,10 +289,7 @@ export const recentTransactions: TransactionItem[] = [
 
 export const savingsPlan = getSavingsSnapshot();
 
-export const debts = [
-  { id: 'mom', name: 'Mom', balance: 150000, due: '11 Nov 2026', status: 'due soon' },
-  { id: 'petra', name: 'Petra', balance: 230000, due: '19 Dec 2026', status: 'on track' },
-];
+export const debts: DebtSnapshot[] = getDebtsSnapshot();
 
 export const inboxItems = [
   { id: 'draft-1', label: '“Spent 20,000 on fuel”', status: 'Needs confirm' },
@@ -234,6 +297,11 @@ export const inboxItems = [
 ];
 
 export const moreItems = [
+  {
+    title: 'Income & transfers',
+    subtitle: 'Record salary and bank-to-MoMo transfers',
+    href: '/income-transfer',
+  },
   { title: 'Debts', subtitle: 'Payment tracking and balances', href: '/debts' },
   { title: 'Inbox', subtitle: 'Voice notes and draft entries', href: '/inbox' },
   { title: 'Settings', subtitle: 'Preferences and profile controls', href: '/settings' },
