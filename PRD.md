@@ -5,7 +5,9 @@
 
 ## Implementation conventions (locked in)
 - This project lives in the app folder at `/Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app`.
-- The approved design reference lives in `designs/Pocket Guard Hi-Fi Design.html` and the exported PNGs in `designs/Pocket Guard Hi-Fi Design-png/`.
+- The approved design references live in `designs/Pocket Guard Hi-Fi Design.html`, the exported PNGs in `designs/Pocket Guard Hi-Fi Design-png/`, and the mobile UI mockups in `designs/mockup/`.
+- Use the mockups in `designs/mockup/` as the working implementation reference for screen layout, component hierarchy, and flows in Epic 3 and any future UI work; when a requirement is ambiguous, match the mockup before inventing new UI patterns.
+- Epic 3 mockup map: `1 First launch`, `2 Home dashboard`, `3 Add transaction`, `4 Blocked + override`, `5 Voice entry`, `6 Can I spend`, `7 Inbox`, `8 Transactions`, `9 Budget plan`, `10 Savings`, `11 Debts`, `12 More and settings`.
 - Use NativeWind/Tailwind classes for screen layout and components wherever possible; only fall back to `StyleSheet` for edge cases that require dynamic values or native-only styling.
 - Prefer reusable UI components and a shared `PageLayout` wrapper for all main screens.
 - Screens follow a mobile-first layout with a single-column card system, rounded surfaces, and the green/amber/red state palette from the PRD.

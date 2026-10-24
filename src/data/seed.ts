@@ -54,19 +54,55 @@ export type SeedPlan = {
 
 const baseLines: SeedLine[] = [
   { id: 'line-fuel', name: 'Fuel', kind: 'running', hard_cap: true, sort_order: 1 },
-  { id: 'line-mom-meeting', name: 'Mom Meeting (Njangi)', kind: 'fixed', hard_cap: false, sort_order: 2 },
+  {
+    id: 'line-mom-meeting',
+    name: 'Mom Meeting (Njangi)',
+    kind: 'fixed',
+    hard_cap: false,
+    sort_order: 2,
+  },
   { id: 'line-debt-mom', name: 'Debt – Mom', kind: 'debt', hard_cap: false, sort_order: 3 },
   { id: 'line-debt-petra', name: 'Debt – Petra', kind: 'debt', hard_cap: false, sort_order: 4 },
-  { id: 'line-kids-savings', name: 'Kids Savings', kind: 'savings', hard_cap: false, sort_order: 5 },
+  {
+    id: 'line-kids-savings',
+    name: 'Kids Savings',
+    kind: 'savings',
+    hard_cap: false,
+    sort_order: 5,
+  },
 ];
 
 const months = ['2026-09', '2026-10', '2026-11', '2026-12'] as const;
 
 const allocationByMonth = {
-  '2026-09': { fuel: 120000, momMeeting: 100000, debtMom: 150000, debtPetra: 0, kidsSavings: 359500 },
-  '2026-10': { fuel: 120000, momMeeting: 100000, debtMom: 150000, debtPetra: 0, kidsSavings: 359500 },
-  '2026-11': { fuel: 120000, momMeeting: 100000, debtMom: 0, debtPetra: 115000, kidsSavings: 394500 },
-  '2026-12': { fuel: 120000, momMeeting: 100000, debtMom: 0, debtPetra: 115000, kidsSavings: 394500 },
+  '2026-09': {
+    fuel: 120000,
+    momMeeting: 100000,
+    debtMom: 150000,
+    debtPetra: 0,
+    kidsSavings: 359500,
+  },
+  '2026-10': {
+    fuel: 120000,
+    momMeeting: 100000,
+    debtMom: 150000,
+    debtPetra: 0,
+    kidsSavings: 359500,
+  },
+  '2026-11': {
+    fuel: 120000,
+    momMeeting: 100000,
+    debtMom: 0,
+    debtPetra: 115000,
+    kidsSavings: 394500,
+  },
+  '2026-12': {
+    fuel: 120000,
+    momMeeting: 100000,
+    debtMom: 0,
+    debtPetra: 115000,
+    kidsSavings: 394500,
+  },
 } as const;
 
 export function loadPlanSep2026(): SeedPlan {

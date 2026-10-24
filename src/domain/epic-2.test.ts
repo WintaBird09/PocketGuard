@@ -17,7 +17,9 @@ describe('Epic 2: budget engine', () => {
 
   it('returns a safe summary for zero-plan and rollover scenarios', () => {
     expect(lineStatus(0, 0, 5, 30)).toMatchObject({ remaining: 0, state: 'unset' });
-    expect(monthSummary({ planned: 500000, spent: 350000, income: 0, expenses: 350000, transfers: 0 })).toMatchObject({
+    expect(
+      monthSummary({ planned: 500000, spent: 350000, income: 0, expenses: 350000, transfers: 0 }),
+    ).toMatchObject({
       planned: 500000,
       spent: 350000,
       remaining: 150000,
@@ -61,6 +63,39 @@ describe('Epic 2: spend checks', () => {
     expect(thresholdResult.status).toBe('WARN');
     expect(thresholdResult.reason).toContain('80%');
   });
+
+  it('returns OK for a safe expense that stays within the remaining budget and below the warning threshold', () => {
+    const result = evaluateSpendCheck({
+      amount: 1000,
+      planned: 120000,
+      spent: 20000,
+      hardCap: true,
+      threshold: 80,
+      daysElapsed: 5,
+      daysInMonth: 30,
+      lineName: 'Fuel',
+    });
+
+    expect(result.status).toBe('OK');
+    expect(result.remainingAfter).toBe(99000);
+    expect(result.reason).toContain('under 80%');
+  });
+
+  it('warns when the pace or threshold checks are triggered before the month ends', () => {
+    const result = evaluateSpendCheck({
+      amount: 20000,
+      planned: 120000,
+      spent: 98000,
+      hardCap: false,
+      threshold: 80,
+      daysElapsed: 18,
+      daysInMonth: 30,
+      lineName: 'Fuel',
+    });
+
+    expect(result.status).toBe('WARN');
+    expect(result.reason).toContain('monthly budget');
+  });
 });
 
 describe('Epic 2: alerts and seed data', () => {
@@ -78,14 +113,25 @@ describe('Epic 2: alerts and seed data', () => {
     });
 
     expect(alerts.map((alert) => alert.title)).toContain('Fuel at 100% of monthly budget');
-    expect(alerts.find((alert) => alert.id === 'pace-alert')?.title).toBe('Budget pace is ahead of plan');
-    expect(alerts.find((alert) => alert.id === 'savings-due')?.title).toBe('Savings goal due this month');
-    expect(alerts.find((alert) => alert.id === 'daily-summary')?.body).toContain('Fuel is at 100% usage');
+    expect(alerts.find((alert) => alert.id === 'pace-alert')?.title).toBe(
+      'Budget pace is ahead of plan',
+    );
+    expect(alerts.find((alert) => alert.id === 'savings-due')?.title).toBe(
+      'Savings goal due this month',
+    );
+    expect(alerts.find((alert) => alert.id === 'daily-summary')?.body).toContain(
+      'Fuel is at 100% usage',
+    );
   });
 
   it('loads the Sep–Dec seed plan with the expected totals and shortfall', () => {
     const plan = loadPlanSep2026();
-    const totalPlannedSavings = plannedSavingsTotalForMonths(['2026-09', '2026-10', '2026-11', '2026-12']);
+    const totalPlannedSavings = plannedSavingsTotalForMonths([
+      '2026-09',
+      '2026-10',
+      '2026-11',
+      '2026-12',
+    ]);
 
     expect(plan.lines.map((line) => line.name)).toContain('Fuel');
     expect(plan.debts).toHaveLength(2);

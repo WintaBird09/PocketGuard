@@ -9,7 +9,7 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
 - Business logic lives in `src/domain/` as pure functions with unit tests. No React, no SQLite imports there.
 - UI reads data via repository functions in `src/data/`; UI never writes raw SQL.
 - Use NativeWind/Tailwind for layout and styling across screens; prefer reusable components over inline `StyleSheet` blocks.
-- Use a shared `PageLayout` wrapper for app pages and keep card-based layout patterns consistent with the approved design files in `designs/`.
+- Use a shared `PageLayout` wrapper for app pages and keep card-based layout patterns consistent with the approved design files in `designs/`, especially the UI mockups in `designs/mockup/`.
 - Offline-first: every write goes to SQLite first, then the outbox. Never block UI on network.
 - Every table has `id uuid` (client-generated), `household_id`, `created_at`, `updated_at`, `deleted_at`.
 - Never store derived totals (spent, remaining, balances). Compute from transactions.
@@ -70,6 +70,9 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
   *Done when:* running it twice gives the same row counts; computed Sep planned savings = 359,500 and total planned = 1,508,000 (the shortfall figure 492,000 must be reproducible from the engine).
 
 ## EPIC 3 — Core screens (manual flow)
+
+- UI mockup reference: the working visual specs for the app screens live in `designs/mockup/` and should be used as the source of truth for layout, hierarchy, and interaction details throughout Epic 3 and any future UI work. When a requirement is ambiguous, match the mockup first and use the HTML/PNG design exports as supporting references.
+- Mockup map for Epic 3 and future screens: `1 First launch`, `2 Home dashboard`, `3 Add transaction`, `4 Blocked + override`, `5 Voice entry`, `6 Can I spend`, `7 Inbox`, `8 Transactions`, `9 Budget plan`, `10 Savings`, `11 Debts`, `12 More and settings`.
 
 - **3.1 Onboarding stub:** first-run creates a household locally (no auth yet) and offers "Load my Sep–Dec plan" (calls 2.7).
   *Done when:* fresh install → seeded → Home shows data.

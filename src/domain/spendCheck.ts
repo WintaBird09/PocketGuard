@@ -24,7 +24,9 @@ export function evaluateSpendCheck(options: SpendCheckOptions): SpendCheckResult
   const planned = Number.isFinite(options.planned) ? Math.trunc(options.planned) : 0;
   const spent = Number.isFinite(options.spent) ? Math.trunc(options.spent) : 0;
   const hardCap = Boolean(options.hardCap);
-  const threshold = Number.isFinite(options.threshold) ? Math.max(0, Number(options.threshold)) : 80;
+  const threshold = Number.isFinite(options.threshold)
+    ? Math.max(0, Number(options.threshold))
+    : 80;
   const daysElapsed = Number.isFinite(options.daysElapsed)
     ? Math.max(0, Math.trunc(options.daysElapsed ?? 0))
     : 0;
