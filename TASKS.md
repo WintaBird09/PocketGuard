@@ -180,7 +180,7 @@ Approved by the owner, to be done **before Task 6.3**. Rules: no change to finis
 - **10.8 Loans list screen** and a Loans row in More (small edit to More).
 - **10.9 Add/edit loan form:** date, person, amount, plan, deadline; optional Lending line check (E4, off by default).
 - **10.10 Loan detail:** repayments, write-off, per-person summary, WhatsApp "Send reminder" link.
-- **10.11 Reminders:** `loan_due` alert kind (7d, 2d, due day, weekly overdue) added to the Epic 4 scheduler without changing existing alerts.
+- **10.11 Reminders (done):** `loan_due` alert kind (7d, 2d, due day, weekly overdue) added to the Epic 4 scheduler without changing existing alerts. Reminders are future-dated at 09:00 and rebuilt on every refresh; a reminder whose time has passed is skipped, never fired late.
 - **Postponed:** 10.4 sync push/pull for loan tables (after 6.3–6.5), 10.12 "Owed to you" Home tile, 10.13 loan rows in Activity, 10.14 voice (with Epic 7), 10.15 CSV export and acceptance (with Epic 8).
 
 ---

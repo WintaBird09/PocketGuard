@@ -10,6 +10,7 @@ import {
   getPersistedSavingsAndDebtReminders,
   markPersistedThresholdAlertsScheduled,
 } from './persisted-alerts';
+import { getPersistedLoanReminders } from './loan-alerts';
 import { getPersistedDailySummaries, getPersistedDailySummaryTime } from './daily-summary';
 import {
   createDebouncedRescheduler,
@@ -58,6 +59,7 @@ const enqueueReschedule = createDebouncedRescheduler(
       ...getPersistedBudgetAlerts(db),
       ...getPersistedPaceAlerts(db),
       ...getPersistedSavingsAndDebtReminders(db),
+      ...getPersistedLoanReminders(db),
       ...getPersistedDailySummaries(db),
     ];
   },

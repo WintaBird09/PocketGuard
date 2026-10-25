@@ -72,7 +72,7 @@ export function createNotificationScheduler(adapter: SchedulerAdapter) {
         const channelId =
           alert.kind === 'daily_summary'
             ? 'daily'
-            : alert.kind === 'savings_due' || alert.kind === 'debt_due'
+            : alert.kind === 'savings_due' || alert.kind === 'debt_due' || alert.kind === 'loan_due'
               ? 'reminders'
               : 'alerts';
         const alertTriggerDate =

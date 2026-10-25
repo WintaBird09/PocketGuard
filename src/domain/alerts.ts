@@ -1,4 +1,5 @@
-export type AlertKind = 'threshold' | 'pace' | 'savings_due' | 'debt_due' | 'daily_summary';
+export type AlertKind =
+  'threshold' | 'pace' | 'savings_due' | 'debt_due' | 'loan_due' | 'daily_summary';
 
 export type Alert = {
   id: string;

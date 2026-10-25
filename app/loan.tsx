@@ -14,6 +14,7 @@ import {
   writeOffLoan,
 } from '@/src/data/loans';
 import { localDateString } from '@/src/domain/dates';
+import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { Banner, Button } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
@@ -52,6 +53,7 @@ export default function LoanDetailScreen() {
       action();
       setConfirming(null);
       setMessage(done);
+      scheduleNotificationRefresh();
       refresh();
     } catch (cause) {
       setConfirming(null);
@@ -271,6 +273,7 @@ export default function LoanDetailScreen() {
                 if (confirming === 'delete' && db) {
                   try {
                     deleteLoan(db, householdId, loan.id);
+                    scheduleNotificationRefresh();
                     router.back();
                   } catch (cause) {
                     setConfirming(null);

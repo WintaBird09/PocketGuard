@@ -13,6 +13,7 @@ import { checkLendingCap, getLendingCap, setLendingCap } from '@/src/data/lendin
 import { createLoan, getLoan, updateLoan } from '@/src/data/loans';
 import { localDateString } from '@/src/domain/dates';
 import type { LoanPlan } from '@/src/domain/loans';
+import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { Banner, Button, Chip } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
@@ -95,6 +96,7 @@ export default function LoanFormScreen() {
       const input = buildLoanInput(form);
       if (id) updateLoan(db, householdId, id, input);
       else createLoan(db, householdId, input);
+      scheduleNotificationRefresh();
       router.back();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save the loan.');
