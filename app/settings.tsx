@@ -30,10 +30,12 @@ import {
 } from '@/src/notifications/permissions';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { parseDailySummaryTime } from '@/src/notifications/scheduler';
+import { useSyncStatus } from '@/src/sync/SyncProvider';
 import { PageLayout } from '@/src/ui/PageLayout';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const { snapshot: syncSnapshot } = useSyncStatus();
   const [permission, setPermission] = useState<NotificationPermissionState | 'checking'>(
     'checking',
   );
@@ -275,6 +277,9 @@ export default function SettingsScreen() {
         <Text className="mt-2 text-sm text-slate-600">
           Optional cloud account. Your local household stays available when signed out.
         </Text>
+        {syncSnapshot.error ? (
+          <Text className="mt-2 text-xs text-red-700">Sync: {syncSnapshot.error}</Text>
+        ) : null}
       </Pressable>
 
       <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { describe, expect, it, vi } from 'vitest';
 
 import { initializeLocalApp } from '../data/bootstrap';
+import { createLoan, listLoans, recordLoanRepayment } from '../data/loans';
 
 import {
   ensureRemoteHouseholdMapping,
@@ -43,6 +44,9 @@ const householdIdTables = [
   'savings_goals',
   'savings_commitments',
   'settings',
+  'loans',
+  'loan_installments',
+  'loan_payments',
   'sync_state',
   'outbox',
 ] as const;
@@ -214,5 +218,37 @@ describe('authenticated household bootstrap', () => {
       currency: 'XAF',
       monthStartDay: 1,
     });
+  });
+});
+
+describe('household re-key keeps loans visible', () => {
+  it('moves loans, installments and repayments to the linked household', async () => {
+    const db = new Database(':memory:');
+    const local = initializeLocalApp(db as never);
+    const loanId = createLoan(db as never, local.householdId, {
+      personName: 'Petra',
+      lentOn: '2026-10-01',
+      amount: 100000,
+      plan: 'installments',
+      firstDueOn: '2026-11-05',
+      installmentCount: 4,
+    });
+    recordLoanRepayment(db as never, local.householdId, { loanId, amount: 25000 });
+
+    await ensureRemoteHouseholdMapping(db as never, userId, {
+      createHousehold: async () => remoteHouseholdId,
+    });
+
+    const loans = listLoans(db as never, remoteHouseholdId, '2026-10-25');
+    expect(loans).toHaveLength(1);
+    expect(loans[0].installments).toHaveLength(4);
+    expect(loans[0].paid).toBe(25000);
+    for (const table of ['loans', 'loan_installments', 'loan_payments']) {
+      expect(
+        db
+          .prepare(`SELECT COUNT(*) AS c FROM ${table} WHERE household_id <> ?;`)
+          .get(remoteHouseholdId),
+      ).toEqual({ c: 0 });
+    }
   });
 });

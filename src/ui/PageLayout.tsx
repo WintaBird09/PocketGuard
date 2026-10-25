@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 
+import { SyncIndicator } from '@/src/sync/SyncIndicator';
+
 type PageLayoutProps = {
   title: string;
   subtitle?: string;
@@ -25,6 +27,9 @@ export function PageLayout({
             {subtitle ? <Text className="mt-1 text-base text-slate-600">{subtitle}</Text> : null}
           </View>
           {action ? <View className="ml-3">{action}</View> : null}
+        </View>
+        <View className="mb-4">
+          <SyncIndicator />
         </View>
         {children}
       </ScrollView>

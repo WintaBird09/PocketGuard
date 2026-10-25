@@ -52,6 +52,9 @@ const householdOwnedTables = [
   'savings_goals',
   'savings_commitments',
   'settings',
+  'loans',
+  'loan_installments',
+  'loan_payments',
   'sync_state',
   'outbox',
 ] as const;

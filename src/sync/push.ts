@@ -267,6 +267,11 @@ function persistRetry(
   })();
 }
 
+export function countPendingChanges(db: DatabaseLike): number {
+  if (!db.prepare) throw new Error('Database does not support the sync outbox.');
+  return countOutbox(db.prepare.bind(db) as (sql: string) => SyncStatement);
+}
+
 function countOutbox(prepare: (sql: string) => SyncStatement): number {
   const result = prepare(
     `SELECT COUNT(*) AS count FROM outbox WHERE table_name IN (${supportedTableList});`,

@@ -1,3 +1,5 @@
+import { notifyOutboxAppended } from './outboxEvents';
+
 type SqlStatement = {
   run: (...args: unknown[]) => unknown;
   get: (...args: unknown[]) => Record<string, unknown> | undefined;
@@ -70,6 +72,7 @@ export const appendOutboxEntry = (
   );
 
   statement.run(id, householdId, tableName, rowId, op, timestamp, timestamp);
+  notifyOutboxAppended();
 };
 
 export const budgetLines = {

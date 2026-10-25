@@ -7,6 +7,7 @@ import { Pressable, Text, View } from 'react-native';
 import { AuthProvider } from '@/src/auth/AuthProvider';
 import { initializeLocalApp } from '@/src/data/bootstrap';
 import { openAppDatabase } from '@/src/data/db';
+import { SyncProvider } from '@/src/sync/SyncProvider';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 
 export default function RootLayout() {
@@ -58,7 +59,9 @@ export default function RootLayout() {
 
   return ready ? (
     <AuthProvider>
-      <Stack screenOptions={{ headerShown: false }} />
+      <SyncProvider>
+        <Stack screenOptions={{ headerShown: false }} />
+      </SyncProvider>
     </AuthProvider>
   ) : (
     <View className="flex-1 items-center justify-center bg-slate-50">

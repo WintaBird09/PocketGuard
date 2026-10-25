@@ -125,7 +125,7 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
   *Done when:* creating a transaction offline, then going online, shows it in Supabase exactly once.
 - **6.2 Pull:** per table, fetch `updated_at > last_pull_at`, apply last-write-wins, handle `deleted_at`, update `sync_state`.
   *Done when:* editing a row in the Supabase dashboard appears on the phone after sync.
-- **6.3 Triggers and indicator:** run sync on app start, connectivity regain (`@react-native-community/netinfo`), after writes (debounced). Show status: synced / N pending / offline / error.
+- **6.3 Triggers and indicator (done):** run sync on app start, connectivity regain (`@react-native-community/netinfo`), after writes (debounced). Show status: synced / N pending / offline / error.
   *Done when:* airplane mode on/off cycle drains the outbox and indicator reflects it.
 - **6.4 Restore test:** uninstall, reinstall, sign in → all data returns.
   *Done when:* row counts per table match before/after.
