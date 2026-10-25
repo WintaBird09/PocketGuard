@@ -39,6 +39,13 @@
       "expo-notifications",
       "expo-secure-store",
       [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Pocket Guard uses the microphone when you start voice entry.",
+          "speechRecognitionPermission": "Pocket Guard converts your speech to text for voice entry."
+        }
+      ],
+      [
         "expo-contacts",
         {
           "contactsPermission": "Pocket Guard reads only the name and number of the person you pick for a loan."
