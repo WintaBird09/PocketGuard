@@ -136,14 +136,25 @@ export type ExpenseSubmission =
   | { saved: false; reason: 'blocked' | 'confirmation-required'; review: ExpenseReview }
   | { saved: true; review: ExpenseReview; transaction: ReturnType<typeof transactions.add> };
 
+export type ExpenseOverride = { reason: string; authenticated: boolean };
+
+// A hard-cap overspend is saved only with a typed reason and a passed biometric/PIN check (FR-16).
 export function submitExpense(
   db: DatabaseLike,
   householdId: string,
   draft: ExpenseDraft,
   confirmWarning = false,
+  override?: ExpenseOverride,
 ): ExpenseSubmission {
   const review = getExpenseReview(db, householdId, draft);
-  if (review.result.status === 'BLOCKED') return { saved: false, reason: 'blocked', review };
+  let overrideReason: string | null = null;
+  if (review.result.status === 'BLOCKED') {
+    const reason = override?.reason.trim() ?? '';
+    if (!override || !override.authenticated || !reason) {
+      return { saved: false, reason: 'blocked', review };
+    }
+    overrideReason = reason;
+  }
   if (review.result.status === 'WARN' && !confirmWarning) {
     return { saved: false, reason: 'confirmation-required', review };
   }
@@ -163,6 +174,7 @@ export function submitExpense(
     note: draft.note.trim() || null,
     source: 'manual',
     status: 'confirmed',
+    override_reason: overrideReason,
   });
 
   return { saved: true, review, transaction };

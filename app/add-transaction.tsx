@@ -11,6 +11,7 @@ import {
 import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
 import { monthKeyForDate } from '@/src/domain/dates';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
+import { authenticateForOverride } from '@/src/security/appLock';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 
@@ -32,6 +33,8 @@ export default function AddTransactionScreen() {
   const [note, setNote] = useState('');
   const [occurredOn, setOccurredOn] = useState(todayInputValue);
   const [confirmWarning, setConfirmWarning] = useState(false);
+  const [overrideOpen, setOverrideOpen] = useState(false);
+  const [overrideReason, setOverrideReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -102,7 +105,7 @@ export default function AddTransactionScreen() {
         ? 'text-amber-700'
         : 'text-emerald-700';
 
-  const save = () => {
+  const save = async () => {
     if (!database || !householdId) {
       setError('The local database is not ready yet.');
       return;
@@ -112,11 +115,32 @@ export default function AddTransactionScreen() {
     setMessage(null);
     setSaving(true);
     try {
+      let override: { reason: string; authenticated: boolean } | undefined;
+      if (review?.result.status === 'BLOCKED') {
+        if (!overrideOpen) {
+          setOverrideOpen(true);
+          setMessage(
+            `BLOCKED: ${review.result.reason} To go ahead, type a reason and confirm with your fingerprint or PIN.`,
+          );
+          return;
+        }
+        if (!overrideReason.trim()) {
+          setError('Type a reason for the override.');
+          return;
+        }
+        const auth = await authenticateForOverride();
+        if (!auth.ok) {
+          setError(auth.message);
+          return;
+        }
+        override = { reason: overrideReason, authenticated: true };
+      }
       const submission = submitExpense(
         database,
         householdId,
         { lineId: selectedLineId, amount, note, occurredOn },
         confirmWarning,
+        override,
       );
       if (!submission.saved) {
         if (submission.reason === 'confirmation-required') {
@@ -134,7 +158,11 @@ export default function AddTransactionScreen() {
       setAmountInput('');
       setNote('');
       setConfirmWarning(false);
-      setMessage('Transaction saved.');
+      setOverrideOpen(false);
+      setOverrideReason('');
+      setMessage(
+        override ? 'Override saved and recorded in the Overrides report.' : 'Transaction saved.',
+      );
       setReload((current) => current + 1);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save this transaction.');
@@ -155,6 +183,7 @@ export default function AddTransactionScreen() {
           onChangeText={(value) => {
             setAmountInput(value);
             setConfirmWarning(false);
+            setOverrideOpen(false);
             setMessage(null);
           }}
           keyboardType="number-pad"
@@ -172,6 +201,7 @@ export default function AddTransactionScreen() {
                 onPress={() => {
                   setSelectedLineId(line.id);
                   setConfirmWarning(false);
+                  setOverrideOpen(false);
                   setMessage(null);
                 }}
                 className={`rounded-full px-3 py-2 ${isActive ? 'bg-emerald-100' : 'bg-slate-100'}`}
@@ -199,6 +229,7 @@ export default function AddTransactionScreen() {
           onChangeText={(value) => {
             setOccurredOn(value);
             setConfirmWarning(false);
+            setOverrideOpen(false);
             setMessage(null);
           }}
           placeholder="YYYY-MM-DD"
@@ -238,6 +269,21 @@ export default function AddTransactionScreen() {
         )}
       </View>
 
+      {overrideOpen && review?.result.status === 'BLOCKED' ? (
+        <View className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5">
+          <Text className="mb-2 text-sm font-bold text-red-800">Override this hard cap</Text>
+          <TextInput
+            accessibilityLabel="Override reason"
+            value={overrideReason}
+            onChangeText={setOverrideReason}
+            placeholder="Why is this needed?"
+            className="rounded-xl border border-red-200 bg-white px-4 py-3 text-base text-slate-900"
+          />
+          <Text className="mt-2 text-xs text-red-700">
+            Overrides are recorded with your reason and shown in the Overrides report.
+          </Text>
+        </View>
+      ) : null}
       {error ? <Text className="mt-4 text-sm font-medium text-red-700">{error}</Text> : null}
       {message ? <Text className="mt-4 text-sm font-medium text-slate-700">{message}</Text> : null}
 
@@ -250,12 +296,14 @@ export default function AddTransactionScreen() {
         </Link>
         <Pressable
           accessibilityRole="button"
-          disabled={!review || review.result.status === 'BLOCKED' || saving}
-          onPress={save}
+          disabled={!review || saving}
+          onPress={() => void save()}
           className={`flex-1 rounded-2xl px-4 py-3 ${
-            !review || review.result.status === 'BLOCKED' || saving
+            !review || saving
               ? 'bg-slate-300'
-              : 'bg-emerald-600'
+              : review.result.status === 'BLOCKED'
+                ? 'bg-red-700'
+                : 'bg-emerald-600'
           }`}
         >
           <Text className="text-center text-base font-bold text-white">
@@ -264,7 +312,9 @@ export default function AddTransactionScreen() {
               : confirmWarning
                 ? 'Confirm warning & save'
                 : review?.result.status === 'BLOCKED'
-                  ? 'Blocked'
+                  ? overrideOpen
+                    ? 'Authenticate & override'
+                    : 'Blocked – override…'
                   : 'Save'}
           </Text>
         </Pressable>

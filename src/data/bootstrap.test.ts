@@ -28,16 +28,16 @@ describe('first-run bootstrap flow', () => {
     };
     expect(counts).toEqual({
       household: { count: 1 },
-      lines: { count: 5 },
-      allocations: { count: 20 },
+      lines: { count: 15 },
+      allocations: { count: 60 },
       debts: { count: 2 },
       goals: { count: 1 },
       commitments: { count: 4 },
-      outbox: { count: 33 },
+      outbox: { count: 85 },
     });
 
     const secondLaunch = initializeLocalApp(db as never);
     expect(secondLaunch).toEqual(firstLaunch);
-    expect(db.prepare('SELECT COUNT(*) AS count FROM outbox').get()).toEqual({ count: 33 });
+    expect(db.prepare('SELECT COUNT(*) AS count FROM outbox').get()).toEqual({ count: 85 });
   });
 });

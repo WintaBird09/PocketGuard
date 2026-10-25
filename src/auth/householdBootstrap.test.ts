@@ -121,7 +121,7 @@ describe('authenticated household bootstrap', () => {
     ).rejects.toThrow('Network unavailable');
 
     expect(db.prepare('SELECT id FROM households;').all()).toEqual([{ id: local.householdId }]);
-    expect(db.prepare('SELECT COUNT(*) AS count FROM outbox;').get()).toEqual({ count: 33 });
+    expect(db.prepare('SELECT COUNT(*) AS count FROM outbox;').get()).toEqual({ count: 85 });
     expect(db.prepare('SELECT COUNT(*) AS count FROM sync_state;').get()).toEqual({ count: 0 });
   });
 

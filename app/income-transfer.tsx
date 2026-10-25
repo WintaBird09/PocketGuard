@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
-import { loadPlanSep2026 } from '@/src/data/seed';
+import { getActiveHouseholdId } from '@/src/data/household';
 import { openAppDatabase, runMigrations, type DatabaseLike } from '@/src/data/db';
 import { transactions, type TransactionDirection } from '@/src/data/repos';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
@@ -28,7 +28,7 @@ const entryTypes: { direction: TransactionDirection; label: string; noteLabel: s
 function getRecordedEntries(database: DatabaseLike): RecordedEntry[] {
   const month = new Date().toISOString().slice(0, 7);
   return transactions
-    .listByMonth(database, loadPlanSep2026().household.id, month)
+    .listByMonth(database, getActiveHouseholdId(database), month)
     .flatMap((row) => {
       if (row.direction !== 'income' && row.direction !== 'transfer') return [];
       return [
@@ -92,7 +92,7 @@ export default function IncomeTransferScreen() {
     setError(null);
     setMessage(null);
     try {
-      transactions.add(database, loadPlanSep2026().household.id, {
+      transactions.add(database, getActiveHouseholdId(database), {
         occurred_at: new Date().toISOString(),
         amount: parsedAmount,
         direction,

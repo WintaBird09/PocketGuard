@@ -15,6 +15,10 @@ export type SavingsOverview = {
   saved: number;
   monthlyCommitment: number;
   projectedGap: number;
+  /** Confirmed savings plus every still-unconfirmed commitment, if the plan is followed. */
+  projectedTotal: number;
+  shortfall: number;
+  overdueMonths: string[];
   commitments: SavingsCommitment[];
 };
 
@@ -65,6 +69,24 @@ export function getSavingsOverview(
       )
       .get(householdId, goal.id)?.saved ?? 0,
   );
+  const allRows = database
+    .prepare(
+      `SELECT month, planned_amount, saved_at FROM savings_commitments
+       WHERE household_id = ? AND goal_id = ? AND deleted_at IS NULL;`,
+    )
+    .all(householdId, goal.id) as {
+    month: string;
+    planned_amount: number;
+    saved_at: string | null;
+  }[];
+  const outstandingPlanned = allRows
+    .filter((row) => row.saved_at === null)
+    .reduce((sum, row) => sum + Number(row.planned_amount), 0);
+  const projectedTotal = saved + outstandingPlanned;
+  const overdueMonths = allRows
+    .filter((row) => row.saved_at === null && row.month < monthKey)
+    .map((row) => row.month)
+    .sort();
   const commitments = commitmentRows.map((commitment) => ({
     id: commitment.id,
     month: commitment.month,
@@ -82,6 +104,9 @@ export function getSavingsOverview(
     saved,
     monthlyCommitment,
     projectedGap: Math.max(0, Number(goal.target_amount) - saved),
+    projectedTotal,
+    shortfall: Math.max(0, Number(goal.target_amount) - projectedTotal),
+    overdueMonths,
     commitments,
   };
 }

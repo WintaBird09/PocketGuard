@@ -36,7 +36,11 @@
         }
       ],
       "expo-notifications",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        { "faceIDPermission": "Allow Pocket Guard to confirm budget overrides with Face ID." }
+      ]
     ]
   }
 }

@@ -151,8 +151,8 @@ describe('Epic 2: alerts and seed data', () => {
 
     expect(plan.lines.map((line) => line.name)).toContain('Fuel');
     expect(plan.debts).toHaveLength(2);
-    expect(totalPlannedSavings).toBe(1508000);
-    expect(seedShortfall()).toBe(492000);
+    expect(totalPlannedSavings).toBe(1388000);
+    expect(seedShortfall()).toBe(612000);
     expect(plan.savingsGoal.target_amount).toBe(2000000);
   });
 });

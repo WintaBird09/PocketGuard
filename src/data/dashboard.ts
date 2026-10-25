@@ -2,7 +2,7 @@ import { debtBalance, lineStatus, sumTransactionTotals } from '../domain/budget'
 import { dayOfMonth, daysInMonth } from '../domain/dates';
 
 import type { DatabaseLike } from './db';
-import type { BudgetLine, DashboardSummary } from './epic3';
+import type { BudgetLine, DashboardSummary } from './types';
 
 type DashboardDatabase = DatabaseLike & {
   prepare: (sql: string) => {
@@ -12,7 +12,12 @@ type DashboardDatabase = DatabaseLike & {
 };
 
 export type HomeDashboardSnapshot = {
-  summary: DashboardSummary & { daysLeft: number; savingsStatus: 'On track' | 'Behind' };
+  summary: DashboardSummary & {
+    daysLeft: number;
+    daysElapsed: number;
+    monthLength: number;
+    savingsStatus: 'On track' | 'Behind';
+  };
   lines: BudgetLine[];
   totalPlanned: number;
 };
@@ -102,6 +107,8 @@ export function getHomeDashboardSnapshot(
     const planned = Number(line.planned);
     const spent = spentByLine.get(line.id) ?? 0;
     const state = lineStatus(planned, spent, elapsed, monthLength).state;
+    // Pace needs at least 3 days of data (PRD spend-check rule).
+    const projected = elapsed >= 3 ? Math.round((spent / elapsed) * monthLength) : null;
     return {
       id: line.id,
       name: line.name,
@@ -109,6 +116,8 @@ export function getHomeDashboardSnapshot(
       planned,
       spent,
       remaining: planned - spent,
+      percentUsed: planned > 0 ? Math.round((spent / planned) * 100) : spent > 0 ? 100 : 0,
+      projected,
       hardCap: Boolean(line.hard_cap),
       status: state === 'over' ? 'blocked' : state === 'warning' ? 'warn' : 'ok',
     };
@@ -162,6 +171,8 @@ export function getHomeDashboardSnapshot(
     savingsSaved,
     debtRemaining,
     daysLeft,
+    daysElapsed: elapsed,
+    monthLength,
     savingsStatus,
   };
 

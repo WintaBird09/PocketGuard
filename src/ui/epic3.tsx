@@ -44,12 +44,18 @@ export function BudgetRow({
   spent,
   remaining,
   status,
+  percentUsed,
+  daysLeft,
+  projected,
 }: {
   name: string;
   planned: number;
   spent: number;
   remaining: number;
   status: 'ok' | 'warn' | 'blocked';
+  percentUsed?: number;
+  daysLeft?: number;
+  projected?: number | null;
 }) {
   const statusColor =
     status === 'blocked'
@@ -82,7 +88,21 @@ export function BudgetRow({
         <Text className="text-xs text-slate-500">Planned {formatXAF(planned)}</Text>
         <Text className="text-xs font-medium text-slate-700">Spent {formatXAF(spent)}</Text>
       </View>
-      <Text className="mt-1 text-xs text-slate-500">Remaining {formatXAF(remaining)}</Text>
+      {remaining < 0 ? (
+        <Text className="mt-1 text-xs font-semibold text-red-700">
+          Over budget by {formatXAF(-remaining)}
+        </Text>
+      ) : (
+        <Text className="mt-1 text-xs text-slate-500">Remaining {formatXAF(remaining)}</Text>
+      )}
+      {percentUsed !== undefined && daysLeft !== undefined ? (
+        <Text className="mt-1 text-xs text-slate-600">
+          {percentUsed}% used, {daysLeft} days left
+          {projected !== null && projected !== undefined
+            ? `, at this pace you finish at ${formatXAF(projected)}`
+            : ''}
+        </Text>
+      ) : null}
     </View>
   );
 }

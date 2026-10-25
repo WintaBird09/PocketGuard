@@ -90,6 +90,12 @@ export default function SavingsScreen() {
             ...current,
             saved: current.saved + actualSaved,
             projectedGap: Math.max(0, current.target - current.saved - actualSaved),
+            projectedTotal: current.projectedTotal - commitment.plannedAmount + actualSaved,
+            shortfall: Math.max(
+              0,
+              current.target - (current.projectedTotal - commitment.plannedAmount + actualSaved),
+            ),
+            overdueMonths: current.overdueMonths.filter((month) => month !== commitment.month),
             commitments: current.commitments.map((item) =>
               item.id === commitmentId
                 ? {
@@ -152,6 +158,39 @@ export default function SavingsScreen() {
                 {formatXAF(overview.projectedGap)}
               </Text>
             </View>
+          </View>
+
+          <View className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <Text className="text-lg font-bold text-slate-900">Gap analysis</Text>
+            <View className="mt-3 flex-row justify-between">
+              <Text className="text-sm text-slate-600">
+                Projected total if the plan is followed
+              </Text>
+              <Text className="text-sm font-semibold text-slate-900">
+                {formatXAF(overview.projectedTotal)}
+              </Text>
+            </View>
+            <View className="mt-2 flex-row justify-between">
+              <Text className="text-sm text-slate-600">Goal</Text>
+              <Text className="text-sm font-semibold text-slate-900">
+                {formatXAF(overview.target)}
+              </Text>
+            </View>
+            <View className="mt-2 flex-row justify-between border-t border-slate-200 pt-2">
+              <Text className="text-sm font-bold text-slate-900">
+                {overview.shortfall > 0 ? 'Shortfall' : 'Goal covered'}
+              </Text>
+              <Text
+                className={`text-sm font-bold ${overview.shortfall > 0 ? 'text-red-700' : 'text-emerald-700'}`}
+              >
+                {formatXAF(overview.shortfall)}
+              </Text>
+            </View>
+            {overview.overdueMonths.length > 0 ? (
+              <Text className="mt-3 text-sm font-semibold text-red-700">
+                Overdue, not yet confirmed: {overview.overdueMonths.join(', ')}
+              </Text>
+            ) : null}
           </View>
 
           <View className="mt-5 gap-3">

@@ -1,8 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, Text, TextInput, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 
+import { buildTransactionsCsv } from '@/src/data/activity';
+import { loadSeedPlan } from '@/src/data/bootstrap';
 import { openAppDatabase } from '@/src/data/db';
+import { shareCsv } from '@/src/data/exportCsv';
+import { getActiveHouseholdId } from '@/src/data/household';
 import { settings } from '@/src/data/repos';
 import {
   getPersistedPaceAlertMargin,
@@ -36,6 +40,8 @@ export default function SettingsScreen() {
   const [exactAlarmPermission, setExactAlarmPermission] = useState<
     'granted' | 'denied' | 'checking'
   >('checking');
+  const [confirmReload, setConfirmReload] = useState(false);
+  const [dataMessage, setDataMessage] = useState<string | null>(null);
   const [exactAlarmMessage, setExactAlarmMessage] = useState<string | null>(null);
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
@@ -230,6 +236,34 @@ export default function SettingsScreen() {
     }
   };
 
+  const exportData = async () => {
+    setDataMessage(null);
+    try {
+      const db = await openAppDatabase();
+      const csv = buildTransactionsCsv(db, getActiveHouseholdId(db));
+      await shareCsv(csv, `pocket-guard-${new Date().toISOString().slice(0, 10)}.csv`);
+      setDataMessage('Export ready.');
+    } catch (cause) {
+      setDataMessage(cause instanceof Error ? cause.message : 'Unable to export.');
+    }
+  };
+
+  const reloadPlan = async () => {
+    if (!confirmReload) {
+      setConfirmReload(true);
+      return;
+    }
+    setConfirmReload(false);
+    try {
+      const db = await openAppDatabase();
+      loadSeedPlan(db as Parameters<typeof loadSeedPlan>[0], getActiveHouseholdId(db));
+      scheduleNotificationRefresh();
+      setDataMessage('Plan loaded. Missing lines, amounts and debts were added.');
+    } catch (cause) {
+      setDataMessage(cause instanceof Error ? cause.message : 'Unable to load the plan.');
+    }
+  };
+
   return (
     <PageLayout title="Settings" subtitle="Preferences and app controls">
       <Pressable
@@ -395,20 +429,36 @@ export default function SettingsScreen() {
         ) : null}
       </View>
 
-      <View className="gap-3">
-        {[
-          { label: 'Hard caps', value: 'Enabled' },
-          { label: 'Voice confidence', value: 'High' },
-          { label: 'Offline mode', value: 'Ready' },
-        ].map((item) => (
-          <View
-            key={item.label}
-            className="flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-          >
-            <Text className="text-base font-medium text-slate-800">{item.label}</Text>
-            <Text className="text-sm font-semibold text-slate-600">{item.value}</Text>
-          </View>
-        ))}
+      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <Text className="text-lg font-bold text-slate-900">Security and data</Text>
+        <Link href="/overrides" className="mt-3 rounded-xl border border-slate-200 px-4 py-3">
+          <Text className="text-center font-bold text-slate-900">Overrides report</Text>
+        </Link>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => void exportData()}
+          className="mt-3 rounded-xl border border-slate-200 px-4 py-3"
+        >
+          <Text className="text-center font-bold text-slate-900">Export transactions (CSV)</Text>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={reloadPlan}
+          className="mt-3 rounded-xl border border-slate-200 px-4 py-3"
+        >
+          <Text className="text-center font-bold text-slate-900">
+            {confirmReload ? 'Tap again to confirm' : 'Reload Sep–Dec 2026 plan'}
+          </Text>
+        </Pressable>
+        {confirmReload ? (
+          <Text className="mt-2 text-xs text-slate-600">
+            This only adds missing lines, amounts and debts. Anything you edited or already recorded
+            is kept.
+          </Text>
+        ) : null}
+        {dataMessage ? (
+          <Text className="mt-3 text-sm font-medium text-slate-700">{dataMessage}</Text>
+        ) : null}
       </View>
     </PageLayout>
   );

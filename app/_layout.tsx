@@ -22,7 +22,7 @@ export default function RootLayout() {
       setError(null);
       try {
         const database = await openAppDatabase();
-        initializeLocalApp(database);
+        initializeLocalApp(database, { loadPlan: false });
         if (!active) return;
         setReady(true);
         scheduleNotificationRefresh();
