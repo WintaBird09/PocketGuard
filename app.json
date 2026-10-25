@@ -12,6 +12,7 @@
     },
     "android": {
       "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
+      "blockedPermissions": ["android.permission.WRITE_CONTACTS"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -37,6 +38,12 @@
       ],
       "expo-notifications",
       "expo-secure-store",
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Pocket Guard reads only the name and number of the person you pick for a loan."
+        }
+      ],
       [
         "expo-local-authentication",
         { "faceIDPermission": "Allow Pocket Guard to confirm budget overrides with Face ID." }
