@@ -5,6 +5,7 @@ import { Text, View } from 'react-native';
 import { listDebts } from '@/src/data/debts';
 import { listOverrides } from '@/src/data/activity';
 import { countInbox } from '@/src/data/inbox';
+import { totalOwedToYou } from '@/src/data/loans';
 import { monthKeyForDate } from '@/src/domain/dates';
 import { Banner } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
@@ -22,6 +23,7 @@ export default function MoreScreen() {
         data: {
           waiting: countInbox(db, householdId),
           debtLeft: debts.reduce((sum, debt) => sum + debt.balance, 0),
+          owedToYou: totalOwedToYou(db, householdId),
           overrides: listOverrides(db, householdId, monthKeyForDate(new Date(), 'Africa/Douala'))
             .length,
         },
@@ -47,6 +49,11 @@ export default function MoreScreen() {
       href: '/inbox',
     },
     { title: 'Debts', detail: data ? `${formatXAF(data.debtLeft)} left` : '…', href: '/debts' },
+    {
+      title: 'Loans',
+      detail: data ? `${formatXAF(data.owedToYou)} owed to you` : '…',
+      href: '/loans',
+    },
     {
       title: 'Overrides report',
       detail: data ? `${data.overrides} this month` : '…',
