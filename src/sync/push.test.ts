@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ensureRemoteHouseholdMapping } from '../auth/householdBootstrap';
+import { deleteTransaction, restoreTransaction, updateTransaction } from '../data/activity';
 import { initializeLocalApp } from '../data/bootstrap';
 
 import { pushOutbox, type PushApi } from './push';
@@ -159,5 +160,34 @@ describe('persisted outbox push', () => {
       expect.objectContaining({ id: remoteTransactionId }),
       { onConflict: 'id' },
     );
+  });
+
+  it('pushes the final edit after a delete and restore without leaving a remote tombstone', async () => {
+    fixture.db.prepare('DELETE FROM outbox;').run();
+    expect(deleteTransaction(fixture.db as never, fixture.householdId, 'transaction-real')).toBe(
+      true,
+    );
+    expect(restoreTransaction(fixture.db as never, fixture.householdId, 'transaction-real')).toBe(
+      true,
+    );
+    updateTransaction(fixture.db as never, fixture.householdId, 'transaction-real', {
+      amount: 950,
+      note: 'Corrected after restore',
+      occurredOn: '2026-10-25',
+    });
+
+    const result = await pushOutbox(fixture.db as never, apiState.api, { now: startTime });
+
+    expect(result).toEqual({ sent: 3, remaining: 0, retryAt: null, error: null });
+    expect(apiState.api.upsert).toHaveBeenCalledTimes(3);
+    expect(apiState.remoteRows.size).toBe(1);
+    expect([...apiState.remoteRows.values()][0]).toMatchObject({
+      amount: 950,
+      note: 'Corrected after restore',
+      deleted_at: null,
+    });
+    expect(fixture.db.prepare('SELECT COUNT(*) AS count FROM outbox;').get()).toEqual({
+      count: 0,
+    });
   });
 });

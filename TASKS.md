@@ -127,9 +127,9 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
   *Done when:* editing a row in the Supabase dashboard appears on the phone after sync.
 - **6.3 Triggers and indicator (done):** run sync on app start, connectivity regain (`@react-native-community/netinfo`), after writes (debounced). Show status: synced / N pending / offline / error.
   *Done when:* airplane mode on/off cycle drains the outbox and indicator reflects it.
-- **6.4 Restore test:** uninstall, reinstall, sign in → all data returns.
+- **6.4 Restore test (automated test done):** clean-database restore test covers every currently synced table, row counts, references, and soft-deleted rows. Loans remain excluded until Task 10.4; the physical uninstall/reinstall check remains device-only.
   *Done when:* row counts per table match before/after.
-- **6.5 Sync unit tests:** simulate duplicate push, out-of-order pull, delete-then-edit.
+- **6.5 Sync unit tests (done):** tests cover duplicate/idempotent push, out-of-order pull, and delete-restore-edit push behavior.
   *Done when:* tests pass.
 
 ## EPIC 7 — Voice entry

@@ -307,6 +307,62 @@ describe('remote pull sync', () => {
     db.close();
   });
 
+  it('keeps the newest version when pages return the same row out of order', async () => {
+    const db = createDatabase();
+    const newerUpdate = '2026-10-25T10:09:00.000Z';
+    const { api } = createPullApi({
+      transactions: [
+        {
+          id: 'transaction-out-of-order',
+          household_id: householdId,
+          occurred_at: newerUpdate,
+          amount: 900,
+          direction: 'expense',
+          line_id: null,
+          debt_id: null,
+          note: 'Newest edit',
+          source: 'manual',
+          raw_text: null,
+          status: 'confirmed',
+          override_reason: null,
+          created_at: lastPull,
+          updated_at: newerUpdate,
+          deleted_at: null,
+        },
+        {
+          id: 'transaction-out-of-order',
+          household_id: householdId,
+          occurred_at: lastPull,
+          amount: 400,
+          direction: 'expense',
+          line_id: null,
+          debt_id: null,
+          note: 'Stale edit',
+          source: 'manual',
+          raw_text: null,
+          status: 'confirmed',
+          override_reason: null,
+          created_at: lastPull,
+          updated_at: remoteUpdate,
+          deleted_at: null,
+        },
+      ],
+    });
+
+    const result = await pullRemoteChanges(db as never, api, householdId);
+
+    expect(result).toEqual({ fetched: 2, applied: 1, error: null });
+    expect(
+      db
+        .prepare('SELECT amount, note, updated_at FROM transactions WHERE id = ?;')
+        .get('transaction-out-of-order'),
+    ).toEqual({ amount: 900, note: 'Newest edit', updated_at: newerUpdate });
+    expect(
+      db.prepare('SELECT last_pull_at FROM sync_state WHERE table_name = ?;').get('transactions'),
+    ).toEqual({ last_pull_at: newerUpdate });
+    db.close();
+  });
+
   it('does not advance the cursor when a table fetch fails', async () => {
     const db = createDatabase();
     const api: PullApi = {
