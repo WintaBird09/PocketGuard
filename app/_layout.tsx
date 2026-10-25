@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
+import { AuthProvider } from '@/src/auth/AuthProvider';
 import { initializeLocalApp } from '@/src/data/bootstrap';
 import { openAppDatabase } from '@/src/data/db';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
@@ -56,7 +57,9 @@ export default function RootLayout() {
   }
 
   return ready ? (
-    <Stack screenOptions={{ headerShown: false }} />
+    <AuthProvider>
+      <Stack screenOptions={{ headerShown: false }} />
+    </AuthProvider>
   ) : (
     <View className="flex-1 items-center justify-center bg-slate-50">
       <Text className="text-base font-medium text-slate-600">Preparing your household…</Text>

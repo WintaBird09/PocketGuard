@@ -10,7 +10,7 @@ import {
   getPersistedSavingsAndDebtReminders,
   markPersistedThresholdAlertsScheduled,
 } from './persisted-alerts';
-import { getPersistedDailySummary, getPersistedDailySummaryTime } from './daily-summary';
+import { getPersistedDailySummaries, getPersistedDailySummaryTime } from './daily-summary';
 import {
   createDebouncedRescheduler,
   createNotificationScheduler,
@@ -37,21 +37,14 @@ const reschedule = createNotificationScheduler({
     const trigger =
       request.trigger === null
         ? null
-        : request.trigger.type === 'daily'
-          ? {
-              type: Notifications.SchedulableTriggerInputTypes.DAILY,
-              hour: request.trigger.hour,
-              minute: request.trigger.minute,
-              channelId: request.trigger.channelId,
-              ...(request.trigger.delivery ? { delivery: request.trigger.delivery } : {}),
-            }
-          : {
-              type: Notifications.SchedulableTriggerInputTypes.DATE,
-              date: request.trigger.date,
-              channelId: request.trigger.channelId,
-              ...(request.trigger.delivery ? { delivery: request.trigger.delivery } : {}),
-            };
+        : {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: request.trigger.date,
+            channelId: request.trigger.channelId,
+            ...(request.trigger.delivery ? { delivery: request.trigger.delivery } : {}),
+          };
     return Notifications.scheduleNotificationAsync({
+      identifier: request.identifier,
       content: request.content,
       trigger,
     });
@@ -65,7 +58,7 @@ const enqueueReschedule = createDebouncedRescheduler(
       ...getPersistedBudgetAlerts(db),
       ...getPersistedPaceAlerts(db),
       ...getPersistedSavingsAndDebtReminders(db),
-      getPersistedDailySummary(db),
+      ...getPersistedDailySummaries(db),
     ];
   },
   reschedule,

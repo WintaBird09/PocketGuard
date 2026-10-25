@@ -8,26 +8,18 @@ export type ScheduledRequest = {
 };
 
 export type ScheduleRequest = {
+  identifier: string;
   content: {
     title: string;
     body: string;
     data: Record<string, unknown>;
   };
-  trigger:
-    | {
-        type: 'date';
-        date: Date;
-        channelId: string;
-        delivery?: 'bestEffort' | 'alarmClock';
-      }
-    | {
-        type: 'daily';
-        hour: number;
-        minute: number;
-        channelId: string;
-        delivery?: 'bestEffort' | 'alarmClock';
-      }
-    | null;
+  trigger: {
+    type: 'date';
+    date: Date;
+    channelId: string;
+    delivery?: 'bestEffort' | 'alarmClock';
+  } | null;
 };
 
 export type SchedulerAdapter = {
@@ -89,6 +81,7 @@ export function createNotificationScheduler(adapter: SchedulerAdapter) {
             ? getNextNotificationTime(now, dailySummaryTime.hour, dailySummaryTime.minute)
             : getNextNotificationTime(now));
         const identifier = await adapter.schedule({
+          identifier: alert.id,
           content: {
             title: alert.title,
             body: alert.body,
@@ -100,19 +93,12 @@ export function createNotificationScheduler(adapter: SchedulerAdapter) {
           trigger:
             alert.immediate || alert.kind === 'threshold'
               ? null
-              : alert.repeatDailyAt
-                ? {
-                    type: 'daily',
-                    ...alert.repeatDailyAt,
-                    channelId,
-                    ...(delivery ? { delivery } : {}),
-                  }
-                : {
-                    type: 'date',
-                    date: alertTriggerDate,
-                    channelId,
-                    ...(delivery ? { delivery } : {}),
-                  },
+              : {
+                  type: 'date',
+                  date: alertTriggerDate,
+                  channelId,
+                  ...(delivery ? { delivery } : {}),
+                },
         });
         identifiers.push(identifier);
       }

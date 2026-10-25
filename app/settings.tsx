@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { useRouter } from 'expo-router';
 
 import { openAppDatabase } from '@/src/data/db';
 import { settings } from '@/src/data/repos';
@@ -28,6 +29,7 @@ import { parseDailySummaryTime } from '@/src/notifications/scheduler';
 import { PageLayout } from '@/src/ui/PageLayout';
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const [permission, setPermission] = useState<NotificationPermissionState | 'checking'>(
     'checking',
   );
@@ -230,6 +232,17 @@ export default function SettingsScreen() {
 
   return (
     <PageLayout title="Settings" subtitle="Preferences and app controls">
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/auth')}
+        className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+      >
+        <Text className="text-lg font-bold text-slate-900">Account and sign-in</Text>
+        <Text className="mt-2 text-sm text-slate-600">
+          Optional cloud account. Your local household stays available when signed out.
+        </Text>
+      </Pressable>
+
       <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <Text className="text-lg font-bold text-slate-900">Notifications</Text>
         <Text className="mt-2 text-sm text-slate-600">

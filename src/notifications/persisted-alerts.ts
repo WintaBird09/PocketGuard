@@ -44,7 +44,12 @@ export function markPersistedThresholdAlertsScheduled(
   const notified = new Set(getNotifiedThresholds(db, householdId, monthKey));
   let changed = false;
   for (const alert of alerts) {
-    if (alert.kind !== 'threshold' || !alert.id.startsWith(`${monthKey}:`)) continue;
+    if (
+      (alert.kind !== 'threshold' && alert.kind !== 'pace') ||
+      !alert.id.startsWith(`${monthKey}:`)
+    ) {
+      continue;
+    }
     if (!notified.has(alert.id)) {
       notified.add(alert.id);
       changed = true;
@@ -88,20 +93,22 @@ export function getPersistedPaceAlerts(db: DatabaseLike, now = new Date()): Aler
   const snapshot = getHomeDashboardSnapshot(db, householdId, monthKey, now);
   const elapsedPct = (dayOfMonth(now, timeZone) / daysInMonth(now, timeZone)) * 100;
   const margin = getPersistedPaceAlertMargin(db, householdId);
+  const notified = new Set(getNotifiedThresholds(db, householdId, monthKey));
   return snapshot.lines.flatMap((line) => {
     if (line.planned <= 0) return [];
     const usedPct = (line.spent / line.planned) * 100;
-    if (usedPct <= elapsedPct + margin) return [];
+    const alertId = `${monthKey}:${line.id}:pace`;
+    if (usedPct <= elapsedPct + margin || notified.has(alertId)) return [];
     return [
       {
-        id: `pace:${monthKey}:${line.id}`,
+        id: alertId,
         title: `${line.name} spending pace is ahead`,
         body: `${line.name} is ${Math.floor(usedPct)}% used, ${Math.max(
           0,
           daysInMonth(now, timeZone) - dayOfMonth(now, timeZone),
         )} days left. This is ${Math.floor(usedPct - elapsedPct)} points ahead of monthly pace.`,
         kind: 'pace' as const,
-        repeatDailyAt: { hour: 8, minute: 0 },
+        immediate: true,
       },
     ];
   });
@@ -230,16 +237,25 @@ export function getPersistedSavingsAndDebtReminders(db: DatabaseLike, now = new 
     const lastDay = new Date(year, month, 0).getDate();
     const dueDate = `${commitment.month}-${String(lastDay).padStart(2, '0')}`;
     const daysUntilDue = dayDifference(today, dueDate);
-    const reminderOffsets =
-      daysUntilDue < 0
-        ? Array.from({ length: 7 }, (_, index) => -index)
-        : savingsReminderDays.filter((daysBefore) => daysUntilDue >= daysBefore);
+    if (daysUntilDue < 0) {
+      const reminderTime = localReminderTime(today, now);
+      return [
+        {
+          id: `savings-overdue:${commitment.id}:${today}`,
+          title: `${commitment.goal_name} savings commitment overdue`,
+          body: `The planned ${Number(commitment.planned_amount).toLocaleString('en-US')} XAF savings commitment is overdue. Confirm it when saved.`,
+          kind: 'savings_due' as const,
+          scheduledAt: reminderTime,
+        },
+      ];
+    }
+    const reminderOffsets = savingsReminderDays.filter((daysBefore) => daysUntilDue === daysBefore);
 
     return reminderOffsets.map((offset) => {
       const reminderDay =
         offset < 0 ? addDaysToKey(today, -offset) : addDaysToKey(dueDate, -offset);
       return {
-        id: `savings-reminder:${commitment.id}:${offset}`,
+        id: `savings-reminder:${commitment.id}:${dueDate}:${offset}`,
         title: `${commitment.goal_name} savings commitment`,
         body:
           daysUntilDue < 0
@@ -254,8 +270,22 @@ export function getPersistedSavingsAndDebtReminders(db: DatabaseLike, now = new 
   const debtAlerts = debtRows.flatMap((debt) => {
     if (Number(debt.paid) >= Number(debt.original_amount)) return [];
     const daysUntilDue = dayDifference(today, debt.deadline);
+    if (daysUntilDue < 0) {
+      return [
+        {
+          id: `debt-overdue:${debt.id}:${today}`,
+          title: `${debt.creditor} debt payment overdue`,
+          body: `A remaining debt balance of ${Math.max(
+            0,
+            Number(debt.original_amount) - Number(debt.paid),
+          ).toLocaleString('en-US')} XAF is overdue.`,
+          kind: 'debt_due' as const,
+          scheduledAt: localReminderTime(today, now),
+        },
+      ];
+    }
     return [7, 2]
-      .filter((daysBefore) => daysUntilDue >= daysBefore)
+      .filter((daysBefore) => daysUntilDue === daysBefore)
       .map((daysBefore) => ({
         id: `debt-reminder:${debt.id}:${daysBefore}`,
         title: `${debt.creditor} debt payment reminder`,

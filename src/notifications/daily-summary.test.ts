@@ -8,6 +8,7 @@ import {
   dailySummarySettingKey,
   defaultDailySummaryTime,
   getPersistedDailySummary,
+  getPersistedDailySummaries,
   getPersistedDailySummaryTime,
 } from './daily-summary';
 
@@ -93,5 +94,27 @@ describe('persisted daily summary', () => {
     expect(() => getPersistedDailySummaryTime(db as never)).toThrow(
       'Daily summary time must be in 24-hour HH:mm format.',
     );
+  });
+
+  it('creates a stable next-seven-days series at the saved local summary time', () => {
+    db = new Database(':memory:');
+    runMigrations(db as never);
+    db.prepare(
+      `INSERT INTO households (id, household_id, name)
+       VALUES ('household-1', 'household-1', 'Personal');`,
+    ).run();
+    settings.set(db as never, 'household-1', dailySummarySettingKey, '20:00');
+
+    const now = new Date('2026-10-24T12:00:00.000Z');
+    const summaries = getPersistedDailySummaries(db as never, now);
+
+    expect(summaries).toHaveLength(7);
+    expect(new Set(summaries.map((summary) => summary.id)).size).toBe(7);
+    expect(summaries[0].scheduledAt?.getHours()).toBe(20);
+    expect(summaries[0].scheduledAt?.getMinutes()).toBe(0);
+    expect(summaries.map((summary) => summary.scheduledAt?.getDate())).toEqual([
+      24, 25, 26, 27, 28, 29, 30,
+    ]);
+    expect(summaries.every((summary) => summary.body === summaries[0].body)).toBe(true);
   });
 });

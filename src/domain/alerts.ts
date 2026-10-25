@@ -7,7 +7,6 @@ export type Alert = {
   kind: AlertKind;
   scheduledAt?: Date;
   immediate?: boolean;
-  repeatDailyAt?: { hour: number; minute: number };
 };
 
 export type AlertStateInput = {

@@ -3,9 +3,8 @@ import type { DatabaseLike } from '../data/db';
 import { settings } from '../data/repos';
 import { monthKeyForDate } from '../domain/dates';
 import type { Alert } from '../domain/alerts';
-import { getPersistedPaceAlerts } from './persisted-alerts';
 
-import { parseDailySummaryTime } from './scheduler';
+import { getNextNotificationTime, parseDailySummaryTime } from './scheduler';
 
 export const dailySummarySettingKey = 'daily_summary_time';
 export const defaultDailySummaryTime = '20:00';
@@ -148,8 +147,6 @@ export function getPersistedDailySummary(db: DatabaseLike, now = new Date()): Al
   const highUsageLines = snapshot.lines
     .filter((line) => line.planned > 0 && line.spent / line.planned >= 0.8)
     .map((line) => `${line.name} ${Math.floor((line.spent / line.planned) * 100)}%`);
-  const paceAlerts = getPersistedPaceAlerts(database, now);
-
   const tomorrow = new Date(`${day}T12:00:00Z`);
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
   const tomorrowKey = `${tomorrow.getUTCFullYear()}-${String(tomorrow.getUTCMonth() + 1).padStart(2, '0')}-${String(tomorrow.getUTCDate()).padStart(2, '0')}`;
@@ -201,9 +198,6 @@ export function getPersistedDailySummary(db: DatabaseLike, now = new Date()): Al
     highUsageLines.length
       ? `At or above 80%: ${highUsageLines.join(', ')}.`
       : 'No budget lines are at 80%.',
-    paceAlerts.length
-      ? `Pace alerts: ${paceAlerts.map((alert) => alert.body).join(' ')}`
-      : 'Spending pace is within plan.',
     dueItems.length ? `Due tomorrow: ${dueItems.join(', ')}.` : 'Nothing is due tomorrow.',
   ].join(' ');
 
@@ -213,4 +207,33 @@ export function getPersistedDailySummary(db: DatabaseLike, now = new Date()): Al
     body,
     kind: 'daily_summary',
   };
+}
+
+export function getPersistedDailySummaries(db: DatabaseLike, now = new Date(), days = 7): Alert[] {
+  if (!Number.isInteger(days) || days < 1 || days > 31) {
+    throw new Error('Daily summaries must be scheduled for between 1 and 31 days.');
+  }
+  const time = parseDailySummaryTime(getPersistedDailySummaryTime(db));
+  const firstDate = getNextNotificationTime(now, time.hour, time.minute);
+  const summary = getPersistedDailySummary(db, now);
+
+  return Array.from({ length: days }, (_, index) => {
+    const scheduledAt = new Date(firstDate);
+    scheduledAt.setDate(scheduledAt.getDate() + index);
+    const dateKey = new Intl.DateTimeFormat('en-CA', {
+      timeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .formatToParts(scheduledAt)
+      .filter((part) => part.type === 'year' || part.type === 'month' || part.type === 'day')
+      .map((part) => part.value)
+      .join('-');
+    return {
+      ...summary,
+      id: `${summary.id}:${dateKey}`,
+      scheduledAt,
+    };
+  });
 }

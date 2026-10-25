@@ -89,6 +89,10 @@ describe('persisted notification refresh flow', () => {
       'Fuel at 50% of monthly budget',
       'Fuel at 80% of monthly budget',
     ]);
+    expect(scheduledInputs.map((request) => request.identifier)).toEqual([
+      '2026-10:fuel:50',
+      '2026-10:fuel:80',
+    ]);
     expect(scheduledInputs.map((request) => request.trigger)).toEqual([null, null]);
     expect(requests).toHaveLength(2);
     expect(getPersistedBudgetAlerts(db as never, now)).toEqual([]);
@@ -112,10 +116,12 @@ describe('persisted notification refresh flow', () => {
       'Fuel at 100% of monthly budget',
     ]);
     expect(scheduledInputs[2].trigger).toBeNull();
+    expect(scheduledInputs[2].identifier).toBe('2026-10:fuel:100');
     expect(adapter.cancel).toHaveBeenCalledTimes(2);
+    expect(getPersistedBudgetAlerts(db as never, now)).toEqual([]);
   });
 
-  it('evaluates pace against elapsed month and reads the configured margin', () => {
+  it('evaluates pace on transaction refresh and records a one-time alert', async () => {
     db = new Database(':memory:');
     runMigrations(db as never);
     db.prepare(
@@ -142,7 +148,21 @@ describe('persisted notification refresh flow', () => {
     const alerts = getPersistedPaceAlerts(db as never, now);
     expect(alerts).toHaveLength(1);
     expect(alerts[0].body).toContain('Fuel is 85% used');
-    expect(alerts[0].repeatDailyAt).toEqual({ hour: 8, minute: 0 });
+    expect(alerts[0].immediate).toBe(true);
+    const adapter: SchedulerAdapter = {
+      getPermission: vi.fn(async () => 'granted'),
+      getScheduled: vi.fn(async () => []),
+      cancel: vi.fn(async () => undefined),
+      schedule: vi.fn(async (request) => {
+        expect(request.trigger).toBeNull();
+        expect(request.identifier).toBe('2026-10:fuel:pace');
+        return request.identifier;
+      }),
+      onScheduled: async (scheduledAlerts) =>
+        markPersistedThresholdAlertsScheduled(db as never, scheduledAlerts, now),
+    };
+    await createNotificationScheduler(adapter)(alerts, now);
+    expect(getPersistedPaceAlerts(db as never, now)).toEqual([]);
 
     settings.set(db as never, 'household-1', paceAlertMarginKey, 80);
     expect(getPersistedPaceAlerts(db as never, now)).toEqual([]);
@@ -179,11 +199,8 @@ describe('persisted notification refresh flow', () => {
     const now = new Date('2026-10-24T12:00:00.000Z');
     const alerts = getPersistedSavingsAndDebtReminders(db as never, now);
     expect(alerts.map((alert) => alert.id)).toEqual([
-      'savings-reminder:commitment:7',
-      'savings-reminder:commitment:2',
-      'savings-reminder:commitment:0',
+      'savings-reminder:commitment:2026-10-31:7',
       'debt-reminder:debt:7',
-      'debt-reminder:debt:2',
     ]);
     const requests: ScheduledRequest[] = [];
     const reminderAdapter: SchedulerAdapter = {
@@ -201,7 +218,7 @@ describe('persisted notification refresh flow', () => {
     };
     const reschedule = createNotificationScheduler(reminderAdapter);
     await reschedule(alerts, now);
-    expect(requests).toHaveLength(5);
+    expect(requests).toHaveLength(2);
 
     db.prepare(
       `UPDATE savings_commitments SET saved_amount = 5000, saved_at = '2026-10-24T12:30:00Z'
@@ -216,7 +233,71 @@ describe('persisted notification refresh flow', () => {
     expect(getPersistedSavingsAndDebtReminders(db as never, now)).toEqual([]);
     await reschedule(getPersistedSavingsAndDebtReminders(db as never, now), now);
     expect(requests).toEqual([]);
-    expect(reminderAdapter.cancel).toHaveBeenCalledTimes(5);
+    expect(reminderAdapter.cancel).toHaveBeenCalledTimes(2);
+  });
+
+  it('uses deterministic overdue IDs and leaves one scheduled reminder per item and day after refresh', async () => {
+    db = new Database(':memory:');
+    runMigrations(db as never);
+    db.prepare(
+      `INSERT INTO households (id, household_id, name)
+       VALUES ('household-1', 'household-1', 'Personal');`,
+    ).run();
+    db.prepare(
+      `INSERT INTO budget_lines (id, household_id, name, kind)
+       VALUES ('savings-line', 'household-1', 'Savings', 'savings');`,
+    ).run();
+    db.prepare(
+      `INSERT INTO savings_goals (id, household_id, name, target_amount, due_date)
+       VALUES ('goal', 'household-1', 'Emergency fund', 10000, '2026-12-31');`,
+    ).run();
+    db.prepare(
+      `INSERT INTO savings_commitments
+        (id, household_id, goal_id, line_id, month, planned_amount)
+       VALUES ('commitment', 'household-1', 'goal', 'savings-line', '2026-10', 5000);`,
+    ).run();
+    db.prepare(
+      `INSERT INTO debts (id, household_id, creditor, original_amount, deadline)
+       VALUES ('debt', 'household-1', 'Alex', 2000, '2026-10-20');`,
+    ).run();
+
+    const now = new Date('2026-11-02T12:00:00.000Z');
+    const alerts = getPersistedSavingsAndDebtReminders(db as never, now);
+    expect(alerts.map((alert) => alert.id)).toEqual([
+      'savings-overdue:commitment:2026-11-02',
+      'debt-overdue:debt:2026-11-02',
+    ]);
+
+    const requests: ScheduledRequest[] = [];
+    const scheduledRequests: ScheduleRequest[] = [];
+    const adapter: SchedulerAdapter = {
+      getPermission: vi.fn(async () => 'granted'),
+      getScheduled: vi.fn(async () => requests),
+      cancel: vi.fn(async (identifier) => {
+        const index = requests.findIndex((request) => request.identifier === identifier);
+        if (index >= 0) requests.splice(index, 1);
+      }),
+      schedule: vi.fn(async (request) => {
+        scheduledRequests.push(request);
+        requests.push({ identifier: request.identifier, data: request.content.data });
+        return request.identifier;
+      }),
+    };
+    const reschedule = createNotificationScheduler(adapter);
+    await reschedule(alerts, now);
+    await reschedule(getPersistedSavingsAndDebtReminders(db as never, now), now);
+
+    expect(scheduledRequests.map((request) => request.identifier)).toEqual([
+      'savings-overdue:commitment:2026-11-02',
+      'debt-overdue:debt:2026-11-02',
+      'savings-overdue:commitment:2026-11-02',
+      'debt-overdue:debt:2026-11-02',
+    ]);
+    expect(requests.map((request) => request.identifier)).toEqual([
+      'savings-overdue:commitment:2026-11-02',
+      'debt-overdue:debt:2026-11-02',
+    ]);
+    expect(adapter.cancel).toHaveBeenCalledTimes(2);
   });
 
   it('fails explicitly if the persisted household is unavailable', () => {

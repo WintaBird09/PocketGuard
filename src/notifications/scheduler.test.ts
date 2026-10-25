@@ -35,7 +35,7 @@ function makeAdapter(
     }),
     schedule: vi.fn(async (request: ScheduleRequest) => {
       adapter.scheduledInputs.push(request);
-      const identifier = `scheduled-${adapter.scheduledInputs.length}`;
+      const identifier = request.identifier;
       adapter.requests.push({
         identifier,
         data: request.content.data as Record<string, unknown>,
@@ -75,7 +75,7 @@ describe('notification scheduler', () => {
 
     expect(adapter.cancel).toHaveBeenCalledTimes(1);
     expect(adapter.cancel).toHaveBeenCalledWith('old-app');
-    expect(identifiers).toEqual(['scheduled-1', 'scheduled-2']);
+    expect(identifiers).toEqual(['fuel-80', 'debt-due']);
     expect(adapter.scheduledInputs[0].trigger).toBeNull();
     expect(adapter.scheduledInputs[1].trigger).toMatchObject({
       channelId: 'reminders',
@@ -113,41 +113,6 @@ describe('notification scheduler', () => {
     ]);
   });
 
-  it('repeats active pace alerts daily at 08:00', async () => {
-    const adapter = makeAdapter();
-    adapter.getExactAlarmPermission = vi.fn(async () => false);
-    const paceAlert: Alert = {
-      id: 'pace:2026-10:fuel',
-      title: 'Fuel spending pace is ahead',
-      body: 'Fuel is 85% used, 6 days left.',
-      kind: 'pace',
-      repeatDailyAt: { hour: 8, minute: 0 },
-    };
-    const reminder: Alert = {
-      id: 'debt-reminder:debt:7',
-      title: 'Debt reminder',
-      body: 'Due in 7 days.',
-      kind: 'debt_due',
-      scheduledAt: new Date(2026, 9, 31, 9, 0),
-    };
-
-    await createNotificationScheduler(adapter)([paceAlert, reminder], new Date(2026, 9, 24, 10, 0));
-
-    expect(adapter.scheduledInputs[0].trigger).toEqual({
-      type: 'daily',
-      hour: 8,
-      minute: 0,
-      channelId: 'alerts',
-      delivery: 'bestEffort',
-    });
-    expect(adapter.scheduledInputs[1].trigger).toMatchObject({
-      type: 'date',
-      date: reminder.scheduledAt,
-      channelId: 'reminders',
-      delivery: 'bestEffort',
-    });
-  });
-
   it('uses alarm-clock delivery when Android exact-alarm access is granted', async () => {
     const adapter = makeAdapter();
     adapter.getExactAlarmPermission = vi.fn(async () => true);
@@ -183,6 +148,29 @@ describe('notification scheduler', () => {
       date: getNextNotificationTime(new Date(2026, 9, 24, 10, 0), 7, 5),
       channelId: 'daily',
     });
+  });
+
+  it('replaces seven daily summary dates with stable unique identifiers', async () => {
+    const adapter = makeAdapter();
+    adapter.getDailySummaryTime = vi.fn(async () => '20:00');
+    const summaries: Alert[] = Array.from({ length: 7 }, (_, day) => ({
+      id: `daily-summary:2026-10-${String(25 + day).padStart(2, '0')}`,
+      title: 'Daily budget summary',
+      body: 'Spent today: 100 XAF.',
+      kind: 'daily_summary',
+      scheduledAt: new Date(2026, 9, 25 + day, 20, 0),
+    }));
+    const schedule = createNotificationScheduler(adapter);
+
+    await schedule(summaries, new Date(2026, 9, 24, 10, 0));
+    await schedule(summaries, new Date(2026, 9, 24, 10, 5));
+
+    expect(adapter.scheduledInputs).toHaveLength(14);
+    expect(adapter.scheduledInputs.slice(0, 7).map((request) => request.identifier)).toEqual(
+      summaries.map((summary) => summary.id),
+    );
+    expect(new Set(adapter.requests.map((request) => request.identifier)).size).toBe(7);
+    expect(adapter.cancel).toHaveBeenCalledTimes(7);
   });
 
   it('removes managed notifications but does not schedule when permission is not granted', async () => {
