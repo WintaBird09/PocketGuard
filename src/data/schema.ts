@@ -159,6 +159,59 @@ export const outbox = {
   },
 };
 
+// Money lent to others (PRD §7.8b). Balance and status are derived from loan_payments.
+export const loans = {
+  name: 'loans',
+  columns: {
+    id: 'TEXT PRIMARY KEY',
+    household_id: 'TEXT NOT NULL',
+    person_name: 'TEXT NOT NULL',
+    person_phone: 'TEXT NULL',
+    contact_id: 'TEXT NULL',
+    lent_on: 'TEXT NOT NULL',
+    amount: 'INTEGER NOT NULL',
+    plan: 'TEXT NOT NULL DEFAULT "flexible"',
+    deadline: 'TEXT NULL',
+    note: 'TEXT NULL',
+    written_off_at: 'TEXT NULL',
+    device_id: 'TEXT NULL',
+    created_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    updated_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    deleted_at: 'TEXT NULL',
+  },
+};
+
+export const loanInstallments = {
+  name: 'loan_installments',
+  columns: {
+    id: 'TEXT PRIMARY KEY',
+    household_id: 'TEXT NOT NULL',
+    loan_id: 'TEXT NOT NULL',
+    due_on: 'TEXT NOT NULL',
+    amount: 'INTEGER NOT NULL',
+    device_id: 'TEXT NULL',
+    created_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    updated_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    deleted_at: 'TEXT NULL',
+  },
+};
+
+export const loanPayments = {
+  name: 'loan_payments',
+  columns: {
+    id: 'TEXT PRIMARY KEY',
+    household_id: 'TEXT NOT NULL',
+    loan_id: 'TEXT NOT NULL',
+    paid_at: 'TEXT NOT NULL',
+    amount: 'INTEGER NOT NULL',
+    note: 'TEXT NULL',
+    device_id: 'TEXT NULL',
+    created_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    updated_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    deleted_at: 'TEXT NULL',
+  },
+};
+
 const definitions = [
   households,
   budgetLines,
@@ -170,6 +223,9 @@ const definitions = [
   settings,
   syncState,
   outbox,
+  loans,
+  loanInstallments,
+  loanPayments,
 ] as const;
 
 export const tableDefinitions = definitions;

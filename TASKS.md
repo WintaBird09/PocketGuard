@@ -162,6 +162,27 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
 - **9.3 Backup check:** confirm Supabase has the data; document restore steps in `README.md`.
 - **9.4 Review:** after 2 weeks compare metrics (PRD §13), list top 5 annoyances, decide Phase 2 start.
 
+## EPIC 10 — Loans (money lent to others; see PRD §7.8b)
+
+Approved by the owner, to be done **before Task 6.3**. Rules: no change to finished Epics 1–6.2 behaviour; new tables only; ask before each task; one task at a time with typecheck, lint, all tests and a short summary.
+
+- **10.0 Impact audit (done):** no code changes; sync lists in `src/sync/push.ts`/`pull.ts` are hard-coded; notification kinds live in `scheduler.ts`; `expo-contacts` is not installed.
+- **10.1 Update PRD and TASKS (done).**
+- **10.2 Local tables:** `loans`, `loan_installments`, `loan_payments` via a new migration (new tables only, existing tables untouched).
+  *Done when:* migration applies on a fresh and an existing database and schema tests pass.
+- **10.3 Supabase migration + RLS:** same three tables, RLS, own-household policies, `anon` revoked. Ask before `supabase db push`.
+  *Done when:* extended `verify_rls.sql` passes (owner runs it).
+- **10.5 Status engine and installment generator:** pure functions for derived balance and status (Pending / Partial / Complete / Overdue / Written off) and installment schedules (single, N monthly, flexible).
+  *Done when:* unit tests cover every status and edge date.
+- **10.6 Repositories:** create/update loan, record repayment, write-off, per-person summary; every write appends an outbox row.
+  *Done when:* tests pass, including overpayment rejection.
+- **10.7 Contact picker:** `expo-contacts` on request, with manual name/phone fallback (and on web). Needs a dev-build rebuild (device-only check).
+- **10.8 Loans list screen** and a Loans row in More (small edit to More).
+- **10.9 Add/edit loan form:** date, person, amount, plan, deadline; optional Lending line check (E4, off by default).
+- **10.10 Loan detail:** repayments, write-off, per-person summary, WhatsApp "Send reminder" link.
+- **10.11 Reminders:** `loan_due` alert kind (7d, 2d, due day, weekly overdue) added to the Epic 4 scheduler without changing existing alerts.
+- **Postponed:** 10.4 sync push/pull for loan tables (after 6.3–6.5), 10.12 "Owed to you" Home tile, 10.13 loan rows in Activity, 10.14 voice (with Epic 7), 10.15 CSV export and acceptance (with Epic 8).
+
 ---
 
 ## Phase 2 backlog — SMS capture (do not start until the owner asks)

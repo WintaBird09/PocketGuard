@@ -41,7 +41,7 @@ Later: automatic capture of MoMo SMS (Phase 2), family/shared households and Saa
 - G8. Data model is multi-household from day one so SaaS later needs no rewrite.
 
 ### Non-goals for MVP
-- No SMS or WhatsApp reading (Phase 2; WhatsApp is not planned at all).
+- No SMS or WhatsApp reading (Phase 2; WhatsApp reading is not planned at all). The Loans reminder (FR-L2) only opens a pre-filled WhatsApp link; nothing is read or integrated.
 - No web app / Next.js, no admin backend, no billing (Phase 3).
 - No iOS build (code stays cross-platform, but only Android is tested).
 - No bank/MoMo API integration; the app cannot move money or block a MoMo payment.
@@ -151,6 +151,16 @@ else OK
 - FR-32. Debts with creditor, original amount, deadline, schedule per month. Payments are transactions tagged to the debt; balance is derived (never typed in).
 - FR-33. Status: OPEN / PAID / OVERDUE derived from balance and deadline.
 
+### 7.8b Loans (money lent to friends and family) — Epic 10
+Loans are money owed **to the owner**; Debts (§7.8) are money the owner owes. Lending is not spending: a loan is never an expense against a budget line and never counts as savings or toward the 2,000,000 goal, unless the optional Lending line below is enabled.
+- FR-L1. A loan records: date, person (picked from phone contacts, with a manual name/phone fallback), amount, payment plan, expected deadline, and note. Plans: **one payment**, **installments** (default 4 monthly, editable), or **flexible** (deadline only). Contacts permission is requested only when the picker is opened; only name and phone number are stored.
+- FR-L2. Repayments are recorded against the loan; the outstanding balance is derived (never typed in). Status is derived, not typed: **Pending** (nothing paid, not late), **Partial payment** (some paid), **Complete** (fully paid), **Overdue** (past deadline or past an unpaid installment, balance > 0; Overdue wins over Partial but partial progress still shows), and **Written off** (set by the owner, stops overdue alerts). A "Send reminder" button opens WhatsApp with a polite pre-written message to the borrower (link only, no integration).
+- FR-L3. Local reminders (offline): 7 days before, 2 days before, on the due date, and weekly while overdue.
+- FR-L4. Per-person summary: total lent, outstanding, and history for each borrower.
+- FR-L5. Optional "Lending" budget line with a hard cap, **off by default**. When on, a new loan is checked with the same spend check and hard stop as other spending.
+- Not included: interest or fees, borrower reliability scores.
+- Deferred to later epics: sync of loan tables (after Epic 6), "Owed to you" Home tile and loan rows in Activity (touch finished screens), voice entry "Lent 20k to Desmond until month end" (Epic 7), loans in CSV export (Epic 8).
+
 ### 7.9 Sync and backup
 - FR-34. Offline-first: all reads/writes hit SQLite. A background sync runs on app start, on connectivity regain, and after writes (debounced).
 - FR-35. Push: send outbox rows (upsert by client-generated UUID). Pull: fetch rows where `updated_at > last_pull_at` per table. Conflict rule: last write wins by `updated_at` (server timestamp on push).
@@ -211,6 +221,9 @@ All tables: `id uuid pk (client-generated)`, `household_id uuid`, `created_at`, 
 - `settings(id, key, value)` — summary time, thresholds, pace margin
 - `sync_state(table_name pk, last_pull_at)` (local only)
 - `outbox(id, table_name, row_id, op, created_at)` (local only)
+- `loans(id, person_name, person_phone null, contact_id null, lent_on, amount, plan 'single|installments|flexible', deadline null, note, written_off_at null)` — Epic 10
+- `loan_installments(id, loan_id, due_on, amount)` — Epic 10
+- `loan_payments(id, loan_id, paid_at, amount, note)` — Epic 10; loan balance and status are derived from these
 - Phase 2 (create later, not now): `payee_rules(id, payee_key, line_id)`, `sms_messages(...)`
 
 Derived values are computed from queries (spent per line per month, debt balance, goal progress); **never store derived totals**.
@@ -257,7 +270,8 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 6. **Budget** — month plan, allocations per line, copy forward.
 7. **Savings** — goal progress, monthly commitments with "I have saved", gap analysis.
 8. **Debts** — balances, schedule, payment history, status.
-9. **Settings** — sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
+9. **Loans** (Epic 10) — list with status badges, add/edit loan, detail with repayments and write-off, per-person summary.
+10. **Settings** — sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
 
 UX principles: one-handed use; large numbers; amounts always `120,000 XAF`; light and dark themes; no tables on phone; the most-used action (add) is always reachable in one tap.
 
