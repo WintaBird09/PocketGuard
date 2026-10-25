@@ -1,6 +1,6 @@
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import {
   filterLoans,
@@ -11,7 +11,7 @@ import {
   loanStatusLabel,
   type LoanFilter,
 } from '@/src/data/loanView';
-import { listLoans, totalOwedToYou } from '@/src/data/loans';
+import { listLoans, listPersonSummaries, totalOwedToYou } from '@/src/data/loans';
 import { Banner, Button, Chip } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
@@ -23,16 +23,18 @@ export default function LoansScreen() {
   const [filter, setFilter] = useState<LoanFilter>('ACTIVE');
 
   const loaded = useMemo(() => {
-    if (!db || !householdId) return { loans: null, owed: 0, failure: null };
+    if (!db || !householdId) return { loans: null, people: [], owed: 0, failure: null };
     try {
       return {
         loans: listLoans(db, householdId),
+        people: listPersonSummaries(db, householdId),
         owed: totalOwedToYou(db, householdId),
         failure: null,
       };
     } catch (cause) {
       return {
         loans: null,
+        people: [],
         owed: 0,
         failure: cause instanceof Error ? cause.message : 'Unable to load loans.',
       };
@@ -45,6 +47,7 @@ export default function LoansScreen() {
     () => (loaded.loans ? sortLoans(filterLoans(loaded.loans, filter)) : []),
     [loaded.loans, filter],
   );
+  const people = loaded.people;
   const failure = dbError ?? loaded.failure;
 
   return (
@@ -83,8 +86,11 @@ export default function LoansScreen() {
           </Text>
         ) : null}
         {visible.map((loan) => (
-          <View
+          <Pressable
             key={loan.id}
+            accessibilityRole="button"
+            accessibilityLabel={`Open loan to ${loan.personName}`}
+            onPress={() => router.push({ pathname: '/loan', params: { id: loan.id } })}
             className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
           >
             <View className="flex-row items-center justify-between">
@@ -114,9 +120,34 @@ export default function LoansScreen() {
                 {loanDueText(loan)}
               </Text>
             </View>
-          </View>
+          </Pressable>
         ))}
       </View>
+
+      {people.length > 0 ? (
+        <View className="mt-6">
+          <Text className="mb-2 text-base font-bold text-slate-900">By person</Text>
+          <View className="gap-2">
+            {people.map((person) => (
+              <View key={person.key} className="rounded-2xl border border-slate-200 bg-white p-4">
+                <View className="flex-row items-center justify-between">
+                  <Text className="flex-1 text-base font-semibold text-slate-900">
+                    {person.personName}
+                  </Text>
+                  <Text className="text-sm font-bold text-slate-900">
+                    {formatXAF(person.outstanding)}
+                  </Text>
+                </View>
+                <Text className="mt-1 text-sm text-slate-600">
+                  {person.loanCount} {person.loanCount === 1 ? 'loan' : 'loans'} ·{' '}
+                  {formatXAF(person.totalLent)} lent · {formatXAF(person.totalRepaid)} repaid
+                  {person.overdueCount > 0 ? ` · ${person.overdueCount} overdue` : ''}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
     </PageLayout>
   );
 }
