@@ -11,6 +11,7 @@ import {
 
 import type { DatabaseLike } from './db';
 import { assertWholeAmount, inTransaction, newId, requirePrepared } from './household';
+import { checkLendingCap } from './lendingCap';
 import { appendOutboxEntry } from './repos';
 
 export const defaultInstallmentCount = 4;
@@ -194,6 +195,8 @@ function requireLoan(db: DatabaseLike, householdId: string, loanId: string): Loa
 export function createLoan(db: DatabaseLike, householdId: string, input: LoanInput): string {
   const loan = normalize(input);
   return inTransaction(db, () => {
+    const cap = checkLendingCap(db, householdId, { amount: loan.amount, lentOn: loan.lentOn });
+    if (cap.status === 'BLOCKED') throw new Error(cap.reason);
     const id = newId();
     const now = new Date().toISOString();
     requirePrepared(db)(
@@ -233,6 +236,12 @@ export function updateLoan(
     if (loan.amount < paid) {
       throw new Error(`The amount cannot be less than the ${paid} XAF already repaid.`);
     }
+    const cap = checkLendingCap(db, householdId, {
+      amount: loan.amount,
+      lentOn: loan.lentOn,
+      excludeLoanId: loanId,
+    });
+    if (cap.status === 'BLOCKED') throw new Error(cap.reason);
     const now = new Date().toISOString();
     requirePrepared(db)(
       `UPDATE loans SET person_name = ?, person_phone = ?, contact_id = ?, lent_on = ?, amount = ?,

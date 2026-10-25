@@ -1,3 +1,4 @@
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -11,13 +12,14 @@ import {
   type LoanFilter,
 } from '@/src/data/loanView';
 import { listLoans, totalOwedToYou } from '@/src/data/loans';
-import { Banner, Chip } from '@/src/ui/controls';
+import { Banner, Button, Chip } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
 
 export default function LoansScreen() {
   const { db, householdId, error: dbError, tick } = useDatabase();
+  const router = useRouter();
   const [filter, setFilter] = useState<LoanFilter>('ACTIVE');
 
   const loaded = useMemo(() => {
@@ -57,6 +59,10 @@ export default function LoansScreen() {
         <Text className="mt-1 text-sm text-slate-600">
           Not part of your budget or savings goal.
         </Text>
+      </View>
+
+      <View className="mt-4">
+        <Button label="Add loan" onPress={() => router.push('/loan-form')} />
       </View>
 
       <View className="mt-4 flex-row flex-wrap gap-2">
