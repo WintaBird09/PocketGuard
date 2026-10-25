@@ -1,4 +1,5 @@
 import { debtBalance } from '../domain/budget';
+import { localDateString } from '../domain/dates';
 
 import type { DatabaseLike } from './db';
 import { assertWholeAmount, inTransaction, newId, requirePrepared } from './household';
@@ -34,13 +35,7 @@ export type ScheduleEntry = {
   state: 'Paid' | 'Due' | 'Planned';
 };
 
-function localDate(asOf: Date): string {
-  return [
-    asOf.getFullYear(),
-    String(asOf.getMonth() + 1).padStart(2, '0'),
-    String(asOf.getDate()).padStart(2, '0'),
-  ].join('-');
-}
+const localDate = localDateString;
 
 function dayDifference(from: string, to: string): number {
   const start = Date.UTC(...(from.split('-').map(Number) as [number, number, number]));

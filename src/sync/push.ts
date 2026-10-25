@@ -56,6 +56,10 @@ const supportedTables = new Set<SupportedTable>([
   'settings',
 ]);
 
+// Outbox rows for other tables (e.g. loans, until Task 10.4) stay queued untouched: they are
+// neither pushed nor reported as errors or pending.
+const supportedTableList = [...supportedTables].map((table) => `'${table}'`).join(', ');
+
 const idReferences: Partial<Record<SupportedTable, Record<string, SupportedTable>>> = {
   allocations: { line_id: 'budget_lines' },
   transactions: { line_id: 'budget_lines', debt_id: 'debts' },
@@ -87,6 +91,7 @@ export async function pushOutbox(
   const queued = prepare(
     `SELECT id, household_id, table_name, row_id, op
      FROM outbox
+     WHERE table_name IN (${supportedTableList})
      ORDER BY
        CASE table_name
          WHEN 'households' THEN 0
@@ -263,7 +268,9 @@ function persistRetry(
 }
 
 function countOutbox(prepare: (sql: string) => SyncStatement): number {
-  const result = prepare('SELECT COUNT(*) AS count FROM outbox;').get();
+  const result = prepare(
+    `SELECT COUNT(*) AS count FROM outbox WHERE table_name IN (${supportedTableList});`,
+  ).get();
   if (typeof result?.count !== 'number') throw new Error('Unable to count pending sync rows.');
   return result.count;
 }
