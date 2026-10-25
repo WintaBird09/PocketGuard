@@ -3,20 +3,14 @@
     "allowJs": true,
     "esModuleInterop": true,
     "jsx": "react-jsx",
-    "lib": [
-      "DOM",
-      "ESNext"
-    ],
+    "lib": ["DOM", "ESNext"],
     "module": "preserve",
     "moduleDetection": "force",
     "moduleResolution": "bundler",
-    "types": [
-      "nativewind/types"
-    ],
-    "customConditions": [
-      "react-native"
-    ],
+    "types": ["nativewind/types"],
+    "customConditions": ["react-native"],
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
@@ -24,10 +18,9 @@
     "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ]
+      "@/*": ["./*"]
     }
   },
-  "extends": "./node_modules/expo/tsconfig.base.json"
+  "extends": "./node_modules/expo/tsconfig.base.json",
+  "exclude": ["supabase/functions/parse-expense/index.ts"]
 }

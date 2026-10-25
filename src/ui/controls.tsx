@@ -5,17 +5,20 @@ export function Chip({
   label,
   active,
   onPress,
+  disabled,
 }: {
   label: string;
   active?: boolean;
   onPress: () => void;
+  disabled?: boolean;
 }) {
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityState={{ selected: Boolean(active) }}
+      accessibilityState={{ selected: Boolean(active), disabled }}
+      disabled={disabled}
       onPress={onPress}
-      className={`rounded-full border px-4 py-2 ${
+      className={`rounded-full border px-4 py-2 ${disabled ? 'opacity-50' : ''} ${
         active ? 'border-slate-900 bg-slate-900' : 'border-slate-200 bg-white'
       }`}
     >

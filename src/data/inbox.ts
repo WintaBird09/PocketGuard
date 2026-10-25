@@ -2,6 +2,7 @@ import type { DatabaseLike } from './db';
 import { inTransaction, requirePrepared } from './household';
 import { appendOutboxEntry } from './repos';
 import { getExpenseReview, submitExpense, type ExpenseOverride } from './transaction-entry';
+import { decodeVoiceDraftMetadata } from '../voice/drafts';
 
 export type InboxItem = {
   id: string;
@@ -9,6 +10,7 @@ export type InboxItem = {
   text: string;
   amount: number | null;
   occurredAt: string;
+  voiceSuggestion: ReturnType<typeof decodeVoiceDraftMetadata>;
 };
 
 // FR-14: pending voice drafts plus confirmed expenses that have no budget line.
@@ -25,6 +27,7 @@ export function listInbox(db: DatabaseLike, householdId: string): InboxItem[] {
     text: String(row.raw_text ?? row.note ?? 'Untitled entry'),
     amount: row.amount === null ? null : Number(row.amount),
     occurredAt: String(row.occurred_at),
+    voiceSuggestion: decodeVoiceDraftMetadata(row.note),
   }));
 }
 
@@ -57,7 +60,7 @@ export function classifyInboxItem(
   return inTransaction(db, () => {
     const prepare = requirePrepared(db);
     const item = prepare(
-      `SELECT id, note, raw_text FROM transactions
+      `SELECT id, note, raw_text, source FROM transactions
         WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
     ).get(id, householdId);
     if (!item) throw new Error('Inbox item was not found.');
@@ -68,7 +71,13 @@ export function classifyInboxItem(
     const submission = submitExpense(
       db,
       householdId,
-      { ...draft, note: String(item.note ?? item.raw_text ?? '') },
+      {
+        ...draft,
+        note: String(item.raw_text ?? item.note ?? ''),
+        ...(item.source === 'voice'
+          ? { source: 'voice' as const, rawText: String(item.raw_text ?? '') }
+          : {}),
+      },
       true,
       override,
     );

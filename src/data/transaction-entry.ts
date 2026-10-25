@@ -34,6 +34,8 @@ export type ExpenseDraft = {
   amount: number;
   note: string;
   occurredOn: string;
+  source?: 'manual' | 'voice';
+  rawText?: string | null;
 };
 
 function requireDatabase(db: DatabaseLike): TransactionEntryDatabase {
@@ -172,7 +174,8 @@ export function submitExpense(
     direction: 'expense' satisfies TransactionDirection,
     line_id: draft.lineId,
     note: draft.note.trim() || null,
-    source: 'manual',
+    source: draft.source ?? 'manual',
+    raw_text: draft.rawText ?? null,
     status: 'confirmed',
     override_reason: overrideReason,
   });

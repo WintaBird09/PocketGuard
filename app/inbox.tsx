@@ -3,24 +3,19 @@ import { Text, TextInput, View } from 'react-native';
 
 import { classifyInboxItem, discardInboxItem, listInbox } from '@/src/data/inbox';
 import { getMonthPlan } from '@/src/data/plan';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { localDateString, monthKeyForDate } from '@/src/domain/dates';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
+import { listPendingVoiceSavingsCommitments } from '@/src/voice/commitments';
+import { VoiceConfirmCard } from '@/src/voice/VoiceConfirmCard';
+import { useVoiceDraftStatus } from '@/src/voice/VoiceDraftProvider';
+import { useDatabase } from '@/src/ui/useDatabase';
 import { Banner, Button, Chip } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
-import { useDatabase } from '@/src/ui/useDatabase';
-
-function today(): string {
-  const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
 
 export default function InboxScreen() {
   const { db, householdId, error: dbError, tick, refresh } = useDatabase();
+  const voiceDraftStatus = useVoiceDraftStatus();
   const [openId, setOpenId] = useState<string | null>(null);
   const [lineId, setLineId] = useState('');
   const [amount, setAmount] = useState('');
@@ -35,6 +30,11 @@ export default function InboxScreen() {
         data: {
           items: listInbox(db, householdId),
           lines: getMonthPlan(db, householdId, monthKeyForDate(new Date(), 'Africa/Douala')).lines,
+          commitments: listPendingVoiceSavingsCommitments(
+            db,
+            householdId,
+            monthKeyForDate(new Date(), 'Africa/Douala'),
+          ),
         },
         failure: null,
       };
@@ -46,7 +46,7 @@ export default function InboxScreen() {
     }
     // tick re-reads after writes or when the screen regains focus
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, householdId, tick]);
+  }, [db, householdId, tick, voiceDraftStatus.revision]);
 
   const failure = dbError ?? loaded.failure;
   const data = loaded.data;
@@ -60,7 +60,7 @@ export default function InboxScreen() {
         db,
         householdId,
         id,
-        { lineId, amount: Number(amount.replace(/[\s,]/g, '')), occurredOn: today() },
+        { lineId, amount: Number(amount.replace(/[\s,]/g, '')), occurredOn: localDateString() },
         warnId === id,
       );
       if (!result.saved) {
@@ -89,6 +89,19 @@ export default function InboxScreen() {
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {error ? <Banner tone="error">{error}</Banner> : null}
       {message ? <Banner tone="info">{message}</Banner> : null}
+      {voiceDraftStatus.error ? (
+        <Banner tone="error">
+          Automatic voice parsing failed: {voiceDraftStatus.error}. Drafts remain available below.
+        </Banner>
+      ) : null}
+      {voiceDraftStatus.processing ? (
+        <Banner tone="info">Parsing queued voice notes…</Banner>
+      ) : null}
+      {data && data.items.filter((item) => item.voiceSuggestion).length > 0 ? (
+        <Banner tone="success">
+          {data.items.filter((item) => item.voiceSuggestion).length} voice note(s) ready to confirm.
+        </Banner>
+      ) : null}
 
       {data && data.items.length === 0 ? (
         <Text className="text-sm text-slate-600">
@@ -96,76 +109,114 @@ export default function InboxScreen() {
         </Text>
       ) : null}
 
-      {(data?.items ?? []).map((item) => (
-        <View key={item.id} className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
-          <Text className="text-base font-semibold text-slate-900">{item.text}</Text>
-          <Text className="mt-1 text-sm text-slate-500">
-            {item.kind === 'draft' ? 'Pending draft' : 'No budget line'}
-            {item.amount ? ` · ${formatXAF(item.amount)}` : ''}
-          </Text>
-          {openId === item.id ? (
-            <View className="mt-3">
-              <TextInput
-                accessibilityLabel="Amount"
-                keyboardType="number-pad"
-                value={amount}
-                onChangeText={(value) => {
-                  setAmount(value);
-                  setWarnId(null);
-                }}
-                className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
-              />
-              <View className="mb-3 flex-row flex-wrap gap-2">
-                {(data?.lines ?? []).map((line) => (
-                  <Chip
-                    key={line.id}
-                    label={line.name}
-                    active={lineId === line.id}
-                    onPress={() => {
-                      setLineId(line.id);
-                      setWarnId(null);
-                    }}
-                  />
-                ))}
-              </View>
-              <View className="flex-row gap-3">
-                <View className="flex-1">
-                  <Button label="Cancel" variant="outline" onPress={() => setOpenId(null)} />
-                </View>
-                <View className="flex-1">
-                  <Button label="Save" disabled={!lineId} onPress={() => classify(item.id)} />
-                </View>
-              </View>
-            </View>
-          ) : (
-            <View className="mt-3 flex-row gap-3">
-              <View className="flex-1">
+      {(data?.items ?? []).map((item) =>
+        item.voiceSuggestion &&
+        db &&
+        !(item.voiceSuggestion.intent === 'unknown' && openId === item.id) ? (
+          <View key={item.id}>
+            <VoiceConfirmCard
+              item={item.voiceSuggestion}
+              lines={data?.lines ?? []}
+              commitments={data?.commitments ?? []}
+              db={db}
+              householdId={householdId}
+              rawText={item.text}
+              draftId={item.id}
+              onDone={refresh}
+            />
+            {item.voiceSuggestion.intent === 'unknown' ? (
+              <View className="-mt-3 mb-4">
                 <Button
-                  label="Classify"
+                  label="Classify manually"
                   onPress={() => {
                     setOpenId(item.id);
                     setAmount(item.amount ? String(item.amount) : '');
                     setLineId('');
+                  }}
+                />
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          <View key={item.id} className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
+            <Text className="text-base font-semibold text-slate-900">{item.text}</Text>
+            <Text className="mt-1 text-sm text-slate-500">
+              {item.kind === 'draft' ? 'Pending draft' : 'No budget line'}
+              {item.amount ? ` · ${formatXAF(item.amount)}` : ''}
+            </Text>
+            {openId === item.id ? (
+              <View className="mt-3">
+                <TextInput
+                  accessibilityLabel="Amount"
+                  keyboardType="number-pad"
+                  value={amount}
+                  onChangeText={(value) => {
+                    setAmount(value);
                     setWarnId(null);
                   }}
+                  className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
                 />
+                <View className="mb-3 flex-row flex-wrap gap-2">
+                  {(data?.lines ?? []).map((line) => (
+                    <Chip
+                      key={line.id}
+                      label={line.name}
+                      active={lineId === line.id}
+                      onPress={() => {
+                        setLineId(line.id);
+                        setWarnId(null);
+                      }}
+                    />
+                  ))}
+                </View>
+                <View className="flex-row gap-3">
+                  <View className="flex-1">
+                    <Button label="Cancel" variant="outline" onPress={() => setOpenId(null)} />
+                  </View>
+                  <View className="flex-1">
+                    <Button label="Save" disabled={!lineId} onPress={() => classify(item.id)} />
+                  </View>
+                </View>
               </View>
-              <View className="flex-1">
-                <Button
-                  label="Discard"
-                  variant="outline"
-                  onPress={() => {
-                    if (db) {
-                      discardInboxItem(db, householdId, item.id);
-                      refresh();
-                    }
-                  }}
-                />
+            ) : (
+              <View className="mt-3 flex-row gap-3">
+                {item.kind === 'draft' ? (
+                  <View className="flex-1">
+                    <Button
+                      label="Retry parse"
+                      variant="outline"
+                      onPress={() => voiceDraftStatus.retry()}
+                    />
+                  </View>
+                ) : null}
+                <View className="flex-1">
+                  <Button
+                    label="Classify"
+                    onPress={() => {
+                      setOpenId(item.id);
+                      setAmount(item.amount ? String(item.amount) : '');
+                      setLineId('');
+                      setWarnId(null);
+                    }}
+                  />
+                </View>
+                <View className="flex-1">
+                  <Button
+                    label="Discard"
+                    variant="outline"
+                    onPress={() => {
+                      if (db) {
+                        discardInboxItem(db, householdId, item.id);
+                        refresh();
+                      }
+                    }}
+                  />
+                </View>
               </View>
-            </View>
-          )}
-        </View>
-      ))}
+            )}
+          </View>
+        ),
+      )}
     </PageLayout>
   );
 }

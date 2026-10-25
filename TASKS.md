@@ -136,13 +136,13 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
 
 - **7.1 Speech-to-text wrapper (done; device verification pending):** `src/voice/stt.ts` uses `expo-speech-recognition`, English, a microphone/speech permission flow, start/stop, partial results, and on-device recognition when the English offline model is installed. A native development-build rebuild and device verification are required.
   _Done when:_ saying "twenty thousand on fuel" shows the transcript on screen in airplane mode (if on-device model is installed) or online.
-- **7.2 Edge Function `parse-expense`:** Deno function per PRD §8: verify JWT, Zod-validate input/output, call Claude with a system prompt and a structured-output/tool schema, temperature 0, 10 s timeout, per-user daily cap (60), model from `ANTHROPIC_MODEL` secret. Key stored via `supabase secrets set`.
+- **7.2 Edge Function `parse-expense` (implemented; deployment pending):** Deno handler verifies JWT, Zod-validates input/output, calls Claude using a forced structured tool at temperature 0 with a 10 s timeout, and enforces the 60/day per-user UTC quota with the private quota table/RPC. Apply the approved migration, verify RLS, set `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL`, then deploy.
   _Done when:_ `curl` with a sample body returns valid JSON; invalid JWT → 401; oversize body → 400.
-- **7.3 Parser tests:** a fixture file of ≥25 phrases (e.g. "20k fuel", "paid 5,000 car wash and 3,000 airtime", "can I spend 30000 on fuel", "I saved 92,000 for kids", "yesterday spent 13k on outing with Desmond") with expected output; run against the function manually and record accuracy.
+- **7.3 Parser tests (implemented; live accuracy pending):** 25 phrase fixtures, mocked handler contract tests, and an opt-in live test that measures the deployed model's accuracy and checks ambiguous lines remain unassigned.
   _Done when:_ ≥90% of fixtures parse to the right amount and intent; ambiguous lines return `line_id: null`.
-- **7.4 Voice sheet UI:** mic button → listening → transcript → confirm card(s) (editable amount/line/note/date) → Save / Discard. Intent routing: `log_expense` → add, `check_spend` → show result only, `confirm_saving` → mark commitment saved, `log_income` → add income.
+- **7.4 Voice sheet UI (implemented; device verification pending):** mic capture and transcript review; editable amount, line, note, and date cards; expense, spend-check, savings-confirmation, and income intent handling.
   _Done when:_ end-to-end voice expense lands in Transactions with `source = 'voice'` and the raw transcript.
-- **7.5 Offline drafts + Inbox:** when parse fails or offline, store a `draft` transaction with `raw_text`; Inbox lists drafts; when online, auto-parse and prompt "3 voice notes ready to confirm".
+- **7.5 Offline drafts + Inbox (implemented; device verification pending):** parser failures save voice `draft` transactions with their original `raw_text`; Inbox shows drafts and ready-to-confirm cards; drafts automatically parse after connectivity returns.
   _Done when:_ record in airplane mode → disable airplane mode → draft turns into a confirm card.
 
 ## EPIC 8 — Hardening and polish

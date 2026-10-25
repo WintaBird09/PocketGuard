@@ -4,6 +4,7 @@
 **Audience:** AI coding agents (Claude Code, Cursor) and the owner. Read this fully before writing code. Build order lives in `TASKS.md`.
 
 ## Implementation conventions (locked in)
+
 - This project lives in the app folder at `/Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app`.
 - The approved design references live in `designs/Pocket Guard Hi-Fi Design.html`, the exported PNGs in `designs/Pocket Guard Hi-Fi Design-png/`, and the mobile UI mockups in `designs/mockup/`.
 - Use the mockups in `designs/mockup/` as the working implementation reference for screen layout, component hierarchy, and flows in Epic 3 and any future UI work; when a requirement is ambiguous, match the mockup before inventing new UI patterns.
@@ -20,7 +21,8 @@ The owner budgets well but fails at **recording and execution**. Spending is mos
 
 ## 2. Product vision
 
-A **phone-first, offline-first Android app** that makes the budget *enforceable in the moment*:
+A **phone-first, offline-first Android app** that makes the budget _enforceable in the moment_:
+
 1. Logging a spend takes seconds (tap or voice).
 2. Before paying, the owner can ask "can I spend X on Fuel?" and get a clear yes/no.
 3. Every spend is tied to a budget line, with live remaining balance and pace.
@@ -31,6 +33,7 @@ Later: automatic capture of MoMo SMS (Phase 2), family/shared households and Saa
 ## 3. Goals and non-goals
 
 ### Goals (MVP = Phase 1)
+
 - G1. Record any expense in under 10 seconds (manual) or one voice sentence.
 - G2. Every expense belongs to a budget line; live status per line (planned / spent / remaining / % / days left / projected finish).
 - G3. Hard stop + warnings on overspending (see §7.4 for exactly what "hard stop" means).
@@ -41,6 +44,7 @@ Later: automatic capture of MoMo SMS (Phase 2), family/shared households and Saa
 - G8. Data model is multi-household from day one so SaaS later needs no rewrite.
 
 ### Non-goals for MVP
+
 - No SMS or WhatsApp reading (Phase 2; WhatsApp reading is not planned at all). The Loans reminder (FR-L2) only opens a pre-filled WhatsApp link; nothing is read or integrated.
 - No web app / Next.js, no admin backend, no billing (Phase 3).
 - No iOS build (code stays cross-platform, but only Android is tested).
@@ -54,18 +58,18 @@ Later: automatic capture of MoMo SMS (Phase 2), family/shared households and Saa
 
 ## 5. Platform and stack (approved)
 
-| Concern | Decision |
-|---|---|
-| App | Expo (React Native) + TypeScript (strict), Expo Router, **development build** (not Expo Go) |
-| Local DB | SQLite via `expo-sqlite` + Drizzle ORM; **source of truth on device** |
-| State | Zustand for UI state; SQLite queries for data (no duplicate caches) |
-| Cloud | Supabase: Postgres, Auth, Row Level Security, one Edge Function |
-| Sync | Simple outbox push + `updated_at` pull, last-write-wins, soft deletes |
-| Voice | On-device speech-to-text (`expo-speech-recognition`) → Edge Function `parse-expense` → Claude API → structured JSON → user confirms |
-| Notifications | `expo-notifications`, **local scheduled** notifications (no server) |
-| Validation | Zod, shared between app and Edge Function |
-| Tests | Vitest for pure logic (budget engine, parser, sync); Maestro or manual script for key flows |
-| Not used | Next.js, custom Node backend, Firebase |
+| Concern       | Decision                                                                                                                            |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| App           | Expo (React Native) + TypeScript (strict), Expo Router, **development build** (not Expo Go)                                         |
+| Local DB      | SQLite via `expo-sqlite` + Drizzle ORM; **source of truth on device**                                                               |
+| State         | Zustand for UI state; SQLite queries for data (no duplicate caches)                                                                 |
+| Cloud         | Supabase: Postgres, Auth, Row Level Security, one Edge Function                                                                     |
+| Sync          | Simple outbox push + `updated_at` pull, last-write-wins, soft deletes                                                               |
+| Voice         | On-device speech-to-text (`expo-speech-recognition`) → Edge Function `parse-expense` → Claude API → structured JSON → user confirms |
+| Notifications | `expo-notifications`, **local scheduled** notifications (no server)                                                                 |
+| Validation    | Zod, shared between app and Edge Function                                                                                           |
+| Tests         | Vitest for pure logic (budget engine, parser, sync); Maestro or manual script for key flows                                         |
+| Not used      | Next.js, custom Node backend, Firebase                                                                                              |
 
 Notes for agents: use the latest stable Expo SDK at scaffold time and follow current Expo docs for config plugins and dev builds. Do not pin guesses from memory; check docs when an API is uncertain.
 
@@ -83,17 +87,20 @@ Notes for agents: use the latest stable Expo SDK at scaffold time and follow cur
 ## 7. Functional requirements (MVP)
 
 ### 7.1 Onboarding and seed data
+
 - FR-1. First launch: sign in (email magic link or email+password via Supabase), create household, then offer **"Load my Sep–Dec 2026 plan"** (seed in §10).
 - FR-2. All seed values are editable in the app afterwards.
 - FR-3. App works without sign-in after first setup; sync starts when a session exists and network is available.
 
 ### 7.2 Budget lines and monthly plan
+
 - FR-4. CRUD budget lines (name, kind, hard cap on/off, sort order, archive).
 - FR-5. Planned amount per line per month (allocation), copy-forward from previous month.
 - FR-6. A month view shows income, each line's planned vs spent, "unallocated / flexible" remainder, and total planned savings.
 - FR-7. A **Miscellaneous** line exists by default (the owner's most common overrun) with its own cap.
 
 ### 7.3 Recording transactions
+
 - FR-8. **Quick add:** amount (numeric keypad), line (recent/top lines as chips), optional note, date defaults to now. Save in ≤3 taps after entering the amount.
 - FR-9. **Voice add:** one-tap mic button on the home screen. Examples:
   - "Spent 20,000 on fuel in Douala"
@@ -101,13 +108,15 @@ Notes for agents: use the latest stable Expo SDK at scaffold time and follow cur
   - "Can I spend 30,000 on fuel?" (intent = check; nothing is saved)
   - "I saved 92,000 to the kids account" (intent = savings confirmation)
 - FR-10. The app **always shows a confirm card** (amount, line, note, date) before saving a voice entry. Low-confidence line match is highlighted for correction.
-- FR-11. **Offline voice:** if the parse service is unreachable, store the raw transcript as a *pending draft*, show it in an Inbox, and parse automatically when online. The owner can also classify it manually.
+- FR-11. **Offline voice:** if the parse service is unreachable, store the raw transcript as a _pending draft_, show it in an Inbox, and parse automatically when online. The owner can also classify it manually.
 - FR-12. Edit and delete (soft delete) any transaction. Editing re-runs budget calculations.
 - FR-13. Income can be recorded (salary). Transfers (bank → MoMo) are recorded as `transfer` and **do not count as spending**; they exist so the owner can reconcile cash on hand.
 - FR-14. Inbox screen lists pending voice drafts and unassigned items.
 
 ### 7.4 Spend check and hard stop (important semantics)
+
 The app cannot block a MoMo payment. "Hard stop" is implemented as:
+
 - FR-15. **Pre-payment check** (button "Can I spend?" and voice intent): input amount + line → result is one of
   - `OK` (shows remaining after),
   - `WARN` (would cross the warning threshold, default 80%, or exceed the projected pace),
@@ -117,6 +126,7 @@ The app cannot block a MoMo payment. "Hard stop" is implemented as:
 - FR-18. Month view shows a red state for any line over budget, with the overspend amount.
 
 Spend check algorithm (pure function, unit-tested):
+
 ```
 remaining = planned(line, month) - spent(line, month)
 after = remaining - amount
@@ -129,11 +139,13 @@ else OK
 ```
 
 ### 7.5 Dashboard
+
 - FR-19. Home shows: month progress (days left), per-line progress bars (green <80%, amber 80–100%, red >100%), total spent vs planned, cash flow (income − expenses), savings progress toward the 2,000,000 XAF goal, debt remaining.
 - FR-20. Each line shows "**X% used, N days left, at this pace you finish at Y**".
-- FR-21. Status banner mirrors the workbook logic: ON TRACK / BEHIND for the savings goal, using *actual confirmed* savings versus the plan.
+- FR-21. Status banner mirrors the workbook logic: ON TRACK / BEHIND for the savings goal, using _actual confirmed_ savings versus the plan.
 
 ### 7.6 Alerts (all local notifications, work offline)
+
 - FR-22. **Daily summary at 20:00** local time: spent today, biggest line movements, lines ≥80%, tomorrow's due items. Time is configurable.
 - FR-23. **Threshold alerts** when a line crosses 50%, 80%, 100% (fires at save time and on app start).
 - FR-24. **Pace alert**: "Fuel 85% used, 10 days left" when usage % exceeds elapsed-month % by a configurable margin (default 20 points).
@@ -142,17 +154,21 @@ else OK
 - FR-27. Notifications are scheduled/rescheduled on every data change, using Android exact-alarm rules per current Expo docs; degrade gracefully if exact alarms are denied.
 
 ### 7.7 Savings follow-up
+
 - FR-28. Savings goal (seed: 2,000,000 XAF by 31 Dec 2026, "kids savings counts toward target = YES").
 - FR-29. Each month has savings commitments (kids account transfer, flexible extra save). Each shows `planned` and `saved`.
 - FR-30. Button **"I have saved"** records the amount (default = planned, editable) with a timestamp, and updates goal progress. Unconfirmed commitments after the due date show as overdue and trigger the reminder.
 - FR-31. The Savings screen shows the gap analysis: projected total if the plan is followed vs. goal, and the shortfall.
 
 ### 7.8 Debt tracker
+
 - FR-32. Debts with creditor, original amount, deadline, schedule per month. Payments are transactions tagged to the debt; balance is derived (never typed in).
 - FR-33. Status: OPEN / PAID / OVERDUE derived from balance and deadline.
 
 ### 7.8b Loans (money lent to friends and family) — Epic 10
+
 Loans are money owed **to the owner**; Debts (§7.8) are money the owner owes. Lending is not spending: a loan is never an expense against a budget line and never counts as savings or toward the 2,000,000 goal, unless the optional Lending line below is enabled.
+
 - FR-L1. A loan records: date, person (picked from phone contacts, with a manual name/phone fallback), amount, payment plan, expected deadline, and note. Plans: **one payment**, **installments** (default 4 monthly, editable), or **flexible** (deadline only). Contacts permission is requested only when the picker is opened; only name and phone number are stored.
 - FR-L2. Repayments are recorded against the loan; the outstanding balance is derived (never typed in). Status is derived, not typed: **Pending** (nothing paid, not late), **Partial payment** (some paid), **Complete** (fully paid), **Overdue** (past deadline or past an unpaid installment, balance > 0; Overdue wins over Partial but partial progress still shows), and **Written off** (set by the owner, stops overdue alerts). A "Send reminder" button opens WhatsApp with a polite pre-written message to the borrower (link only, no integration).
 - FR-L3. Local reminders (offline): 7 days before, 2 days before, on the due date, and weekly while overdue.
@@ -162,6 +178,7 @@ Loans are money owed **to the owner**; Debts (§7.8) are money the owner owes. L
 - Deferred to later epics: sync of loan tables (after Epic 6), "Owed to you" Home tile and loan rows in Activity (touch finished screens), voice entry "Lent 20k to Desmond until month end" (Epic 7), loans in CSV export (Epic 8).
 
 ### 7.9 Sync and backup
+
 - FR-34. Offline-first: all reads/writes hit SQLite. A background sync runs on app start, on connectivity regain, and after writes (debounced).
 - FR-35. Push: send outbox rows (upsert by client-generated UUID). Pull: fetch rows where `updated_at > last_pull_at` per table. Conflict rule: last write wins by `updated_at` (server timestamp on push).
 - FR-36. Deletes are soft (`deleted_at`) and sync like any update.
@@ -169,6 +186,7 @@ Loans are money owed **to the owner**; Debts (§7.8) are money the owner owes. L
 - FR-38. Export all data to CSV (transactions, lines, allocations) from Settings.
 
 ### 7.10 Security and privacy
+
 - FR-39. Optional app lock (biometric/PIN), required for overrides.
 - FR-40. Row Level Security on every table: a user only accesses rows whose `household_id` belongs to them.
 - FR-41. The Anthropic API key exists **only** as a Supabase secret, never in the app bundle.
@@ -180,22 +198,28 @@ Loans are money owed **to the owner**; Debts (§7.8) are money the owner owes. L
 **Edge Function:** `POST /functions/v1/parse-expense` (JWT required)
 
 Request:
+
 ```json
 {
   "transcript": "spent twenty thousand on fuel yesterday",
-  "lines": [{"id": "uuid", "name": "Fuel"}, {"id": "uuid", "name": "Household Feeding"}],
+  "lines": [
+    { "id": "uuid", "name": "Fuel" },
+    { "id": "uuid", "name": "Household Feeding" }
+  ],
   "today": "2026-10-18",
   "timezone": "Africa/Douala"
 }
 ```
+
 Response (validated with Zod on both sides):
+
 ```json
 {
   "items": [
     {
       "intent": "log_expense | check_spend | log_income | confirm_saving | unknown",
       "amount_xaf": 20000,
-      "line_id": "uuid | null",
+      "line_id": "budget-line id | null",
       "line_guess_name": "Fuel",
       "note": "fuel",
       "date": "2026-10-17",
@@ -204,7 +228,11 @@ Response (validated with Zod on both sides):
   ]
 }
 ```
+
 Rules: amounts are integers in XAF ("20k", "twenty thousand", "20,000" all → 20000); unknown or ambiguous line → `line_id: null` (never invent a line); relative dates resolved against `today`; temperature 0; max 60 calls/user/day; request timeout 10 s then client falls back to offline draft. The model name is an environment variable (`ANTHROPIC_MODEL`), not hard-coded.
+The daily limit is enforced by a private remote `voice_parse_usage` table and an authenticated
+`consume_voice_parse_quota()` RPC keyed to the UTC day. It is not part of local SQLite and is never
+directly accessible to app clients.
 
 ## 9. Data model (SQLite mirrors Postgres)
 
@@ -221,6 +249,7 @@ All tables: `id uuid pk (client-generated)`, `household_id uuid`, `created_at`, 
 - `settings(id, key, value)` — summary time, thresholds, pace margin
 - `sync_state(table_name pk, last_pull_at)` (local only)
 - `outbox(id, table_name, row_id, op, created_at)` (local only)
+- `voice_parse_usage(user_id, usage_day, request_count)` — remote-only Edge Function quota; RLS enabled, no direct client access
 - `loans(id, person_name, person_phone null, contact_id null, lent_on, amount, plan 'single|installments|flexible', deadline null, note, written_off_at null)` — Epic 10
 - `loan_installments(id, loan_id, due_on, amount)` — Epic 10
 - `loan_payments(id, loan_id, paid_at, amount, note)` — Epic 10; loan balance and status are derived from these
@@ -232,28 +261,29 @@ Derived values are computed from queries (spent per line per month, debt balance
 
 Income: net salary **1,092,000 XAF/month**.
 
-| Line | Kind | Sep | Oct | Nov | Dec | Hard cap |
-|---|---|---|---|---|---|---|
-| Rent | running | 107,500 | 107,500 | 107,500 | 107,500 | no (fixed in practice) |
-| Kids Feeding (Kayden & Liam) | running | 40,000 | 40,000 | 40,000 | 40,000 | yes |
-| Health | running | 40,000 | 40,000 | 40,000 | 40,000 | yes |
-| Internet | running | 30,000 | 30,000 | 30,000 | 30,000 | no |
-| Electricity | running | 15,000 | 15,000 | 15,000 | 15,000 | yes |
-| Fuel | running | 120,000 | 120,000 | 120,000 | 120,000 | yes |
-| Household Feeding | running | 80,000 | 80,000 | 80,000 | 80,000 | yes |
-| Supplies | running | 20,000 | 20,000 | 20,000 | 20,000 | yes |
-| Cleaner | running | 25,000 | 25,000 | 25,000 | 25,000 | no |
-| Car Wash | running | 5,000 | 5,000 | 5,000 | 5,000 | yes |
-| Miscellaneous (new) | misc | 30,000 | 30,000 | 30,000 | 30,000 | yes |
-| Mom Meeting (Njangi) | fixed | 100,000 | 100,000 | 100,000 | 100,000 | no |
-| Kids Account Savings | savings | 92,000 | 92,000 | 92,000 | 92,000 | no |
-| Debt – Mom | debt | 150,000 | 150,000 | 0 | 0 | no |
-| Debt – Petra | debt | 0 | 0 | 115,000 | 115,000 | no |
+| Line                         | Kind    | Sep     | Oct     | Nov     | Dec     | Hard cap               |
+| ---------------------------- | ------- | ------- | ------- | ------- | ------- | ---------------------- |
+| Rent                         | running | 107,500 | 107,500 | 107,500 | 107,500 | no (fixed in practice) |
+| Kids Feeding (Kayden & Liam) | running | 40,000  | 40,000  | 40,000  | 40,000  | yes                    |
+| Health                       | running | 40,000  | 40,000  | 40,000  | 40,000  | yes                    |
+| Internet                     | running | 30,000  | 30,000  | 30,000  | 30,000  | no                     |
+| Electricity                  | running | 15,000  | 15,000  | 15,000  | 15,000  | yes                    |
+| Fuel                         | running | 120,000 | 120,000 | 120,000 | 120,000 | yes                    |
+| Household Feeding            | running | 80,000  | 80,000  | 80,000  | 80,000  | yes                    |
+| Supplies                     | running | 20,000  | 20,000  | 20,000  | 20,000  | yes                    |
+| Cleaner                      | running | 25,000  | 25,000  | 25,000  | 25,000  | no                     |
+| Car Wash                     | running | 5,000   | 5,000   | 5,000   | 5,000   | yes                    |
+| Miscellaneous (new)          | misc    | 30,000  | 30,000  | 30,000  | 30,000  | yes                    |
+| Mom Meeting (Njangi)         | fixed   | 100,000 | 100,000 | 100,000 | 100,000 | no                     |
+| Kids Account Savings         | savings | 92,000  | 92,000  | 92,000  | 92,000  | no                     |
+| Debt – Mom                   | debt    | 150,000 | 150,000 | 0       | 0       | no                     |
+| Debt – Petra                 | debt    | 0       | 0       | 115,000 | 115,000 | no                     |
 
 Debts: Mom 300,000 (deadline 2026-11-30), Petra 230,000 (flexible).
 Goal: 2,000,000 XAF by 2026-12-31; kids savings counts toward the goal; starting balance 0.
 
 Open data items for the owner to confirm (do not block the build; seed and let the owner edit):
+
 1. **Rent:** the Budget sheet says 107,500 but the Expenses sheet says 105,000. Seed uses 107,500.
 2. **Miscellaneous 30,000/month** is a placeholder; it comes out of the flexible savings.
 3. **Goal gap:** with the workbook's own numbers (no Misc line), planned savings are 359,500 (Sep), 359,500 (Oct), 394,500 (Nov), 394,500 (Dec) = **1,508,000**, which is **492,000 short** of 2,000,000. Adding Misc widens the gap by 120,000. The app must show this honestly on the Savings screen; it is not a bug.
@@ -301,14 +331,14 @@ UX principles: one-handed use; large numbers; amounts always `120,000 XAF`; ligh
 
 ## 15. Risks and mitigations
 
-| Risk | Mitigation |
-|---|---|
-| Owner stops logging | Voice + daily 8 pm nudge + Inbox; Phase 2 SMS capture |
-| Play Store restricts SMS permissions | Personal sideloaded build is fine; for the public release use the notification-listener approach or apply for the permission exception, decided in Phase 2 |
-| Android battery optimisation kills notifications | Onboarding step to exempt the app; fall back to checks on app open |
-| Voice misparse | Mandatory confirm card; confidence highlight; correction flow |
-| Sync conflicts with a second device | Last-write-wins is acceptable single-user; revisit with PowerSync in Phase 3 |
-| Cost of LLM calls | One short call per voice entry, daily cap per user |
+| Risk                                             | Mitigation                                                                                                                                                 |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Owner stops logging                              | Voice + daily 8 pm nudge + Inbox; Phase 2 SMS capture                                                                                                      |
+| Play Store restricts SMS permissions             | Personal sideloaded build is fine; for the public release use the notification-listener approach or apply for the permission exception, decided in Phase 2 |
+| Android battery optimisation kills notifications | Onboarding step to exempt the app; fall back to checks on app open                                                                                         |
+| Voice misparse                                   | Mandatory confirm card; confidence highlight; correction flow                                                                                              |
+| Sync conflicts with a second device              | Last-write-wins is acceptable single-user; revisit with PowerSync in Phase 3                                                                               |
+| Cost of LLM calls                                | One short call per voice entry, daily cap per user                                                                                                         |
 
 ## 16. Acceptance (MVP done when)
 

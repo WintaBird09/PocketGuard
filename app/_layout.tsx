@@ -8,6 +8,7 @@ import { AuthProvider } from '@/src/auth/AuthProvider';
 import { initializeLocalApp } from '@/src/data/bootstrap';
 import { openAppDatabase } from '@/src/data/db';
 import { SyncProvider } from '@/src/sync/SyncProvider';
+import { VoiceDraftProvider } from '@/src/voice/VoiceDraftProvider';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 
 export default function RootLayout() {
@@ -60,7 +61,9 @@ export default function RootLayout() {
   return ready ? (
     <AuthProvider>
       <SyncProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <VoiceDraftProvider>
+          <Stack screenOptions={{ headerShown: false }} />
+        </VoiceDraftProvider>
       </SyncProvider>
     </AuthProvider>
   ) : (
