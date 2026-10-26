@@ -9,41 +9,41 @@ import {
   type ExpenseLineOption,
 } from '@/src/data/transaction-entry';
 import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { localDateString, monthKeyForDate } from '@/src/domain/dates';
+import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { authenticateForOverride } from '@/src/security/appLock';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 
-function todayInputValue(): string {
-  const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
-
 export default function AddTransactionScreen() {
+  const dateRevision = useDateOverrideRevision();
   const [database, setDatabase] = useState<DatabaseLike | null>(null);
   const [householdId, setHouseholdId] = useState('');
   const [lines, setLines] = useState<ExpenseLineOption[]>([]);
   const [selectedLineId, setSelectedLineId] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [note, setNote] = useState('');
-  const [occurredOn, setOccurredOn] = useState(todayInputValue);
+  const [dateSelection, setDateSelection] = useState(() => ({
+    revision: dateRevision,
+    date: localDateString(),
+  }));
+  const occurredOn =
+    dateSelection.revision === dateRevision ? dateSelection.date : localDateString();
+  const setOccurredOn = (date: string) => setDateSelection({ revision: dateRevision, date });
   const [confirmWarning, setConfirmWarning] = useState(false);
   const [overrideOpen, setOverrideOpen] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
-
   useEffect(() => {
     let active = true;
 
     const loadEntryOptions = async () => {
+      setLoading(true);
       try {
         const db = await openAppDatabase();
         const household = db
@@ -66,6 +66,8 @@ export default function AddTransactionScreen() {
         if (active) {
           setError(cause instanceof Error ? cause.message : 'Unable to load budget lines.');
         }
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
@@ -76,7 +78,7 @@ export default function AddTransactionScreen() {
   }, [occurredOn, reload]);
 
   const amount = Number(amountInput);
-  const review = useMemo(() => {
+  const reviewState = useMemo(() => {
     if (
       !database ||
       !householdId ||
@@ -84,18 +86,25 @@ export default function AddTransactionScreen() {
       !Number.isSafeInteger(amount) ||
       amount <= 0
     ) {
-      return null;
+      return { review: null, error: null };
     }
     try {
-      return getExpenseReview(database, householdId, {
-        lineId: selectedLineId,
-        amount,
-        occurredOn,
-      });
-    } catch {
-      return null;
+      return {
+        review: getExpenseReview(database, householdId, {
+          lineId: selectedLineId,
+          amount,
+          occurredOn,
+        }),
+        error: null,
+      };
+    } catch (cause) {
+      return {
+        review: null,
+        error: cause instanceof Error ? cause.message : 'Unable to calculate the spend check.',
+      };
     }
   }, [amount, database, householdId, occurredOn, selectedLineId]);
+  const { review } = reviewState;
 
   const selectedLine = lines.find((line) => line.id === selectedLineId);
   const statusColor =
@@ -172,7 +181,12 @@ export default function AddTransactionScreen() {
   };
 
   return (
-    <PageLayout title="Add transaction" subtitle="Fast capture before paying">
+    <PageLayout title="Add transaction" subtitle="Fast capture before paying" loading={loading}>
+      {error && !saving ? (
+        <Text accessibilityRole="alert" className="mb-3 text-sm text-red-700">
+          {error}
+        </Text>
+      ) : null}
       <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <Text className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           Amount (XAF)
@@ -188,7 +202,7 @@ export default function AddTransactionScreen() {
           }}
           keyboardType="number-pad"
           placeholder="Enter a whole amount"
-          className="rounded-xl border border-slate-200 px-4 py-3 text-2xl font-bold text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-2xl font-bold text-slate-900"
         />
 
         <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Budget line</Text>
@@ -204,7 +218,9 @@ export default function AddTransactionScreen() {
                   setOverrideOpen(false);
                   setMessage(null);
                 }}
-                className={`rounded-full px-3 py-2 ${isActive ? 'bg-emerald-100' : 'bg-slate-100'}`}
+                className={`min-h-12 items-center justify-center rounded-full px-4 py-3 ${
+                  isActive ? 'bg-emerald-100' : 'bg-slate-100'
+                }`}
               >
                 <Text
                   className={`text-sm font-medium ${isActive ? 'text-emerald-700' : 'text-slate-700'}`}
@@ -215,7 +231,10 @@ export default function AddTransactionScreen() {
             );
           })}
           {lines.length === 0 ? (
-            <Text className="text-sm text-slate-500">No active budget lines for this month.</Text>
+            <Text className="text-sm text-slate-500">
+              No active budget lines for this month. Add a line in Budget before recording an
+              expense.
+            </Text>
           ) : null}
         </View>
         <Text className="mt-2 text-xs text-slate-500">
@@ -233,7 +252,7 @@ export default function AddTransactionScreen() {
             setMessage(null);
           }}
           placeholder="YYYY-MM-DD"
-          className="rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
         />
 
         <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Note</Text>
@@ -242,7 +261,7 @@ export default function AddTransactionScreen() {
           value={note}
           onChangeText={setNote}
           placeholder="Optional details"
-          className="rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
         />
       </View>
 
@@ -262,6 +281,10 @@ export default function AddTransactionScreen() {
               Remaining after this entry: {formatXAF(review.result.remainingAfter)}
             </Text>
           </>
+        ) : reviewState.error ? (
+          <Text accessibilityRole="alert" className="text-sm text-red-700">
+            {reviewState.error}
+          </Text>
         ) : (
           <Text className="text-sm text-slate-500">
             Enter a positive amount and valid date to review.
@@ -277,7 +300,7 @@ export default function AddTransactionScreen() {
             value={overrideReason}
             onChangeText={setOverrideReason}
             placeholder="Why is this needed?"
-            className="rounded-xl border border-red-200 bg-white px-4 py-3 text-base text-slate-900"
+            className="min-h-12 rounded-xl border border-red-200 bg-white px-4 py-3 text-base text-slate-900"
           />
           <Text className="mt-2 text-xs text-red-700">
             Overrides are recorded with your reason and shown in the Overrides report.
@@ -290,7 +313,7 @@ export default function AddTransactionScreen() {
       <View className="mt-5 flex-row gap-3">
         <Link
           href="/can-i-spend"
-          className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3"
+          className="min-h-12 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3"
         >
           <Text className="text-center text-base font-bold text-slate-900">Can I spend?</Text>
         </Link>
@@ -298,7 +321,7 @@ export default function AddTransactionScreen() {
           accessibilityRole="button"
           disabled={!review || saving}
           onPress={() => void save()}
-          className={`flex-1 rounded-2xl px-4 py-3 ${
+          className={`min-h-12 flex-1 rounded-2xl px-4 py-3 ${
             !review || saving
               ? 'bg-slate-300'
               : review.result.status === 'BLOCKED'

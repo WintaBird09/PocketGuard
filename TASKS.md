@@ -147,13 +147,13 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
 
 ## EPIC 8 — Hardening and polish
 
-- **8.1 App lock:** optional biometric/PIN on open and for overrides.
-- **8.2 CSV export:** transactions, lines, allocations via share sheet.
-- **8.3 Optional import of existing workbook transactions:** one-time script that reads the Sep–Oct `Transactions` sheet rows into the DB (skip rows with no amount/category).
-- **8.4 Empty/error states:** every screen has loading, empty, error.
-- **8.5 Accessibility and performance pass:** tap targets ≥48 dp, font scaling, 1,000-transaction seed test (NFR-1).
-- **8.6 Time-travel debug tool (dev only):** override "today" to test month rollover, pace alerts, overdue debt.
-  _Done when (Epic 8):_ PRD §16 acceptance items 1–7 are walked through and checked off in a `ACCEPTANCE.md`.
+- **8.1 App lock (implemented; device verification pending):** optional biometric/device-passcode lock on open and for spend overrides; the opt-in preference is stored locally.
+- **8.2 CSV export (implemented; native share-sheet verification pending):** transactions, budget lines, allocations, loans, and repayment history.
+- **8.3 Optional workbook import (script implemented; owner workbook run pending):** one-time script reads the `Transactions` sheet, skips incomplete amount/category rows, validates dates and categories, and writes transactions plus outbox entries to a copied database.
+- **8.4 Empty/error states (implemented; acceptance walkthrough pending):** shared loading state and screen-specific loading, empty, and error feedback for data-backed flows.
+- **8.5 Accessibility and performance pass (implemented; device audit pending):** common controls and editable fields have ≥48 dp targets, system font scaling remains enabled, and a 1,000-transaction dashboard snapshot test checks the 2 s target.
+- **8.6 Time-travel debug tool (implemented; device verification pending):** development-only local date override for month rollover, pace alerts, and overdue debt; notification rescheduling is suppressed while a simulated date is active.
+  _Acceptance:_ `ACCEPTANCE.md` tracks PRD §16 items 1–7 separately from automated checks. Device, live Supabase, and owner-workbook checks remain unchecked until performed.
 
 ## EPIC 9 — Release (personal)
 

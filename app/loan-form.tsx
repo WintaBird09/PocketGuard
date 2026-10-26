@@ -25,7 +25,7 @@ const plans: { key: LoanPlan; label: string }[] = [
   { key: 'flexible', label: 'Flexible' },
 ];
 
-const inputClass = 'mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base';
+const inputClass = 'mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base';
 
 function Label({ children }: { children: string }) {
   return <Text className="mb-1 mt-2 text-xs font-semibold text-slate-500">{children}</Text>;
@@ -34,7 +34,7 @@ function Label({ children }: { children: string }) {
 export default function LoanFormScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { db, householdId, error: dbError } = useDatabase();
+  const { db, householdId, loading, error: dbError } = useDatabase();
   const [edits, setEdits] = useState<LoanFormFields | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -119,6 +119,7 @@ export default function LoanFormScreen() {
 
   return (
     <PageLayout
+      loading={loading}
       title={id ? 'Edit loan' : 'Add loan'}
       subtitle="Money you lent. It is not counted as spending."
     >

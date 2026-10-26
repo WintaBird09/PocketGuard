@@ -6,7 +6,10 @@ import {
   daysElapsedInMonth,
   daysInMonth,
   daysRemainingInMonth,
+  effectiveNow,
+  localDateString,
   monthKeyForDate,
+  setLocalDateOverride,
 } from './dates';
 
 describe('money utils', () => {
@@ -46,5 +49,16 @@ describe('date utils', () => {
     expect(dayOfMonth(sampleDate, 'Africa/Douala')).toBe(18);
     expect(daysElapsedInMonth(sampleDate, 'Africa/Douala')).toBe(18);
     expect(daysRemainingInMonth(sampleDate, 'Africa/Douala')).toBe(13);
+  });
+
+  it('simulates the effective local date and validates the override', () => {
+    try {
+      setLocalDateOverride('2026-11-30');
+      expect(localDateString()).toBe('2026-11-30');
+      expect(monthKeyForDate(effectiveNow(), 'Africa/Douala')).toBe('2026-11');
+      expect(() => setLocalDateOverride('2026-02-30')).toThrow('valid YYYY-MM-DD');
+    } finally {
+      setLocalDateOverride(null);
+    }
   });
 });

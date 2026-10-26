@@ -1,7 +1,7 @@
 import { getHomeDashboardSnapshot } from '../data/dashboard';
 import type { DatabaseLike } from '../data/db';
 import { settings } from '../data/repos';
-import { monthKeyForDate } from '../domain/dates';
+import { effectiveNow, monthKeyForDate } from '../domain/dates';
 import type { Alert } from '../domain/alerts';
 
 import { getNextNotificationTime, parseDailySummaryTime } from './scheduler';
@@ -101,7 +101,7 @@ export function getPersistedDailySummaryTime(db: DatabaseLike): string {
   return time;
 }
 
-export function getPersistedDailySummary(db: DatabaseLike, now = new Date()): Alert {
+export function getPersistedDailySummary(db: DatabaseLike, now = effectiveNow()): Alert {
   const database = requirePreparedDatabase(db);
   const householdId = getHouseholdId(database);
   const { start, end, day } = localDayRange(now, timeZone);
@@ -209,7 +209,11 @@ export function getPersistedDailySummary(db: DatabaseLike, now = new Date()): Al
   };
 }
 
-export function getPersistedDailySummaries(db: DatabaseLike, now = new Date(), days = 7): Alert[] {
+export function getPersistedDailySummaries(
+  db: DatabaseLike,
+  now = effectiveNow(),
+  days = 7,
+): Alert[] {
   if (!Number.isInteger(days) || days < 1 || days > 31) {
     throw new Error('Daily summaries must be scheduled for between 1 and 31 days.');
   }

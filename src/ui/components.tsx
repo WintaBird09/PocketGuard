@@ -107,6 +107,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.2,
   },
   button: {
+    minHeight: 48,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 18,

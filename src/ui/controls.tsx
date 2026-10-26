@@ -18,7 +18,7 @@ export function Chip({
       accessibilityState={{ selected: Boolean(active), disabled }}
       disabled={disabled}
       onPress={onPress}
-      className={`rounded-full border px-4 py-2 ${disabled ? 'opacity-50' : ''} ${
+      className={`min-h-12 rounded-full border px-4 py-3 ${disabled ? 'opacity-50' : ''} ${
         active ? 'border-slate-900 bg-slate-900' : 'border-slate-200 bg-white'
       }`}
     >
@@ -52,7 +52,7 @@ export function Button({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      className={`items-center rounded-2xl px-4 py-3 ${style} ${disabled ? 'opacity-50' : ''}`}
+      className={`min-h-12 items-center rounded-2xl px-4 py-3 ${style} ${disabled ? 'opacity-50' : ''}`}
     >
       <Text className={`text-base font-bold ${text}`}>{label}</Text>
     </Pressable>

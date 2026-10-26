@@ -6,14 +6,14 @@ import { listDebts } from '@/src/data/debts';
 import { listOverrides } from '@/src/data/activity';
 import { countInbox } from '@/src/data/inbox';
 import { totalOwedToYou } from '@/src/data/loans';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
 import { Banner } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
 
 export default function MoreScreen() {
-  const { db, householdId, error: dbError, tick } = useDatabase();
+  const { db, householdId, loading, error: dbError, tick } = useDatabase();
 
   const loaded = useMemo(() => {
     if (!db || !householdId) return { data: null, failure: null };
@@ -24,8 +24,11 @@ export default function MoreScreen() {
           waiting: countInbox(db, householdId),
           debtLeft: debts.reduce((sum, debt) => sum + debt.balance, 0),
           owedToYou: totalOwedToYou(db, householdId),
-          overrides: listOverrides(db, householdId, monthKeyForDate(new Date(), 'Africa/Douala'))
-            .length,
+          overrides: listOverrides(
+            db,
+            householdId,
+            monthKeyForDate(effectiveNow(), 'Africa/Douala'),
+          ).length,
         },
         failure: null,
       };
@@ -63,7 +66,7 @@ export default function MoreScreen() {
   ] as const;
 
   return (
-    <PageLayout title="More" subtitle="Everything else in Pocket Guard">
+    <PageLayout title="More" subtitle="Everything else in Pocket Guard" loading={loading}>
       {(dbError ?? loaded.failure) ? (
         <Banner tone="error">{dbError ?? loaded.failure ?? ''}</Banner>
       ) : null}

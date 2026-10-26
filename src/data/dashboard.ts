@@ -1,5 +1,5 @@
 import { debtBalance, lineStatus, sumTransactionTotals } from '../domain/budget';
-import { dayOfMonth, daysInMonth } from '../domain/dates';
+import { dayOfMonth, daysInMonth, effectiveNow } from '../domain/dates';
 
 import type { DatabaseLike } from './db';
 import type { BudgetLine, DashboardSummary } from './types';
@@ -48,7 +48,7 @@ export function getHomeDashboardSnapshot(
   db: DatabaseLike,
   householdId: string,
   monthKey: string,
-  now = new Date(),
+  now = effectiveNow(),
 ): HomeDashboardSnapshot {
   const database = requireDatabase(db);
   const monthStart = `${monthKey}-01`;

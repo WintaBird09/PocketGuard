@@ -14,7 +14,8 @@ import {
   setPlannedIncome,
   type LineKind,
 } from '@/src/data/plan';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
+import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { Banner, Button, Chip, monthLabel } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
@@ -24,9 +25,15 @@ import { useDatabase } from '@/src/ui/useDatabase';
 const kinds: LineKind[] = ['running', 'fixed', 'debt', 'savings', 'misc'];
 
 export default function BudgetScreen() {
-  const { db, householdId, error: dbError, tick, refresh } = useDatabase();
-  const currentMonth = monthKeyForDate(new Date(), 'Africa/Douala');
-  const [month, setMonth] = useState(currentMonth);
+  const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
+  const dateRevision = useDateOverrideRevision();
+  const currentMonth = monthKeyForDate(effectiveNow(), 'Africa/Douala');
+  const [monthSelection, setMonthSelection] = useState({
+    revision: dateRevision,
+    month: currentMonth,
+  });
+  const month = monthSelection.revision === dateRevision ? monthSelection.month : currentMonth;
+  const setMonth = (value: string) => setMonthSelection({ revision: dateRevision, month: value });
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [incomeDraft, setIncomeDraft] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
@@ -35,7 +42,6 @@ export default function BudgetScreen() {
   const [newKind, setNewKind] = useState<LineKind>('running');
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const loaded = useMemo(() => {
     if (!db || !householdId) return { data: null, failure: null };
     try {
@@ -91,7 +97,7 @@ export default function BudgetScreen() {
   const failure = dbError ?? loaded.failure;
   if (failure) {
     return (
-      <PageLayout title="Budget plan">
+      <PageLayout title="Budget plan" loading={loading}>
         <Banner tone="error">{failure}</Banner>
       </PageLayout>
     );
@@ -99,7 +105,7 @@ export default function BudgetScreen() {
   const view = loaded.data;
   if (!view) {
     return (
-      <PageLayout title="Budget plan">
+      <PageLayout title="Budget plan" loading={loading}>
         <Text className="text-sm text-slate-600">Loading your plan…</Text>
       </PageLayout>
     );
@@ -111,6 +117,7 @@ export default function BudgetScreen() {
   return (
     <PageLayout
       title="Budget plan"
+      loading={loading}
       subtitle={monthLabel(month)}
       action={
         <Button
@@ -156,7 +163,7 @@ export default function BudgetScreen() {
               setIncomeDraft(null);
               run(() => setPlannedIncome(db!, householdId, value));
             }}
-            className="min-w-[120px] rounded-lg bg-amber-50 px-3 py-1 text-right text-base font-semibold text-slate-900"
+            className="min-h-12 min-w-[120px] rounded-lg bg-amber-50 px-3 py-3 text-right text-base font-semibold text-slate-900"
           />
         </View>
         <View className="mt-1 flex-row justify-between">
@@ -211,7 +218,7 @@ export default function BudgetScreen() {
                 value={drafts[line.id] ?? String(line.planned)}
                 onChangeText={(value) => setDrafts((current) => ({ ...current, [line.id]: value }))}
                 onEndEditing={() => commitAmount(line.id)}
-                className="min-w-[100px] rounded-lg bg-amber-50 px-3 py-2 text-right text-base font-semibold text-slate-900"
+                className="min-h-12 min-w-[100px] rounded-lg bg-amber-50 px-3 py-3 text-right text-base font-semibold text-slate-900"
               />
               <Switch
                 accessibilityLabel={`Hard cap for ${line.name}`}
@@ -253,7 +260,7 @@ export default function BudgetScreen() {
             placeholder="Line name"
             value={newName}
             onChangeText={setNewName}
-            className="rounded-xl border border-slate-200 px-3 py-2 text-base"
+            className="min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
           />
           <View className="mt-3 flex-row flex-wrap gap-2">
             {kinds.map((kind) => (

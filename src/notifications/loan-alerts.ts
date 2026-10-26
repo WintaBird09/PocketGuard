@@ -1,7 +1,7 @@
 import type { DatabaseLike } from '../data/db';
 import { getActiveHouseholdId } from '../data/household';
 import { listLoans, type LoanSummary } from '../data/loans';
-import { localDateString } from '../domain/dates';
+import { effectiveNow, localDateString } from '../domain/dates';
 import type { Alert } from '../domain/alerts';
 import { formatXAF } from '../ui/theme';
 
@@ -27,7 +27,7 @@ function describe(loan: LoanSummary): string {
 // Reminders are future-dated and rebuilt on each refresh, so a repayment, edit or write-off
 // removes the pending ones. A reminder whose 09:00 has already passed is skipped, never fired
 // late, so repeated refreshes cannot notify twice.
-export function buildLoanReminders(loans: readonly LoanSummary[], now = new Date()): Alert[] {
+export function buildLoanReminders(loans: readonly LoanSummary[], now = effectiveNow()): Alert[] {
   const today = localDateString(now);
   const alerts: Alert[] = [];
 
@@ -73,7 +73,7 @@ export function buildLoanReminders(loans: readonly LoanSummary[], now = new Date
   return alerts;
 }
 
-export function getPersistedLoanReminders(db: DatabaseLike, now = new Date()): Alert[] {
+export function getPersistedLoanReminders(db: DatabaseLike, now = effectiveNow()): Alert[] {
   const householdId = getActiveHouseholdId(db);
   return buildLoanReminders(listLoans(db, householdId, localDateString(now)), now);
 }

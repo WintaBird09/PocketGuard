@@ -11,8 +11,12 @@
       "supportsTablet": true
     },
     "android": {
-      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
-      "blockedPermissions": ["android.permission.WRITE_CONTACTS"],
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -53,8 +57,11 @@
       ],
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Allow Pocket Guard to confirm budget overrides with Face ID." }
-      ]
+        {
+          "faceIDPermission": "Allow Pocket Guard to confirm budget overrides with Face ID."
+        }
+      ],
+      "expo-sharing"
     ]
   }
 }

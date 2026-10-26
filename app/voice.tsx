@@ -2,7 +2,8 @@ import { Link } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Text, TextInput, View } from 'react-native';
 
-import { monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
+import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { Banner, Button } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { useDatabase } from '@/src/ui/useDatabase';
@@ -21,7 +22,9 @@ import type { ParseExpenseItem, ParseExpenseResponse } from '@/src/voice/contrac
 import { listExpenseLines } from '@/src/data/transaction-entry';
 
 export default function VoiceScreen() {
-  const { db, householdId, error: databaseError, refresh } = useDatabase();
+  const { db, householdId, loading, error: databaseError, refresh } = useDatabase();
+  useDateOverrideRevision();
+  const month = monthKeyForDate(effectiveNow(), 'Africa/Douala');
   const [speech, setSpeech] = useState<SpeechRecognitionSnapshot>(getSpeechRecognitionSnapshot());
   const [transcript, setTranscript] = useState('');
   const [items, setItems] = useState<ParseExpenseItem[]>([]);
@@ -32,12 +35,11 @@ export default function VoiceScreen() {
 
   const reviewData = useMemo(() => {
     if (!db || !householdId) return { lines: [], commitments: [] };
-    const month = monthKeyForDate(new Date(), 'Africa/Douala');
     return {
       lines: listExpenseLines(db, householdId, month),
       commitments: listPendingVoiceSavingsCommitments(db, householdId, month),
     };
-  }, [db, householdId]);
+  }, [db, householdId, month]);
 
   const parseTranscript = useCallback(
     async (value: string) => {
@@ -135,6 +137,7 @@ export default function VoiceScreen() {
     <PageLayout
       title="Voice entry"
       subtitle="Review every interpretation before it changes your budget"
+      loading={loading}
       action={
         <Link
           href="/inbox"

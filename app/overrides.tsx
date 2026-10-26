@@ -8,7 +8,7 @@ import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
 
 export default function OverridesScreen() {
-  const { db, householdId, error: dbError, tick } = useDatabase();
+  const { db, householdId, loading, error: dbError, tick } = useDatabase();
   const loaded = useMemo(() => {
     if (!db || !householdId) return { data: null, failure: null };
     try {
@@ -22,7 +22,11 @@ export default function OverridesScreen() {
   const failure = dbError ?? loaded.failure;
 
   return (
-    <PageLayout title="Overrides" subtitle="Hard-cap overspends you approved, with your reason">
+    <PageLayout
+      title="Overrides"
+      subtitle="Hard-cap overspends you approved, with your reason"
+      loading={loading}
+    >
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {loaded.data && loaded.data.length === 0 ? (
         <Text className="text-sm text-slate-600">No overrides recorded.</Text>

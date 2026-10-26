@@ -8,12 +8,15 @@ import {
   getSavingsOverview,
   type SavingsOverview,
 } from '@/src/data/savings';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
+import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 
 export default function SavingsScreen() {
+  useDateOverrideRevision();
+  const month = monthKeyForDate(effectiveNow(), 'Africa/Douala');
   const [overview, setOverview] = useState<SavingsOverview | null>(null);
   const [database, setDatabase] = useState<DatabaseLike | null>(null);
   const [householdId, setHouseholdId] = useState('');
@@ -38,8 +41,7 @@ export default function SavingsScreen() {
           if (!household || typeof household.id !== 'string') {
             throw new Error('The local household has not been initialized.');
           }
-          const monthKey = monthKeyForDate(new Date(), 'Africa/Douala');
-          const snapshot = getSavingsOverview(db, household.id, monthKey);
+          const snapshot = getSavingsOverview(db, household.id, month);
           if (active) {
             setDatabase(db);
             setHouseholdId(household.id);
@@ -59,7 +61,7 @@ export default function SavingsScreen() {
       return () => {
         active = false;
       };
-    }, []),
+    }, [month]),
   );
 
   const confirmCommitment = async (commitmentId: string) => {
@@ -67,7 +69,7 @@ export default function SavingsScreen() {
     setSavingCommitmentId(commitmentId);
     setError(null);
     try {
-      const savedAt = new Date().toISOString();
+      const savedAt = effectiveNow().toISOString();
       const amount = Number(
         savedAmounts[commitmentId] ??
           overview?.commitments.find((item) => item.id === commitmentId)?.plannedAmount,
@@ -217,7 +219,7 @@ export default function SavingsScreen() {
                     <View className="mt-3 flex-row items-center gap-3">
                       <TextInput
                         accessibilityLabel={`Saved amount for ${commitment.month}`}
-                        className="min-w-28 rounded-xl border border-slate-200 px-3 py-3 text-base font-semibold text-slate-900"
+                        className="min-h-12 min-w-28 rounded-xl border border-slate-200 px-3 py-3 text-base font-semibold text-slate-900"
                         editable={savingCommitmentId !== commitment.id}
                         keyboardType="number-pad"
                         onChangeText={(value) =>
@@ -232,7 +234,7 @@ export default function SavingsScreen() {
                         accessibilityRole="button"
                         disabled={savingCommitmentId === commitment.id}
                         onPress={() => void confirmCommitment(commitment.id)}
-                        className="flex-1 rounded-xl bg-emerald-600 px-4 py-3"
+                        className="min-h-12 flex-1 rounded-xl bg-emerald-600 px-4 py-3"
                       >
                         <Text className="text-center font-bold text-white">
                           {savingCommitmentId === commitment.id ? 'Saving…' : 'I have saved'}

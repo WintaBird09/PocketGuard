@@ -5,7 +5,7 @@ import { Platform, Pressable, Text, View } from 'react-native';
 import { needsOnboarding } from '@/src/data/bootstrap';
 import { getHomeDashboardSnapshot } from '@/src/data/dashboard';
 import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
 import {
   dismissBatteryOptimizationOnboarding,
   shouldShowBatteryOptimizationOnboarding,
@@ -15,7 +15,7 @@ import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 
 function currentMonthKey(): string {
-  return monthKeyForDate(new Date(), 'Africa/Douala');
+  return monthKeyForDate(effectiveNow(), 'Africa/Douala');
 }
 
 export default function HomeScreen() {
@@ -85,7 +85,7 @@ export default function HomeScreen() {
           <Pressable
             accessibilityRole="button"
             onPress={() => setRetry((current) => current + 1)}
-            className="mt-4 self-start rounded-xl bg-red-700 px-4 py-2"
+            className="mt-4 min-h-12 self-start rounded-xl bg-red-700 px-4 py-3"
           >
             <Text className="font-bold text-white">Retry</Text>
           </Pressable>

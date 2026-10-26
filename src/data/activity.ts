@@ -1,6 +1,8 @@
 import type { DatabaseLike } from './db';
 import { assertMonthKey, assertWholeAmount, inTransaction, requirePrepared } from './household';
 import { appendOutboxEntry } from './repos';
+import { listLoans } from './loans';
+import { localDateString } from '../domain/dates';
 
 export type ActivityItem = {
   id: string;
@@ -204,4 +206,67 @@ export function buildTransactionsCsv(db: DatabaseLike, householdId: string): str
     ].join(','),
   );
   return [header, ...body].join('\n');
+}
+
+export function buildBudgetLinesCsv(db: DatabaseLike, householdId: string): string {
+  const rows = requirePrepared(db)(
+    `SELECT name, kind, hard_cap, sort_order, archived FROM budget_lines
+      WHERE household_id = ? AND deleted_at IS NULL
+      ORDER BY sort_order, name;`,
+  ).all(householdId);
+  return [
+    'line,kind,hard_cap,sort_order,archived',
+    ...rows.map((row) =>
+      [
+        csvCell(row.name, true),
+        csvCell(row.kind),
+        csvCell(row.hard_cap),
+        csvCell(row.sort_order),
+        csvCell(row.archived),
+      ].join(','),
+    ),
+  ].join('\n');
+}
+
+export function buildAllocationsCsv(db: DatabaseLike, householdId: string): string {
+  const rows = requirePrepared(db)(
+    `SELECT bl.name AS line, a.month, a.planned_amount FROM allocations a
+      JOIN budget_lines bl ON bl.id = a.line_id AND bl.household_id = a.household_id
+      WHERE a.household_id = ? AND a.deleted_at IS NULL AND bl.deleted_at IS NULL
+      ORDER BY a.month, bl.sort_order, bl.name;`,
+  ).all(householdId);
+  return [
+    'line,month,planned_amount_xaf',
+    ...rows.map((row) =>
+      [csvCell(row.line, true), csvCell(row.month), csvCell(row.planned_amount)].join(','),
+    ),
+  ].join('\n');
+}
+
+export function buildLoansCsv(db: DatabaseLike, householdId: string): string {
+  const loans = listLoans(db, householdId, localDateString());
+  const rows = loans.flatMap((loan) => {
+    const payments =
+      loan.payments.length > 0 ? loan.payments : [{ id: '', paidAt: '', amount: 0, note: '' }];
+    return payments.map((payment) =>
+      [
+        csvCell(loan.personName, true),
+        csvCell(loan.lentOn),
+        csvCell(loan.plan),
+        csvCell(loan.amount),
+        csvCell(loan.paid),
+        csvCell(loan.balance),
+        csvCell(loan.status),
+        csvCell(loan.deadline),
+        csvCell(loan.writtenOffAt),
+        csvCell(payment.paidAt.slice(0, 10)),
+        csvCell(payment.amount),
+        csvCell(payment.note, true),
+      ].join(','),
+    );
+  });
+  return [
+    'person,lent_on,plan,amount_xaf,repaid_xaf,balance_xaf,status,deadline,written_off_at,payment_date,payment_amount_xaf,payment_note',
+    ...rows,
+  ].join('\n');
 }

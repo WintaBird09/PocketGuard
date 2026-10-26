@@ -4,6 +4,8 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import { getActiveHouseholdId } from '@/src/data/household';
 import { openAppDatabase, runMigrations, type DatabaseLike } from '@/src/data/db';
 import { transactions, type TransactionDirection } from '@/src/data/repos';
+import { effectiveNow, monthKeyForDate, localDateString } from '@/src/domain/dates';
+import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
@@ -26,7 +28,7 @@ const entryTypes: { direction: TransactionDirection; label: string; noteLabel: s
 ];
 
 function getRecordedEntries(database: DatabaseLike): RecordedEntry[] {
-  const month = new Date().toISOString().slice(0, 7);
+  const month = monthKeyForDate(effectiveNow(), 'Africa/Douala');
   return transactions
     .listByMonth(database, getActiveHouseholdId(database), month)
     .flatMap((row) => {
@@ -44,11 +46,13 @@ function getRecordedEntries(database: DatabaseLike): RecordedEntry[] {
 }
 
 export default function IncomeTransferScreen() {
+  const dateRevision = useDateOverrideRevision();
   const [database, setDatabase] = useState<DatabaseLike | null>(null);
   const [direction, setDirection] = useState<TransactionDirection>('income');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [entries, setEntries] = useState<RecordedEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -57,6 +61,7 @@ export default function IncomeTransferScreen() {
     let active = true;
 
     const initialize = async () => {
+      setLoading(true);
       try {
         const openedDatabase = await openAppDatabase();
         runMigrations(openedDatabase);
@@ -68,6 +73,8 @@ export default function IncomeTransferScreen() {
         if (active) {
           setError(cause instanceof Error ? cause.message : 'Unable to open the local database.');
         }
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
@@ -75,7 +82,7 @@ export default function IncomeTransferScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [dateRevision]);
 
   const saveEntry = () => {
     const parsedAmount = Number(amount);
@@ -93,7 +100,7 @@ export default function IncomeTransferScreen() {
     setMessage(null);
     try {
       transactions.add(database, getActiveHouseholdId(database), {
-        occurred_at: new Date().toISOString(),
+        occurred_at: new Date(`${localDateString()}T12:00:00`).toISOString(),
         amount: parsedAmount,
         direction,
         note: note.trim() || null,
@@ -117,7 +124,18 @@ export default function IncomeTransferScreen() {
     <PageLayout
       title="Income & transfers"
       subtitle="Record income without counting transfers as spending"
+      loading={loading}
     >
+      {error ? (
+        <Text accessibilityRole="alert" className="mb-3 text-sm text-red-700">
+          {error}
+        </Text>
+      ) : null}
+      {!loading && !error && entries.length === 0 ? (
+        <Text className="mb-3 text-sm text-slate-600">
+          No income or transfers have been recorded for this month.
+        </Text>
+      ) : null}
       <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <Text className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           Entry type
@@ -129,7 +147,7 @@ export default function IncomeTransferScreen() {
               <Pressable
                 key={item.direction}
                 onPress={() => setDirection(item.direction)}
-                className={`rounded-full px-4 py-2 ${isActive ? 'bg-emerald-100' : 'bg-slate-100'}`}
+                className={`min-h-12 justify-center rounded-full px-4 py-3 ${isActive ? 'bg-emerald-100' : 'bg-slate-100'}`}
               >
                 <Text
                   className={`font-semibold ${isActive ? 'text-emerald-700' : 'text-slate-700'}`}
@@ -148,7 +166,7 @@ export default function IncomeTransferScreen() {
           onChangeText={setAmount}
           keyboardType="number-pad"
           placeholder="Enter a whole amount"
-          className="rounded-xl border border-slate-200 px-4 py-3 text-lg text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-lg text-slate-900"
         />
 
         <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">
@@ -159,7 +177,7 @@ export default function IncomeTransferScreen() {
           value={note}
           onChangeText={setNote}
           placeholder="Optional"
-          className="rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
         />
 
         <Text className="mt-3 text-xs text-slate-500">
@@ -174,7 +192,7 @@ export default function IncomeTransferScreen() {
           accessibilityRole="button"
           disabled={!database || saving}
           onPress={saveEntry}
-          className={`mt-5 rounded-2xl px-4 py-3 ${!database || saving ? 'bg-slate-300' : 'bg-emerald-600'}`}
+          className={`mt-5 min-h-12 rounded-2xl px-4 py-3 ${!database || saving ? 'bg-slate-300' : 'bg-emerald-600'}`}
         >
           <Text className="text-center text-base font-bold text-white">
             {saving ? 'Saving…' : 'Save entry'}

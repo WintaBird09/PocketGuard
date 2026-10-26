@@ -18,7 +18,7 @@ import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
 
 export default function LoansScreen() {
-  const { db, householdId, error: dbError, tick } = useDatabase();
+  const { db, householdId, loading, error: dbError, tick } = useDatabase();
   const router = useRouter();
   const [filter, setFilter] = useState<LoanFilter>('ACTIVE');
 
@@ -51,7 +51,7 @@ export default function LoansScreen() {
   const failure = dbError ?? loaded.failure;
 
   return (
-    <PageLayout title="Loans" subtitle="Money you lent to friends and family">
+    <PageLayout title="Loans" subtitle="Money you lent to friends and family" loading={loading}>
       {failure ? <Banner tone="error">{failure}</Banner> : null}
 
       <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">

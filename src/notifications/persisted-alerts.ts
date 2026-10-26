@@ -1,6 +1,6 @@
 import { getHomeDashboardSnapshot } from '../data/dashboard';
 import type { DatabaseLike } from '../data/db';
-import { dayOfMonth, daysInMonth, monthKeyForDate } from '../domain/dates';
+import { dayOfMonth, daysInMonth, effectiveNow, monthKeyForDate } from '../domain/dates';
 import { buildAlerts, type Alert } from '../domain/alerts';
 import { settings } from '../data/repos';
 
@@ -36,7 +36,7 @@ function getNotifiedThresholds(db: DatabaseLike, householdId: string, monthKey: 
 export function markPersistedThresholdAlertsScheduled(
   db: DatabaseLike,
   alerts: readonly Alert[],
-  now = new Date(),
+  now = effectiveNow(),
 ): void {
   const householdId = requireHouseholdId(db);
   const monthKey = monthKeyForDate(now, 'Africa/Douala');
@@ -58,7 +58,7 @@ export function markPersistedThresholdAlertsScheduled(
   if (changed) settings.set(db, householdId, settingKey, JSON.stringify([...notified]));
 }
 
-export function getPersistedBudgetAlerts(db: DatabaseLike, now = new Date()): Alert[] {
+export function getPersistedBudgetAlerts(db: DatabaseLike, now = effectiveNow()): Alert[] {
   const householdId = requireHouseholdId(db);
   const timeZone = 'Africa/Douala';
   const monthKey = monthKeyForDate(now, timeZone);
@@ -86,7 +86,7 @@ export function getPersistedBudgetAlerts(db: DatabaseLike, now = new Date()): Al
   });
 }
 
-export function getPersistedPaceAlerts(db: DatabaseLike, now = new Date()): Alert[] {
+export function getPersistedPaceAlerts(db: DatabaseLike, now = effectiveNow()): Alert[] {
   const householdId = requireHouseholdId(db);
   const timeZone = 'Africa/Douala';
   const monthKey = monthKeyForDate(now, timeZone);
@@ -193,7 +193,10 @@ function localReminderTime(dateKey: string, now: Date): Date {
   return reminderTime.getTime() <= now.getTime() ? now : reminderTime;
 }
 
-export function getPersistedSavingsAndDebtReminders(db: DatabaseLike, now = new Date()): Alert[] {
+export function getPersistedSavingsAndDebtReminders(
+  db: DatabaseLike,
+  now = effectiveNow(),
+): Alert[] {
   const householdId = requireHouseholdId(db);
   if (!db.prepare) throw new Error('Database does not support prepared queries.');
   const today = localDateKey(now);

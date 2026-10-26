@@ -1,4 +1,6 @@
-import { Platform, Share } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 export async function shareCsv(csv: string, fileName: string): Promise<void> {
   if (Platform.OS === 'web') {
@@ -10,5 +12,19 @@ export async function shareCsv(csv: string, fileName: string): Promise<void> {
     URL.revokeObjectURL(url);
     return;
   }
-  await Share.share({ title: fileName, message: csv });
+  if (!FileSystem.cacheDirectory) throw new Error('The export cache directory is unavailable.');
+  if (!(await Sharing.isAvailableAsync())) {
+    throw new Error('File sharing is unavailable on this device.');
+  }
+  const path = `${FileSystem.cacheDirectory}${Date.now()}-${fileName}`;
+  await FileSystem.writeAsStringAsync(path, csv);
+  try {
+    await Sharing.shareAsync(path, {
+      dialogTitle: `Share ${fileName}`,
+      mimeType: 'text/csv',
+      UTI: 'public.comma-separated-values-text',
+    });
+  } finally {
+    await FileSystem.deleteAsync(path, { idempotent: true });
+  }
 }

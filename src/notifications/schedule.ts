@@ -2,6 +2,7 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { openAppDatabase } from '../data/db';
+import { getLocalDateOverride } from '../domain/dates';
 
 import { getNotificationPermission } from './permissions';
 import {
@@ -68,7 +69,7 @@ const enqueueReschedule = createDebouncedRescheduler(
 );
 
 export function scheduleNotificationRefresh(): void {
-  if (Platform.OS === 'web') return;
+  if (Platform.OS === 'web' || getLocalDateOverride() !== null) return;
   enqueueReschedule();
 }
 

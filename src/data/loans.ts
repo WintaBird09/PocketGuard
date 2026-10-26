@@ -1,4 +1,4 @@
-import { localDateString } from '../domain/dates';
+import { effectiveNow, localDateString } from '../domain/dates';
 import {
   addMonths,
   assertRepayable,
@@ -286,7 +286,7 @@ export function recordLoanRepayment(
       id,
       householdId,
       loan.id,
-      (draft.paidAt ?? new Date()).toISOString(),
+      (draft.paidAt ?? effectiveNow()).toISOString(),
       draft.amount,
       draft.note?.trim() || null,
       now,
@@ -332,7 +332,7 @@ export function writeOffLoan(
   db: DatabaseLike,
   householdId: string,
   loanId: string,
-  at: Date = new Date(),
+  at: Date = effectiveNow(),
 ): void {
   inTransaction(db, () => {
     const loan = requireLoan(db, householdId, loanId);

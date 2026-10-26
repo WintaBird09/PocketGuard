@@ -3,7 +3,7 @@ import { Text, TextInput, View } from 'react-native';
 
 import { classifyInboxItem, discardInboxItem, listInbox } from '@/src/data/inbox';
 import { getMonthPlan } from '@/src/data/plan';
-import { localDateString, monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, localDateString, monthKeyForDate } from '@/src/domain/dates';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { listPendingVoiceSavingsCommitments } from '@/src/voice/commitments';
 import { VoiceConfirmCard } from '@/src/voice/VoiceConfirmCard';
@@ -14,7 +14,7 @@ import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 
 export default function InboxScreen() {
-  const { db, householdId, error: dbError, tick, refresh } = useDatabase();
+  const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
   const voiceDraftStatus = useVoiceDraftStatus();
   const [openId, setOpenId] = useState<string | null>(null);
   const [lineId, setLineId] = useState('');
@@ -29,11 +29,12 @@ export default function InboxScreen() {
       return {
         data: {
           items: listInbox(db, householdId),
-          lines: getMonthPlan(db, householdId, monthKeyForDate(new Date(), 'Africa/Douala')).lines,
+          lines: getMonthPlan(db, householdId, monthKeyForDate(effectiveNow(), 'Africa/Douala'))
+            .lines,
           commitments: listPendingVoiceSavingsCommitments(
             db,
             householdId,
-            monthKeyForDate(new Date(), 'Africa/Douala'),
+            monthKeyForDate(effectiveNow(), 'Africa/Douala'),
           ),
         },
         failure: null,
@@ -85,7 +86,11 @@ export default function InboxScreen() {
   };
 
   return (
-    <PageLayout title="Inbox" subtitle="Drafts and entries waiting for a budget line">
+    <PageLayout
+      title="Inbox"
+      subtitle="Drafts and entries waiting for a budget line"
+      loading={loading}
+    >
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {error ? <Banner tone="error">{error}</Banner> : null}
       {message ? <Banner tone="info">{message}</Banner> : null}
@@ -154,7 +159,7 @@ export default function InboxScreen() {
                     setAmount(value);
                     setWarnId(null);
                   }}
-                  className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+                  className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
                 />
                 <View className="mb-3 flex-row flex-wrap gap-2">
                   {(data?.lines ?? []).map((line) => (

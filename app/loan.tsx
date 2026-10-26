@@ -26,7 +26,7 @@ type Confirming = 'writeoff' | 'delete' | `payment:${string}` | null;
 export default function LoanDetailScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const { db, householdId, error: dbError, tick, refresh } = useDatabase();
+  const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [confirming, setConfirming] = useState<Confirming>(null);
@@ -93,7 +93,7 @@ export default function LoanDetailScreen() {
   });
 
   return (
-    <PageLayout title={loan?.personName ?? 'Loan'} subtitle="Loan details">
+    <PageLayout title={loan?.personName ?? 'Loan'} subtitle="Loan details" loading={loading}>
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {message ? <Banner tone="success">{message}</Banner> : null}
       {db && !loan ? <Banner tone="error">This loan was not found.</Banner> : null}
@@ -147,14 +147,14 @@ export default function LoanDetailScreen() {
                 keyboardType="number-pad"
                 value={amount}
                 onChangeText={setAmount}
-                className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+                className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
               />
               <TextInput
                 accessibilityLabel="Repayment note"
                 placeholder="Note (optional)"
                 value={note}
                 onChangeText={setNote}
-                className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+                className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
               />
               <Button label="Save repayment" onPress={recordRepayment} />
             </View>

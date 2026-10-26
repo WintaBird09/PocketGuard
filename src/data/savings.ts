@@ -1,5 +1,6 @@
 import type { DatabaseLike } from './db';
 import { appendOutboxEntry } from './repos';
+import { effectiveNow } from '../domain/dates';
 
 export type SavingsCommitment = {
   id: string;
@@ -116,7 +117,7 @@ export function confirmSavingsCommitment(
   householdId: string,
   commitmentId: string,
   savedAmount?: number,
-  savedAt = new Date().toISOString(),
+  savedAt = effectiveNow().toISOString(),
 ): boolean {
   const database = requirePreparedDatabase(db);
   const transaction = database.transaction

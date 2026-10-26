@@ -1,5 +1,5 @@
 import { debtBalance } from '../domain/budget';
-import { localDateString } from '../domain/dates';
+import { effectiveNow, localDateString } from '../domain/dates';
 
 import type { DatabaseLike } from './db';
 import { assertWholeAmount, inTransaction, newId, requirePrepared } from './household';
@@ -57,7 +57,7 @@ export function deriveDebtStatus(
 export function listDebts(
   db: DatabaseLike,
   householdId: string,
-  asOf: Date = new Date(),
+  asOf: Date = effectiveNow(),
 ): DebtSummary[] {
   const prepare = requirePrepared(db);
   const today = localDate(asOf);
@@ -119,7 +119,7 @@ export function getDebtSchedule(
   db: DatabaseLike,
   householdId: string,
   debts: DebtSummary[],
-  asOf: Date = new Date(),
+  asOf: Date = effectiveNow(),
 ): ScheduleEntry[] {
   const currentMonth = localDate(asOf).slice(0, 7);
   const rows = requirePrepared(db)(
@@ -190,7 +190,7 @@ export function recordDebtPayment(
     }
     const lineId = findDebtLineId(db, householdId, debt.creditor);
     return transactions.add(db, householdId, {
-      occurred_at: (draft.paidAt ?? new Date()).toISOString(),
+      occurred_at: (draft.paidAt ?? effectiveNow()).toISOString(),
       amount: draft.amount,
       direction: 'expense',
       line_id: lineId,

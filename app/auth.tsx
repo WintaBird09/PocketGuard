@@ -84,7 +84,7 @@ export default function AuthScreen() {
             autoCapitalize="none"
             autoComplete="email"
             autoCorrect={false}
-            className="mt-4 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+            className="mt-4 min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
             keyboardType="email-address"
             onChangeText={(value) => {
               setEmail(value);

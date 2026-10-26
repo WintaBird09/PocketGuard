@@ -9,6 +9,7 @@ type PageLayoutProps = {
   children: ReactNode;
   action?: ReactNode;
   compact?: boolean;
+  loading?: boolean;
 };
 
 export function PageLayout({
@@ -17,6 +18,7 @@ export function PageLayout({
   children,
   action,
   compact = false,
+  loading = false,
 }: PageLayoutProps) {
   return (
     <View className="flex-1 bg-slate-50">
@@ -31,6 +33,11 @@ export function PageLayout({
         <View className="mb-4">
           <SyncIndicator />
         </View>
+        {loading ? (
+          <Text accessibilityRole="progressbar" className="mb-3 text-sm text-slate-600">
+            Loading your data…
+          </Text>
+        ) : null}
         {children}
       </ScrollView>
     </View>

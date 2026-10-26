@@ -9,7 +9,8 @@ import {
   type ActivityItem,
 } from '@/src/data/activity';
 import { getMonthPlan, nextMonth, previousMonth } from '@/src/data/plan';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
+import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { Banner, Button, Chip, monthLabel } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
@@ -36,8 +37,15 @@ function localDay(item: ActivityItem): string {
 }
 
 export default function TransactionsScreen() {
-  const { db, householdId, error: dbError, tick, refresh } = useDatabase();
-  const [month, setMonth] = useState(() => monthKeyForDate(new Date(), 'Africa/Douala'));
+  const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
+  const dateRevision = useDateOverrideRevision();
+  const currentMonth = monthKeyForDate(effectiveNow(), 'Africa/Douala');
+  const [monthSelection, setMonthSelection] = useState({
+    revision: dateRevision,
+    month: currentMonth,
+  });
+  const month = monthSelection.revision === dateRevision ? monthSelection.month : currentMonth;
+  const setMonth = (value: string) => setMonthSelection({ revision: dateRevision, month: value });
   const [filter, setFilter] = useState<Filter>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
@@ -46,7 +54,6 @@ export default function TransactionsScreen() {
   const [lineId, setLineId] = useState('');
   const [deleted, setDeleted] = useState<{ id: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const loaded = useMemo(() => {
     if (!db || !householdId) return { data: null, failure: null };
     try {
@@ -141,6 +148,7 @@ export default function TransactionsScreen() {
   return (
     <PageLayout
       title="Activity"
+      loading={loading}
       subtitle={monthLabel(month)}
       action={
         <View className="flex-row gap-2">
@@ -251,21 +259,21 @@ export default function TransactionsScreen() {
                       keyboardType="number-pad"
                       value={amount}
                       onChangeText={setAmount}
-                      className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
                     />
                     <TextInput
                       accessibilityLabel="Edit note"
                       value={note}
                       onChangeText={setNote}
                       placeholder="Note"
-                      className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
                     />
                     <TextInput
                       accessibilityLabel="Edit date"
                       value={date}
                       onChangeText={setDate}
                       placeholder="YYYY-MM-DD"
-                      className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
                     />
                     {item.direction === 'expense' ? (
                       <View className="mb-2 flex-row flex-wrap gap-2">

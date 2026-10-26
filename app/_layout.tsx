@@ -7,6 +7,8 @@ import { Pressable, Text, View } from 'react-native';
 import { AuthProvider } from '@/src/auth/AuthProvider';
 import { initializeLocalApp } from '@/src/data/bootstrap';
 import { openAppDatabase } from '@/src/data/db';
+import { loadTimeTravelDate } from '@/src/dev/timeTravel';
+import { AppLockProvider } from '@/src/security/AppLockProvider';
 import { SyncProvider } from '@/src/sync/SyncProvider';
 import { VoiceDraftProvider } from '@/src/voice/VoiceDraftProvider';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
@@ -23,6 +25,7 @@ export default function RootLayout() {
       setReady(false);
       setError(null);
       try {
+        if (__DEV__) await loadTimeTravelDate();
         const database = await openAppDatabase();
         initializeLocalApp(database, { loadPlan: false });
         if (!active) return;
@@ -60,11 +63,13 @@ export default function RootLayout() {
 
   return ready ? (
     <AuthProvider>
-      <SyncProvider>
-        <VoiceDraftProvider>
-          <Stack screenOptions={{ headerShown: false }} />
-        </VoiceDraftProvider>
-      </SyncProvider>
+      <AppLockProvider>
+        <SyncProvider>
+          <VoiceDraftProvider>
+            <Stack screenOptions={{ headerShown: false }} />
+          </VoiceDraftProvider>
+        </SyncProvider>
+      </AppLockProvider>
     </AuthProvider>
   ) : (
     <View className="flex-1 items-center justify-center bg-slate-50">

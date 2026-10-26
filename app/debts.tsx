@@ -16,7 +16,7 @@ const statusStyle = {
 } as const;
 
 export default function DebtsScreen() {
-  const { db, householdId, error: dbError, tick, refresh } = useDatabase();
+  const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
   const [payingId, setPayingId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
   const [adding, setAdding] = useState(false);
@@ -61,8 +61,12 @@ export default function DebtsScreen() {
     <PageLayout
       title="Debts"
       subtitle={data ? `Total remaining ${formatXAF(totalRemaining)}` : undefined}
+      loading={loading}
       action={
-        <Link href="/(tabs)/more" className="rounded-2xl border border-slate-300 px-4 py-2">
+        <Link
+          href="/(tabs)/more"
+          className="min-h-12 justify-center rounded-2xl border border-slate-300 px-4 py-3"
+        >
           <Text className="font-bold text-slate-900">Back</Text>
         </Link>
       }
@@ -123,7 +127,7 @@ export default function DebtsScreen() {
                     placeholder="Amount in XAF"
                     value={amount}
                     onChangeText={setAmount}
-                    className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+                    className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
                   />
                   <View className="flex-row gap-3">
                     <View className="flex-1">
@@ -188,7 +192,7 @@ export default function DebtsScreen() {
             placeholder="Owed to"
             value={creditor}
             onChangeText={setCreditor}
-            className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+            className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
           />
           <TextInput
             accessibilityLabel="Original amount"
@@ -196,14 +200,14 @@ export default function DebtsScreen() {
             keyboardType="number-pad"
             value={original}
             onChangeText={setOriginal}
-            className="mb-2 rounded-xl border border-slate-200 px-3 py-2 text-base"
+            className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
           />
           <TextInput
             accessibilityLabel="Deadline"
             placeholder="Deadline YYYY-MM-DD (optional)"
             value={deadline}
             onChangeText={setDeadline}
-            className="mb-3 rounded-xl border border-slate-200 px-3 py-2 text-base"
+            className="mb-3 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
           />
           <View className="flex-row gap-3">
             <View className="flex-1">

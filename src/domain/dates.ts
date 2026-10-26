@@ -1,3 +1,46 @@
+let localDateOverride: string | null = null;
+let localDateOverrideRevision = 0;
+const localDateOverrideListeners = new Set<() => void>();
+
+export function setLocalDateOverride(value: string | null): void {
+  if (value !== null) {
+    const parsed = new Date(`${value}T00:00:00.000Z`);
+    if (
+      !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+      !Number.isFinite(parsed.getTime()) ||
+      parsed.toISOString().slice(0, 10) !== value
+    ) {
+      throw new Error('Enter the simulated date as a valid YYYY-MM-DD date.');
+    }
+  }
+  if (localDateOverride !== value) {
+    localDateOverride = value;
+    localDateOverrideRevision += 1;
+    localDateOverrideListeners.forEach((listener) => listener());
+  }
+}
+
+export function getLocalDateOverride(): string | null {
+  return localDateOverride;
+}
+
+export function getLocalDateOverrideRevision(): number {
+  return localDateOverrideRevision;
+}
+
+export function subscribeLocalDateOverride(listener: () => void): () => void {
+  localDateOverrideListeners.add(listener);
+  return () => {
+    localDateOverrideListeners.delete(listener);
+  };
+}
+
+export function effectiveNow(): Date {
+  if (localDateOverride === null) return new Date();
+  const [year, month, day] = localDateOverride.split('-').map(Number);
+  return new Date(year, month - 1, day, 12);
+}
+
 export function monthKeyForDate(input: Date | string, timeZone: string): string {
   const date = typeof input === 'string' ? new Date(input) : input;
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -37,10 +80,11 @@ export function daysRemainingInMonth(input: Date | string, timeZone: string): nu
 }
 
 // The one place that turns an instant into the user's local `YYYY-MM-DD` day.
-export function localDateString(now: Date = new Date()): string {
+export function localDateString(now?: Date): string {
+  const date = now ?? effectiveNow();
   return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
   ].join('-');
 }

@@ -7,32 +7,32 @@ import {
   type ExpenseLineOption,
 } from '@/src/data/transaction-entry';
 import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
-import { monthKeyForDate } from '@/src/domain/dates';
+import { localDateString, monthKeyForDate } from '@/src/domain/dates';
+import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 
-function todayInputValue(): string {
-  const now = new Date();
-  return [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, '0'),
-    String(now.getDate()).padStart(2, '0'),
-  ].join('-');
-}
-
 export default function CanISpendScreen() {
+  const dateRevision = useDateOverrideRevision();
   const [database, setDatabase] = useState<DatabaseLike | null>(null);
   const [householdId, setHouseholdId] = useState('');
   const [lines, setLines] = useState<ExpenseLineOption[]>([]);
   const [lineId, setLineId] = useState('');
   const [amountInput, setAmountInput] = useState('');
-  const [occurredOn, setOccurredOn] = useState(todayInputValue);
+  const [dateSelection, setDateSelection] = useState(() => ({
+    revision: dateRevision,
+    date: localDateString(),
+  }));
+  const occurredOn =
+    dateSelection.revision === dateRevision ? dateSelection.date : localDateString();
+  const setOccurredOn = (date: string) => setDateSelection({ revision: dateRevision, date });
   const [error, setError] = useState<string | null>(null);
-
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let active = true;
 
     const loadLines = async () => {
+      setLoading(true);
       try {
         const db = await openAppDatabase();
         const household = db
@@ -55,6 +55,8 @@ export default function CanISpendScreen() {
         if (active) {
           setError(cause instanceof Error ? cause.message : 'Unable to load budget lines.');
         }
+      } finally {
+        if (active) setLoading(false);
       }
     };
 
@@ -65,16 +67,23 @@ export default function CanISpendScreen() {
   }, [occurredOn]);
 
   const amount = Number(amountInput);
-  const review = useMemo(() => {
+  const reviewState = useMemo(() => {
     if (!database || !householdId || !lineId || !Number.isSafeInteger(amount) || amount <= 0) {
-      return null;
+      return { review: null, error: null };
     }
     try {
-      return getExpenseReview(database, householdId, { lineId, amount, occurredOn });
-    } catch {
-      return null;
+      return {
+        review: getExpenseReview(database, householdId, { lineId, amount, occurredOn }),
+        error: null,
+      };
+    } catch (cause) {
+      return {
+        review: null,
+        error: cause instanceof Error ? cause.message : 'Unable to calculate the spend check.',
+      };
     }
   }, [amount, database, householdId, lineId, occurredOn]);
+  const { review } = reviewState;
 
   const statusColor =
     review?.result.status === 'BLOCKED'
@@ -84,7 +93,17 @@ export default function CanISpendScreen() {
         : 'text-emerald-700';
 
   return (
-    <PageLayout title="Can I spend?" subtitle="Check the impact before paying">
+    <PageLayout title="Can I spend?" subtitle="Check the impact before paying" loading={loading}>
+      {error ? (
+        <Text accessibilityRole="alert" className="mb-3 text-sm text-red-700">
+          {error}
+        </Text>
+      ) : null}
+      {!loading && !error && lines.length === 0 ? (
+        <Text className="mb-3 text-sm text-slate-600">
+          No active budget lines are available for this date.
+        </Text>
+      ) : null}
       <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <Text className="mb-2 text-sm font-medium text-slate-700">Amount (XAF)</Text>
         <TextInput
@@ -93,7 +112,7 @@ export default function CanISpendScreen() {
           onChangeText={setAmountInput}
           keyboardType="number-pad"
           placeholder="Enter a whole amount"
-          className="rounded-xl border border-slate-200 px-4 py-3 text-2xl font-bold text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-2xl font-bold text-slate-900"
         />
 
         <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Budget line</Text>
@@ -104,7 +123,12 @@ export default function CanISpendScreen() {
               <Pressable
                 key={line.id}
                 onPress={() => setLineId(line.id)}
-                className={`rounded-full px-3 py-2 ${selected ? 'bg-emerald-100' : 'bg-slate-100'}`}
+                accessibilityRole="button"
+                accessibilityLabel={`Budget line ${line.name}`}
+                accessibilityState={{ selected }}
+                className={`min-h-12 items-center justify-center rounded-full px-4 py-3 ${
+                  selected ? 'bg-emerald-100' : 'bg-slate-100'
+                }`}
               >
                 <Text
                   className={`text-sm font-medium ${selected ? 'text-emerald-700' : 'text-slate-700'}`}
@@ -122,11 +146,10 @@ export default function CanISpendScreen() {
           value={occurredOn}
           onChangeText={setOccurredOn}
           placeholder="YYYY-MM-DD"
-          className="rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
         />
       </View>
 
-      {error ? <Text className="mt-4 text-sm font-medium text-red-700">{error}</Text> : null}
       <View className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         {review ? (
           <>
@@ -143,6 +166,10 @@ export default function CanISpendScreen() {
               Remaining after spend: {formatXAF(review.result.remainingAfter)}
             </Text>
           </>
+        ) : reviewState.error ? (
+          <Text accessibilityRole="alert" className="text-sm text-red-700">
+            {reviewState.error}
+          </Text>
         ) : (
           <Text className="text-sm text-slate-500">
             Enter a positive amount and valid date to check. Nothing will be saved.
