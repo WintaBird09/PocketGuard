@@ -59,6 +59,12 @@
         }
       ],
       "expo-sharing"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "d85c9a24-3794-41ae-82e3-48c8293b0c3a"
+      }
+    },
+    "owner": "pocket-guard-01"
   }
 }
