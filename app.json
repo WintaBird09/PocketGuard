@@ -11,20 +11,17 @@
       "supportsTablet": true
     },
     "android": {
-      "permissions": [
-        "android.permission.SCHEDULE_EXACT_ALARM"
-      ],
-      "blockedPermissions": [
-        "android.permission.WRITE_CONTACTS"
-      ],
+      "package": "com.nkabeh.pocketguard",
+      "versionCode": 1,
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
+      "blockedPermissions": ["android.permission.WRITE_CONTACTS"],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.pocketguard"
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png",

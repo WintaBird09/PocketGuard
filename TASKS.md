@@ -157,10 +157,10 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
 
 ## EPIC 9 — Release (personal)
 
-- **9.1 Production Android build** (EAS or local release APK/AAB), app icon, name, package id.
-- **9.2 Install on the owner's phone**, disable battery optimisation for the app, run one real week of use.
-- **9.3 Backup check:** confirm Supabase has the data; document restore steps in `README.md`.
-- **9.4 Review:** after 2 weeks compare metrics (PRD §13), list top 5 annoyances, decide Phase 2 start.
+- **9.1 Production Android build (configuration prepared; EAS project/build pending):** internal, EAS-managed signed APK; app name/icon are configured and the permanent application ID is `com.nkabeh.pocketguard`. Follow `README.md` to link the owner's EAS project, configure public Supabase build variables, build, and retain the artifact.
+- **9.2 Install on the owner's phone (pending):** verify the release APK, disable battery optimisation for the app, and run one real week of use. Owner/device check.
+- **9.3 Backup check (instructions documented; live check pending):** confirm Supabase has the supported data and perform a reinstall restore with the same user. Loans and device-local preferences are not currently backed up; see `README.md`. Do not uninstall the existing app before pending supported writes are synced.
+- **9.4 Review (pending two weeks of use):** compare the personal metrics in PRD §13, list the top 5 annoyances, and decide whether to start Phase 2. Record observations in `README.md`; do not start Phase 2 without the owner's approval.
 
 ## EPIC 10 — Loans (money lent to others; see PRD §7.8b)
 

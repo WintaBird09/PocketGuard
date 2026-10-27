@@ -35,3 +35,13 @@ This checklist records implementation evidence separately from checks that requi
 - `python3 -m unittest scripts/test_import_workbook_transactions.py`
 
 No migration was applied and no live Supabase data was changed. The device and source-workbook checks above remain outstanding.
+
+## Epic 9 — Personal release
+
+- [x] EAS production profile prepared for an internally distributed APK using EAS-managed credentials.
+- [x] Android application ID set to `com.nkabeh.pocketguard`; display name and icon are configured in `app.json`.
+- [x] Release, install, battery, backup/restore, and two-week review instructions documented in `README.md`.
+- [ ] Link the owner's Expo account/project, configure the production EAS environment, and complete an EAS Android production build.
+- [ ] Install the APK on the owner's phone, verify app name/icon and core flows, configure battery use, and complete one real week.
+- [ ] Owner verifies synced data in the live Supabase project and completes a clean reinstall/restore check. Loans and device-local settings are excluded from cloud backup.
+- [ ] After two weeks, record the PRD §13 metrics, top five annoyances, and a Phase 2 decision. Do not begin Phase 2 without owner approval.
