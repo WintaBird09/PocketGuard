@@ -25,7 +25,7 @@ vi.mock('expo-sqlite', () => ({
 describe('openAppDatabase transactions', () => {
   it('lets nested transactions join the outer one', async () => {
     const { openAppDatabase } = await import('./db');
-    const db = await openAppDatabase();
+    const db = await openAppDatabase('test.db');
 
     const result = db.transaction!(() => db.transaction!(() => 'inner')() + '-outer')();
 
@@ -35,7 +35,7 @@ describe('openAppDatabase transactions', () => {
 
   it('starts a fresh transaction after a failed one', async () => {
     const { openAppDatabase } = await import('./db');
-    const db = await openAppDatabase();
+    const db = await openAppDatabase('test.db');
 
     expect(() =>
       db.transaction!(() => {

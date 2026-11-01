@@ -6,6 +6,7 @@ This checklist records implementation evidence separately from checks that requi
 
 - [ ] **1. Offline Android flow:** fresh install, airplane mode, seed the plan, add 10 manual and voice-draft expenses, verify dashboard bars, and receive the daily summary at the configured time. Device-only.
 - [ ] **2. Online sync and restore:** reconnect, confirm voice drafts become review cards, verify records in Supabase, then reinstall and restore after sign-in. Requires device and live Supabase access; no remote changes were made during this work.
+- [ ] **2b. Account isolation:** sign in as user A and add data, sign out, sign in as user B and confirm none of A's data appears (and vice versa); confirm signed-out launch shows login and cannot reach other screens. Requires device and two accounts.
 - [ ] **3. Hard-cap override:** at 100% fuel usage with `hard_cap` enabled, verify another expense is blocked until a reason and device authentication are supplied, and confirm the override is reported. Device-only.
 - [ ] **4. Can-I-spend:** verify OK, WARN, and BLOCKED results against the corresponding budget values. Manual/device walkthrough pending.
 - [ ] **5. Savings confirmation:** verify saving a commitment updates goal progress and stops its reminder. Manual/device walkthrough pending.

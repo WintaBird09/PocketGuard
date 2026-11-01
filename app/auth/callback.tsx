@@ -63,10 +63,10 @@ export default function AuthCallbackScreen() {
         {visibleError ? (
           <Pressable
             accessibilityRole="button"
-            onPress={() => router.replace('/auth')}
+            onPress={() => router.replace('/login')}
             className="mt-4 rounded-xl bg-emerald-600 px-4 py-3"
           >
-            <Text className="text-center font-bold text-white">Return to account</Text>
+            <Text className="text-center font-bold text-white">Back to sign in</Text>
           </Pressable>
         ) : null}
       </View>

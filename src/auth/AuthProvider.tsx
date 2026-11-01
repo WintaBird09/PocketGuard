@@ -1,24 +1,41 @@
 import type { Session } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
+import { setActiveDatabaseName } from '@/src/data/activeDatabase';
 import { openAppDatabase } from '@/src/data/db';
+import { cancelAllNotifications } from '@/src/notifications/schedule';
 
 import { authConfigurationError, supabase } from './client';
 import { ensureRemoteHouseholdMapping } from './householdBootstrap';
+import { prepareLocalDatabase } from './localDatabase';
 
 type HouseholdBootstrapStatus = 'signed-out' | 'pending' | 'ready' | 'failed';
+type LocalDatabaseStatus = 'none' | 'preparing' | 'ready' | 'failed';
 
 type AuthContextValue = {
   session: Session | null;
   loading: boolean;
   error: string | null;
+  localDatabaseStatus: LocalDatabaseStatus;
+  localDatabaseError: string | null;
+  retryLocalDatabase: () => void;
   householdBootstrapStatus: HouseholdBootstrapStatus;
   householdBootstrapError: string | null;
   sendMagicLink: (email: string) => Promise<void>;
   signInWithPassword: (email: string, password: string) => Promise<void>;
   // Resolves true when the account was created but the email must be confirmed first.
   signUpWithPassword: (email: string, password: string) => Promise<boolean>;
+  updateDisplayName: (name: string) => Promise<void>;
+  updatePassword: (password: string) => Promise<void>;
   exchangeCode: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
   retryHouseholdBootstrap: () => void;
@@ -34,6 +51,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useState<HouseholdBootstrapStatus>('signed-out');
   const [householdBootstrapError, setHouseholdBootstrapError] = useState<string | null>(null);
   const [bootstrapAttempt, setBootstrapAttempt] = useState(0);
+  const [bootstrapUser, setBootstrapUser] = useState<string | null>(null);
+  const [localDatabase, setLocalDatabase] = useState<{
+    userId: string;
+    error: string | null;
+  } | null>(null);
+  const [localDatabaseAttempt, setLocalDatabaseAttempt] = useState(0);
+  const previousUserId = useRef<string | null>(null);
+  const userId = session?.user.id ?? null;
+  const localDatabaseStatus: LocalDatabaseStatus = !userId
+    ? 'none'
+    : localDatabase?.userId !== userId
+      ? 'preparing'
+      : localDatabase.error
+        ? 'failed'
+        : 'ready';
 
   useEffect(() => {
     let active = true;
@@ -74,12 +106,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Each account owns a separate local database; it is opened only for the signed-in user.
   useEffect(() => {
     let active = true;
-    const userId = session?.user.id;
+    setActiveDatabaseName(null);
+
+    if (!userId) {
+      if (previousUserId.current) void cancelAllNotifications();
+      previousUserId.current = null;
+      return () => {
+        active = false;
+      };
+    }
+    previousUserId.current = userId;
+
+    void prepareLocalDatabase(userId)
+      .then((name) => {
+        if (!active) return;
+        setActiveDatabaseName(name);
+        setLocalDatabase({ userId, error: null });
+      })
+      .catch((cause: unknown) => {
+        if (!active) return;
+        setLocalDatabase({
+          userId,
+          error: cause instanceof Error ? cause.message : 'Unable to open your data.',
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [userId, localDatabaseAttempt]);
+
+  useEffect(() => {
+    let active = true;
+    const bootstrapUserId = localDatabaseStatus === 'ready' ? userId : null;
     const supabaseClient = supabase;
 
-    if (!userId || !supabaseClient) {
+    if (!bootstrapUserId || !supabaseClient) {
       return () => {
         active = false;
       };
@@ -88,11 +153,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void Promise.resolve()
       .then(async () => {
         if (active) {
+          setBootstrapUser(bootstrapUserId);
           setHouseholdBootstrapStatus('pending');
           setHouseholdBootstrapError(null);
         }
         const db = await openAppDatabase();
-        await ensureRemoteHouseholdMapping(db, userId, {
+        await ensureRemoteHouseholdMapping(db, bootstrapUserId, {
           async createHousehold(household) {
             const { data, error: rpcError } = await supabaseClient.rpc('bootstrap_household', {
               p_name: household.name,
@@ -119,15 +185,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [bootstrapAttempt, session?.user.id]);
+  }, [bootstrapAttempt, userId, localDatabaseStatus]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       session,
       loading,
       error,
-      householdBootstrapStatus: session ? householdBootstrapStatus : 'signed-out',
-      householdBootstrapError: session ? householdBootstrapError : null,
+      localDatabaseStatus,
+      localDatabaseError: localDatabase?.userId === userId ? localDatabase.error : null,
+      retryLocalDatabase() {
+        setLocalDatabaseAttempt((attempt) => attempt + 1);
+      },
+      // Status from a previous account must never be mistaken for the current one.
+      householdBootstrapStatus: !session
+        ? 'signed-out'
+        : bootstrapUser === userId
+          ? householdBootstrapStatus
+          : 'pending',
+      householdBootstrapError: session && bootstrapUser === userId ? householdBootstrapError : null,
       retryHouseholdBootstrap() {
         setBootstrapAttempt((attempt) => attempt + 1);
       },
@@ -164,6 +240,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         return true;
       },
+      async updateDisplayName(name) {
+        if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
+        const { data, error: updateError } = await supabase.auth.updateUser({
+          data: { display_name: name.trim() },
+        });
+        if (updateError) throw updateError;
+        setSession((current) => (current && data.user ? { ...current, user: data.user } : current));
+      },
+      async updatePassword(password) {
+        if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
+        const { error: updateError } = await supabase.auth.updateUser({ password });
+        if (updateError) throw updateError;
+      },
       async exchangeCode(code) {
         if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
         const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
@@ -178,7 +267,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(null);
       },
     }),
-    [error, householdBootstrapError, householdBootstrapStatus, loading, session],
+    [
+      bootstrapUser,
+      error,
+      householdBootstrapError,
+      householdBootstrapStatus,
+      loading,
+      localDatabase,
+      localDatabaseStatus,
+      session,
+      userId,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

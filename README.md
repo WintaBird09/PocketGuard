@@ -1,6 +1,19 @@
 # Pocket Guard
 
-Offline-first personal budgeting app for Android.
+Offline-first personal budgeting app for Android. Sign-in is required before use, and each
+account's data is stored in its own local database on the device.
+
+## Accounts and data isolation
+
+- The app opens on the login screen. Signed-out users can only reach login, sign-up and the
+  sign-in callback; everything else redirects to login. Order: sign in → onboarding → home.
+- Profile, display name, password change and sign-out live under **More → Profile**.
+- Each account gets a separate SQLite file. The first account to sign in after upgrading from a
+  pre-accounts build adopts the existing on-device data; later accounts start empty.
+- Sign-out keeps that account's unsynced changes on the device. Scheduled alerts are cancelled.
+- Supabase: enable the Email provider (password) and add the redirect URL
+  `pocketguard://auth/callback`. Set `EXPO_PUBLIC_SUPABASE_URL` and
+  `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env` and in the EAS production environment.
 
 ## Android personal release
 

@@ -70,6 +70,17 @@ export async function ensureRemoteHouseholdMapping(
   const prepare = db.prepare.bind(db);
   const transaction = db.transaction.bind(db);
 
+  const foreignMapping = prepare(
+    `SELECT table_name FROM sync_state
+     WHERE table_name LIKE 'remote-household:%' AND table_name NOT LIKE ? AND deleted_at IS NULL
+     LIMIT 1;`,
+  ).get(`remote-household:${userId}:%`);
+  if (foreignMapping) {
+    throw new Error(
+      'This local data belongs to a different account and cannot be linked to yours.',
+    );
+  }
+
   const localHousehold = readLocalHousehold(db);
   const mappingKey = householdMappingKey(localHousehold.id, userId);
   const existingMapping = prepare(

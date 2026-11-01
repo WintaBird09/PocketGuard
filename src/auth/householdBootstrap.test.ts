@@ -115,6 +115,21 @@ describe('authenticated household bootstrap', () => {
     expect(getTableCounts(db)).toEqual(countsAfter);
   });
 
+  it('refuses to link a local database that already belongs to another account', async () => {
+    const { db } = createDatabaseWithRowsEverywhere();
+    await ensureRemoteHouseholdMapping(db as never, userId, {
+      createHousehold: vi.fn().mockResolvedValue(remoteHouseholdId),
+    });
+    const createHousehold = vi.fn().mockResolvedValue('f7000000-0000-4000-8000-000000000007');
+
+    await expect(
+      ensureRemoteHouseholdMapping(db as never, 'c3000000-0000-4000-8000-000000000003', {
+        createHousehold,
+      }),
+    ).rejects.toThrow('different account');
+    expect(createHousehold).not.toHaveBeenCalled();
+  });
+
   it('keeps local data and does not persist a mapping when server bootstrap fails', async () => {
     const db = new Database(':memory:');
     const local = initializeLocalApp(db as never);

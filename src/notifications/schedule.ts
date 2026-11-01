@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
+import { hasActiveDatabase } from '../data/activeDatabase';
 import { openAppDatabase } from '../data/db';
 import { getLocalDateOverride } from '../domain/dates';
 
@@ -69,8 +70,18 @@ const enqueueReschedule = createDebouncedRescheduler(
 );
 
 export function scheduleNotificationRefresh(): void {
-  if (Platform.OS === 'web' || getLocalDateOverride() !== null) return;
+  if (Platform.OS === 'web' || getLocalDateOverride() !== null || !hasActiveDatabase()) return;
   enqueueReschedule();
+}
+
+// Alerts are built from one account's data, so they must not outlive that account's session.
+export async function cancelAllNotifications(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  try {
+    await Notifications.cancelAllScheduledNotificationsAsync();
+  } catch (error) {
+    console.error('[notifications] Failed to cancel alerts on sign-out.', error);
+  }
 }
 
 export { schedulerIdentifier };

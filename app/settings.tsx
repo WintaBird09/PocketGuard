@@ -330,12 +330,12 @@ export default function SettingsScreen() {
     <PageLayout title="Settings" subtitle="Preferences and app controls">
       <Pressable
         accessibilityRole="button"
-        onPress={() => router.push('/auth')}
+        onPress={() => router.push('/profile')}
         className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
       >
-        <Text className="text-lg font-bold text-slate-900">Account and sign-in</Text>
+        <Text className="text-lg font-bold text-slate-900">Profile and account</Text>
         <Text className="mt-2 text-sm text-slate-600">
-          Manage your Pocket Guard account and sign out.
+          Edit your name, change your password, or sign out.
         </Text>
         {syncSnapshot.error ? (
           <Text className="mt-2 text-xs text-red-700">Sync: {syncSnapshot.error}</Text>

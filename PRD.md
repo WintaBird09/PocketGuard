@@ -88,9 +88,9 @@ Notes for agents: use the latest stable Expo SDK at scaffold time and follow cur
 
 ### 7.1 Onboarding and seed data
 
-- FR-1. First launch: sign in (email magic link or email+password via Supabase), create household, then offer **"Load my Sep–Dec 2026 plan"** (seed in §10).
+- FR-1. First launch: sign in or sign up (email+password or magic link via Supabase) — required before any use — then onboarding creates the household and offers **"Load my Sep–Dec 2026 plan"** (seed in §10).
 - FR-2. All seed values are editable in the app afterwards.
-- FR-3. App works without sign-in after first setup; sync starts when a session exists and network is available.
+- FR-3. Sign-in is required before using the app; once signed in the app works offline, and sync runs when network is available. Each account's local data is isolated in its own database; no account can read another's data locally or on the server (RLS). Profile editing and sign-out are under More → Profile.
 
 ### 7.2 Budget lines and monthly plan
 
@@ -301,7 +301,7 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 7. **Savings** — goal progress, monthly commitments with "I have saved", gap analysis.
 8. **Debts** — balances, schedule, payment history, status.
 9. **Loans** (Epic 10) — list with status badges, add/edit loan, detail with repayments and write-off, per-person summary.
-10. **Settings** — sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
+10. **Settings** — account/profile, sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
 
 UX principles: one-handed use; large numbers; amounts always `120,000 XAF`; light and dark themes; no tables on phone; the most-used action (add) is always reachable in one tap.
 

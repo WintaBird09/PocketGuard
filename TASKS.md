@@ -74,7 +74,7 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
 - UI mockup reference: the working visual specs for the app screens live in `designs/mockup/` and should be used as the source of truth for layout, hierarchy, and interaction details throughout Epic 3 and any future UI work. When a requirement is ambiguous, match the mockup first and use the HTML/PNG design exports as supporting references.
 - Mockup map for Epic 3 and future screens: `1 First launch`, `2 Home dashboard`, `3 Add transaction`, `4 Blocked + override`, `5 Voice entry`, `6 Can I spend`, `7 Inbox`, `8 Transactions`, `9 Budget plan`, `10 Savings`, `11 Debts`, `12 More and settings`.
 
-- **3.1 Onboarding stub:** first-run creates a household locally (no auth yet) and offers "Load my Sep–Dec plan" (calls 2.7).
+- **3.1 Onboarding stub:** first-run creates a household locally (now runs after sign-in, in the signed-in user's own database) and offers "Load my Sep–Dec plan" (calls 2.7).
   _Done when:_ fresh install → seeded → Home shows data.
 - **3.2 Home dashboard:** month header, per-line progress bars from the budget engine, totals, savings ring, debt remaining, status banner (PRD FR-19–21).
   _Done when:_ numbers match a hand calculation for seeded data and a few test transactions.
@@ -114,7 +114,7 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
   _Done when:_ `supabase db push` succeeds; tables visible.
 - **5.2 Row Level Security:** enable RLS on every table; policy: row's `household_id` must be in the caller's `household_members`. Add a SQL test or script that proves user A cannot read user B's rows.
   _Done when:_ the cross-user test fails to read/write as expected.
-- **5.3 Auth in app:** Supabase client with secure storage for the session, email magic link or email+password screen, sign-out. App remains fully usable when signed out.
+- **5.3 Auth in app:** Supabase client with secure storage for the session, email magic link or email+password screen, sign-out. Sign-in is required before use (auth guard redirects to login); offline use works once signed in. Profile screen (display name, password, sign-out) under More; each account has its own local database.
   _Done when:_ sign in works; killing/reopening keeps the session; offline launch works signed in.
 - **5.4 Household bootstrap:** on first sign-in, create `households` + `household_members` row server-side (RPC or trigger) and map the existing local household id to it.
   _Done when:_ local data re-keys cleanly to the server household without losing rows.

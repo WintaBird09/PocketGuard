@@ -1,3 +1,4 @@
+import { getActiveDatabaseName } from './activeDatabase';
 import { createTableSql, tableDefinitions } from './schema';
 
 export type DatabaseLike = {
@@ -11,7 +12,7 @@ export type DatabaseLike = {
   transaction?: (fn: () => unknown) => () => unknown;
 };
 
-export async function openAppDatabase(name = 'pocket-guard.db'): Promise<DatabaseLike> {
+export async function openAppDatabase(name = getActiveDatabaseName()): Promise<DatabaseLike> {
   const sqlite = await import('expo-sqlite');
   const database = await sqlite.openDatabaseAsync(name, { enableChangeListener: false });
 
