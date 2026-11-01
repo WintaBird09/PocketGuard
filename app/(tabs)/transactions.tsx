@@ -1,5 +1,7 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import {
   deleteTransaction,
@@ -37,6 +39,7 @@ function localDay(item: ActivityItem): string {
 }
 
 export default function TransactionsScreen() {
+  const router = useRouter();
   const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
   const dateRevision = useDateOverrideRevision();
   const currentMonth = monthKeyForDate(effectiveNow(), 'Africa/Douala');
@@ -147,7 +150,7 @@ export default function TransactionsScreen() {
 
   return (
     <PageLayout
-      title="Activity"
+      title="Transactions"
       loading={loading}
       subtitle={monthLabel(month)}
       action={
@@ -169,6 +172,18 @@ export default function TransactionsScreen() {
         </View>
       }
     >
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Add a new transaction"
+        onPress={() => router.push('/add-transaction')}
+        className="mb-5 min-h-14 flex-row items-center justify-center rounded-2xl bg-emerald-600 px-5 py-4 active:bg-emerald-700"
+      >
+        <Ionicons name="add-circle" size={24} color="#ffffff" />
+        <Text className="ml-2 text-base font-bold text-white">Add transaction</Text>
+      </Pressable>
+
+      <Text className="mb-3 text-lg font-bold text-slate-900">History</Text>
+
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {error ? <Banner tone="error">{error}</Banner> : null}
 
