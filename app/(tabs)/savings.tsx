@@ -1,255 +1,528 @@
-import { useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, Text, TextInput, View } from 'react-native';
 
-import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
 import {
   confirmSavingsCommitment,
-  getSavingsOverview,
-  type SavingsOverview,
+  deleteSavingsGoal,
+  getSavingsPlanner,
+  type GoalPlan,
 } from '@/src/data/savings';
+import { nextMonth, previousMonth } from '@/src/data/plan';
 import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
+import { Banner, monthLabel } from '@/src/ui/controls';
+import { assignLineIcons } from '@/src/ui/lineIcons';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
+import { useDatabase } from '@/src/ui/useDatabase';
+
+type SavingsView = 'monthly' | 'annual';
+
+const pct = (part: number, whole: number) =>
+  whole > 0 ? Math.min(100, Math.round((part / whole) * 100)) : 0;
+
+function ProgressBar({ value }: { value: number }) {
+  return (
+    <View className="h-2.5 overflow-hidden rounded-full bg-slate-200">
+      <View className="h-full rounded-full bg-emerald-500" style={{ width: `${value}%` }} />
+    </View>
+  );
+}
+
+function monthsLeft(goal: GoalPlan, currentMonth: string): number {
+  return goal.commitments.filter((c) => !c.savedAt && c.month >= currentMonth).length;
+}
 
 export default function SavingsScreen() {
+  const router = useRouter();
   useDateOverrideRevision();
-  const month = monthKeyForDate(effectiveNow(), 'Africa/Douala');
-  const [overview, setOverview] = useState<SavingsOverview | null>(null);
-  const [database, setDatabase] = useState<DatabaseLike | null>(null);
-  const [householdId, setHouseholdId] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [savingCommitmentId, setSavingCommitmentId] = useState<string | null>(null);
-  const [savedAmounts, setSavedAmounts] = useState<Record<string, string>>({});
+  const currentMonth = monthKeyForDate(effectiveNow(), 'Africa/Douala');
+  const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
+  const [view, setView] = useState<SavingsView>('monthly');
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const [year, setYear] = useState<number | null>(null);
+  const [amounts, setAmounts] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
-  useFocusEffect(
-    useCallback(() => {
-      let active = true;
+  const month = selectedMonth ?? currentMonth;
+  const activeYear = year ?? Number(currentMonth.slice(0, 4));
 
-      const loadSavings = async () => {
-        setLoading(true);
-        try {
-          const db = await openAppDatabase();
-          const household = db
-            .prepare?.(
-              'SELECT id FROM households WHERE deleted_at IS NULL ORDER BY created_at LIMIT 1;',
-            )
-            .get();
-          if (!household || typeof household.id !== 'string') {
-            throw new Error('The local household has not been initialized.');
-          }
-          const snapshot = getSavingsOverview(db, household.id, month);
-          if (active) {
-            setDatabase(db);
-            setHouseholdId(household.id);
-            setOverview(snapshot);
-            setError(null);
-          }
-        } catch (cause) {
-          if (active) {
-            setError(cause instanceof Error ? cause.message : 'Unable to load savings data.');
-          }
-        } finally {
-          if (active) setLoading(false);
-        }
+  const loaded = useMemo(() => {
+    if (!db || !householdId) return { planner: null, failure: null };
+    try {
+      return {
+        planner: getSavingsPlanner(db, householdId, activeYear, currentMonth),
+        failure: null,
       };
+    } catch (cause) {
+      return {
+        planner: null,
+        failure: cause instanceof Error ? cause.message : 'Unable to load savings.',
+      };
+    }
+    // tick re-reads after writes or when the tab regains focus
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [db, householdId, activeYear, currentMonth, tick]);
+  const planner = loaded.planner;
 
-      void loadSavings();
-      return () => {
-        active = false;
-      };
-    }, [month]),
+  const monthItems = useMemo(
+    () =>
+      (planner?.goals ?? []).flatMap((goal) =>
+        goal.commitments.filter((c) => c.month === month).map((c) => ({ goal, commitment: c })),
+      ),
+    [planner, month],
+  );
+  const monthPlanned = monthItems.reduce((n, i) => n + i.commitment.plannedAmount, 0);
+  const monthSaved = monthItems.reduce(
+    (n, i) => n + (i.commitment.savedAt ? (i.commitment.savedAmount ?? 0) : 0),
+    0,
   );
 
-  const confirmCommitment = async (commitmentId: string) => {
-    if (!database || !householdId) return;
-    setSavingCommitmentId(commitmentId);
+  const confirm = (commitmentId: string, planned: number) => {
+    if (!db || !householdId) return;
     setError(null);
     try {
-      const savedAt = effectiveNow().toISOString();
-      const amount = Number(
-        savedAmounts[commitmentId] ??
-          overview?.commitments.find((item) => item.id === commitmentId)?.plannedAmount,
-      );
-      const confirmed = confirmSavingsCommitment(
-        database,
-        householdId,
-        commitmentId,
-        amount,
-        savedAt,
-      );
-      if (confirmed) {
-        scheduleNotificationRefresh();
-        setOverview((current) => {
-          if (!current) return current;
-          const commitment = current.commitments.find((item) => item.id === commitmentId);
-          if (!commitment) return current;
-          const actualSaved = Number(savedAmounts[commitmentId] ?? commitment.plannedAmount);
-          return {
-            ...current,
-            saved: current.saved + actualSaved,
-            projectedGap: Math.max(0, current.target - current.saved - actualSaved),
-            projectedTotal: current.projectedTotal - commitment.plannedAmount + actualSaved,
-            shortfall: Math.max(
-              0,
-              current.target - (current.projectedTotal - commitment.plannedAmount + actualSaved),
-            ),
-            overdueMonths: current.overdueMonths.filter((month) => month !== commitment.month),
-            commitments: current.commitments.map((item) =>
-              item.id === commitmentId
-                ? {
-                    ...item,
-                    savedAmount: actualSaved,
-                    savedAt,
-                  }
-                : item,
-            ),
-          };
-        });
-      }
+      const amount = Number(amounts[commitmentId] ?? planned);
+      confirmSavingsCommitment(db, householdId, commitmentId, amount);
+      scheduleNotificationRefresh();
+      refresh();
     } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : 'Unable to confirm the savings commitment.',
-      );
-    } finally {
-      setSavingCommitmentId(null);
+      setError(cause instanceof Error ? cause.message : 'Unable to confirm the saving.');
     }
   };
 
-  const progress = overview ? (overview.saved / overview.target) * 100 : 0;
+  const removeGoal = (goal: GoalPlan) => {
+    Alert.alert(
+      `Delete "${goal.name}"?`,
+      'This removes the goal and its planned monthly commitments. Budget allocations already set stay as they are.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            if (!db || !householdId) return;
+            try {
+              deleteSavingsGoal(db, householdId, goal.id);
+              scheduleNotificationRefresh();
+              refresh();
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : 'Unable to delete the goal.');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const goalIcons = useMemo(
+    () =>
+      assignLineIcons(
+        (planner?.goals ?? []).map((goal) => ({ id: goal.id, name: goal.name, kind: 'savings' })),
+      ),
+    [planner],
+  );
+
+  const failure = dbError ?? loaded.failure ?? error;
+  const maxBar = Math.max(1, ...(planner?.months.map((m) => Math.max(m.planned, m.saved)) ?? [1]));
 
   return (
-    <PageLayout title="Savings" subtitle="Goals, commitments, and progress">
-      {loading ? <Text className="text-sm text-slate-600">Loading persisted savings…</Text> : null}
-      {error ? <Text className="mb-4 text-sm font-medium text-red-700">{error}</Text> : null}
-      {!loading && !overview ? (
-        <Text className="text-sm text-slate-600">No savings goal has been added yet.</Text>
-      ) : null}
-      {overview ? (
-        <>
-          <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-              {overview.goalName}
-            </Text>
-            <Text className="mt-2 text-3xl font-bold text-slate-900">
-              {formatXAF(overview.saved)}
-            </Text>
-            <Text className="mt-1 text-sm text-slate-600">
-              of {formatXAF(overview.target)} target
-            </Text>
+    <PageLayout
+      title="Savings"
+      subtitle="Your goals, month by month and year by year"
+      loading={loading}
+    >
+      {failure ? <Banner tone="error">{failure}</Banner> : null}
 
-            <View className="mt-5 h-3 overflow-hidden rounded-full bg-slate-200">
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Add a new savings goal"
+        onPress={() => router.push('/savings-form')}
+        className="mb-4 min-h-12 flex-row items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3"
+      >
+        <Ionicons name="add-circle" size={22} color="#fff" />
+        <Text className="text-base font-bold text-white">Add new savings</Text>
+      </Pressable>
+
+      {planner ? (
+        <>
+          <View className="rounded-3xl bg-emerald-700 p-5">
+            <Text className="text-xs font-semibold uppercase tracking-widest text-emerald-100">
+              Saved across all goals
+            </Text>
+            <Text className="mt-1 text-3xl font-extrabold text-white">
+              {formatXAF(planner.totalSaved)}
+            </Text>
+            <Text className="mt-1 text-sm text-emerald-100">
+              of {formatXAF(planner.totalTarget)} · {pct(planner.totalSaved, planner.totalTarget)}%
+            </Text>
+            <View className="mt-3 h-2.5 overflow-hidden rounded-full bg-emerald-900/40">
               <View
-                className="h-full rounded-full bg-emerald-500"
-                style={{ width: `${Math.min(progress, 100)}%` }}
+                className="h-full rounded-full bg-white"
+                style={{ width: `${pct(planner.totalSaved, planner.totalTarget)}%` }}
               />
             </View>
-
-            <View className="mt-4 flex-row justify-between">
-              <Text className="text-sm text-slate-600">Monthly commitment</Text>
-              <Text className="text-sm font-semibold text-slate-900">
-                {formatXAF(overview.monthlyCommitment)}
-              </Text>
-            </View>
-            <View className="mt-2 flex-row justify-between">
-              <Text className="text-sm text-slate-600">Projected gap</Text>
-              <Text className="text-sm font-semibold text-amber-700">
-                {formatXAF(overview.projectedGap)}
-              </Text>
+            <View className="mt-4 flex-row gap-3">
+              <View className="flex-1 rounded-2xl bg-white/15 p-3">
+                <Text className="text-xs text-emerald-100">This month</Text>
+                <Text className="mt-1 text-base font-bold text-white">
+                  {formatXAF(planner.goals.reduce((n, g) => n + g.thisMonthPlanned, 0))}
+                </Text>
+              </View>
+              <View className="flex-1 rounded-2xl bg-white/15 p-3">
+                <Text className="text-xs text-emerald-100">{planner.year} plan</Text>
+                <Text className="mt-1 text-base font-bold text-white">
+                  {formatXAF(planner.yearPlanned)}
+                </Text>
+              </View>
             </View>
           </View>
 
-          <View className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <Text className="text-lg font-bold text-slate-900">Gap analysis</Text>
-            <View className="mt-3 flex-row justify-between">
-              <Text className="text-sm text-slate-600">
-                Projected total if the plan is followed
-              </Text>
-              <Text className="text-sm font-semibold text-slate-900">
-                {formatXAF(overview.projectedTotal)}
-              </Text>
-            </View>
-            <View className="mt-2 flex-row justify-between">
-              <Text className="text-sm text-slate-600">Goal</Text>
-              <Text className="text-sm font-semibold text-slate-900">
-                {formatXAF(overview.target)}
-              </Text>
-            </View>
-            <View className="mt-2 flex-row justify-between border-t border-slate-200 pt-2">
-              <Text className="text-sm font-bold text-slate-900">
-                {overview.shortfall > 0 ? 'Shortfall' : 'Goal covered'}
-              </Text>
-              <Text
-                className={`text-sm font-bold ${overview.shortfall > 0 ? 'text-red-700' : 'text-emerald-700'}`}
+          <View className="mt-5 flex-row rounded-2xl bg-slate-200 p-1">
+            {(['monthly', 'annual'] as const).map((key) => (
+              <Pressable
+                key={key}
+                accessibilityRole="button"
+                accessibilityState={{ selected: view === key }}
+                onPress={() => setView(key)}
+                className={`min-h-10 flex-1 items-center justify-center rounded-xl ${
+                  view === key ? 'bg-white' : ''
+                }`}
               >
-                {formatXAF(overview.shortfall)}
-              </Text>
-            </View>
-            {overview.overdueMonths.length > 0 ? (
-              <Text className="mt-3 text-sm font-semibold text-red-700">
-                Overdue, not yet confirmed: {overview.overdueMonths.join(', ')}
-              </Text>
-            ) : null}
+                <Text
+                  className={`text-sm font-bold ${view === key ? 'text-slate-900' : 'text-slate-500'}`}
+                >
+                  {key === 'monthly' ? 'Monthly' : 'Annual'}
+                </Text>
+              </Pressable>
+            ))}
           </View>
 
-          <View className="mt-5 gap-3">
-            <Text className="text-lg font-bold text-slate-900">This month’s commitments</Text>
-            {overview.commitments.length ? (
-              overview.commitments.map((commitment) => (
-                <View
-                  key={commitment.id}
-                  className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+          {view === 'monthly' ? (
+            <View className="mt-4">
+              <View className="mb-3 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-2">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous month"
+                  onPress={() => setSelectedMonth(previousMonth(month))}
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
                 >
-                  <View className="flex-row items-center justify-between">
-                    <Text className="text-base font-semibold text-slate-900">
-                      {commitment.month}
-                    </Text>
-                    <Text className="text-sm font-bold text-slate-700">
-                      {formatXAF(commitment.plannedAmount)}
-                    </Text>
+                  <Ionicons name="chevron-back" size={20} color="#0f172a" />
+                </Pressable>
+                <Text className="text-base font-bold text-slate-900">{monthLabel(month)}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Next month"
+                  onPress={() => setSelectedMonth(nextMonth(month))}
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                >
+                  <Ionicons name="chevron-forward" size={20} color="#0f172a" />
+                </Pressable>
+              </View>
+
+              <View className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
+                <View className="flex-row justify-between">
+                  <Text className="text-sm text-slate-600">Saved this month</Text>
+                  <Text className="text-sm font-bold text-slate-900">
+                    {formatXAF(monthSaved)} / {formatXAF(monthPlanned)}
+                  </Text>
+                </View>
+                <View className="mt-2">
+                  <ProgressBar value={pct(monthSaved, monthPlanned)} />
+                </View>
+              </View>
+
+              {monthItems.length === 0 ? (
+                <Text className="text-sm text-slate-600">
+                  No savings are planned for {monthLabel(month)}.
+                </Text>
+              ) : (
+                monthItems.map(({ goal, commitment }) => (
+                  <View
+                    key={commitment.id}
+                    className="mb-3 rounded-2xl border border-slate-200 bg-white p-4"
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <Text className="flex-1 text-base font-bold text-slate-900">{goal.name}</Text>
+                      <Text className="text-sm font-bold text-slate-700">
+                        {formatXAF(commitment.plannedAmount)}
+                      </Text>
+                    </View>
+                    {commitment.savedAt ? (
+                      <Text className="mt-2 text-sm font-semibold text-emerald-700">
+                        ✓ Saved {formatXAF(commitment.savedAmount ?? 0)}
+                      </Text>
+                    ) : (
+                      <View className="mt-3 flex-row items-center gap-3">
+                        <TextInput
+                          accessibilityLabel={`Saved amount for ${goal.name}`}
+                          keyboardType="number-pad"
+                          value={amounts[commitment.id] ?? String(commitment.plannedAmount)}
+                          onChangeText={(value) =>
+                            setAmounts((current) => ({ ...current, [commitment.id]: value }))
+                          }
+                          className="min-h-12 min-w-28 rounded-xl border border-slate-200 px-3 py-3 text-base font-semibold text-slate-900"
+                        />
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => confirm(commitment.id, commitment.plannedAmount)}
+                          className="min-h-12 flex-1 items-center justify-center rounded-xl bg-emerald-600 px-4 py-3"
+                        >
+                          <Text className="font-bold text-white">I have saved</Text>
+                        </Pressable>
+                      </View>
+                    )}
                   </View>
-                  {commitment.savedAt ? (
-                    <Text className="mt-2 text-sm font-medium text-emerald-700">
-                      Confirmed as saved
+                ))
+              )}
+            </View>
+          ) : (
+            <View className="mt-4">
+              <View className="mb-3 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-2">
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous year"
+                  onPress={() => setYear(activeYear - 1)}
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                >
+                  <Ionicons name="chevron-back" size={20} color="#0f172a" />
+                </Pressable>
+                <Text className="text-base font-bold text-slate-900">{activeYear}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Next year"
+                  onPress={() => setYear(activeYear + 1)}
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                >
+                  <Ionicons name="chevron-forward" size={20} color="#0f172a" />
+                </Pressable>
+              </View>
+
+              <View className="mb-3 flex-row gap-3">
+                <View className="flex-1 rounded-2xl bg-slate-100 p-3">
+                  <Text className="text-xs font-semibold text-slate-600">Planned</Text>
+                  <Text className="mt-1 text-base font-extrabold text-slate-900">
+                    {formatXAF(planner.yearPlanned)}
+                  </Text>
+                </View>
+                <View className="flex-1 rounded-2xl bg-emerald-50 p-3">
+                  <Text className="text-xs font-semibold text-emerald-700">Saved</Text>
+                  <Text className="mt-1 text-base font-extrabold text-emerald-800">
+                    {formatXAF(planner.yearSaved)}
+                  </Text>
+                </View>
+              </View>
+
+              <View className="rounded-2xl border border-slate-200 bg-white p-4">
+                <View className="h-36 flex-row items-end justify-between gap-1">
+                  {planner.months.map((item) => (
+                    <View key={item.month} className="flex-1 items-center justify-end">
+                      <View
+                        className="w-full justify-end overflow-hidden rounded-t-md bg-slate-200"
+                        style={{ height: Math.max(4, (item.planned / maxBar) * 120) }}
+                      >
+                        <View
+                          className="w-full bg-emerald-500"
+                          style={{ height: `${pct(item.saved, item.planned)}%` }}
+                        />
+                      </View>
+                    </View>
+                  ))}
+                </View>
+                <View className="mt-1 flex-row justify-between gap-1">
+                  {planner.months.map((item) => (
+                    <Text
+                      key={item.month}
+                      className="flex-1 text-center text-[10px] text-slate-500"
+                    >
+                      {monthLabel(item.month, 'short').slice(0, 3)}
                     </Text>
-                  ) : (
-                    <View className="mt-3 flex-row items-center gap-3">
-                      <TextInput
-                        accessibilityLabel={`Saved amount for ${commitment.month}`}
-                        className="min-h-12 min-w-28 rounded-xl border border-slate-200 px-3 py-3 text-base font-semibold text-slate-900"
-                        editable={savingCommitmentId !== commitment.id}
-                        keyboardType="number-pad"
-                        onChangeText={(value) =>
-                          setSavedAmounts((current) => ({
-                            ...current,
-                            [commitment.id]: value,
-                          }))
-                        }
-                        value={savedAmounts[commitment.id] ?? String(commitment.plannedAmount)}
+                  ))}
+                </View>
+                <Text className="mt-3 text-xs text-slate-500">
+                  Grey is planned, green is already saved.
+                </Text>
+              </View>
+
+              <View className="mt-3 rounded-2xl border border-slate-200 bg-white">
+                {planner.months.map((item, index) => (
+                  <Pressable
+                    key={item.month}
+                    accessibilityRole="button"
+                    onPress={() => {
+                      setSelectedMonth(item.month);
+                      setView('monthly');
+                    }}
+                    className={`flex-row items-center justify-between px-4 py-3 ${
+                      index > 0 ? 'border-t border-slate-100' : ''
+                    }`}
+                  >
+                    <Text
+                      className={`text-sm ${item.month === currentMonth ? 'font-bold text-emerald-700' : 'text-slate-700'}`}
+                    >
+                      {monthLabel(item.month)}
+                    </Text>
+                    <Text className="text-sm font-semibold text-slate-900">
+                      {formatXAF(item.saved)} / {formatXAF(item.planned)}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <View className="mb-3 mt-6 flex-row items-end justify-between">
+            <Text className="text-lg font-bold text-slate-900">Your goals</Text>
+            <Text className="text-xs font-semibold text-slate-500">
+              {planner.goals.length} {planner.goals.length === 1 ? 'goal' : 'goals'}
+            </Text>
+          </View>
+          {planner.goals.length === 0 ? (
+            <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white p-6">
+              <Ionicons name="flag-outline" size={32} color="#059669" />
+              <Text className="mt-2 text-base font-bold text-slate-900">No goals yet</Text>
+              <Text className="mt-1 text-center text-sm text-slate-600">
+                Tap “Add new savings” to set a target, a date and a monthly amount.
+              </Text>
+            </View>
+          ) : (
+            planner.goals.map((goal) => {
+              const icon = goalIcons.get(goal.id);
+              const progress = pct(goal.saved, goal.target);
+              const done = goal.saved >= goal.target;
+              const behind = goal.overdueMonths.length > 0;
+              const status = done
+                ? {
+                    label: 'Goal reached',
+                    pill: 'bg-emerald-100 text-emerald-800',
+                    bar: 'bg-emerald-500',
+                  }
+                : behind
+                  ? { label: 'Behind', pill: 'bg-red-100 text-red-800', bar: 'bg-red-500' }
+                  : {
+                      label: 'On track',
+                      pill: 'bg-emerald-100 text-emerald-800',
+                      bar: 'bg-emerald-500',
+                    };
+              const next = goal.commitments.find((c) => !c.savedAt && c.month >= currentMonth);
+              const yearOfGoal = goal.commitments
+                .filter((c) => c.month.startsWith(String(activeYear)))
+                .reduce((n, c) => n + c.plannedAmount, 0);
+              const remaining = Math.max(0, goal.target - goal.saved);
+              return (
+                <View
+                  key={goal.id}
+                  className="mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-white"
+                >
+                  <View className={`h-1.5 ${status.bar}`} />
+                  <View className="p-4">
+                    <View className="flex-row items-center gap-3">
+                      <View
+                        className="h-12 w-12 items-center justify-center rounded-2xl"
+                        style={{ backgroundColor: icon?.bg ?? '#d1fae5' }}
+                      >
+                        <Ionicons
+                          name={icon?.icon ?? 'flag'}
+                          size={24}
+                          color={icon?.tint ?? '#047857'}
+                        />
+                      </View>
+                      <View className="flex-1">
+                        <Text numberOfLines={1} className="text-base font-bold text-slate-900">
+                          {goal.name}
+                        </Text>
+                        <Text className="text-xs text-slate-500">By {goal.dueDate}</Text>
+                      </View>
+                      <View className={`rounded-full px-2.5 py-1 ${status.pill.split(' ')[0]}`}>
+                        <Text className={`text-xs font-bold ${status.pill.split(' ')[1]}`}>
+                          {status.label}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View className="mt-4 flex-row items-end justify-between">
+                      <Text className="text-2xl font-extrabold text-slate-900">
+                        {formatXAF(goal.saved)}
+                      </Text>
+                      <Text className="text-sm font-semibold text-slate-500">
+                        {progress}% of {formatXAF(goal.target)}
+                      </Text>
+                    </View>
+                    <View className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+                      <View
+                        className={`h-full rounded-full ${status.bar}`}
+                        style={{ width: `${progress}%` }}
                       />
+                    </View>
+                    <Text className="mt-2 text-xs text-slate-500">
+                      {done ? 'Fully funded 🎉' : `${formatXAF(remaining)} still to save`}
+                    </Text>
+
+                    <View className="mt-4 flex-row gap-2">
+                      <View className="flex-1 rounded-2xl bg-slate-50 p-3">
+                        <Text className="text-[11px] font-semibold text-slate-500">PER MONTH</Text>
+                        <Text className="mt-0.5 text-sm font-bold text-slate-900">
+                          {formatXAF(goal.monthlyAmount)}
+                        </Text>
+                      </View>
+                      <View className="flex-1 rounded-2xl bg-slate-50 p-3">
+                        <Text className="text-[11px] font-semibold text-slate-500">
+                          IN {activeYear}
+                        </Text>
+                        <Text className="mt-0.5 text-sm font-bold text-slate-900">
+                          {formatXAF(yearOfGoal)}
+                        </Text>
+                      </View>
+                      <View className="flex-1 rounded-2xl bg-slate-50 p-3">
+                        <Text className="text-[11px] font-semibold text-slate-500">
+                          MONTHS LEFT
+                        </Text>
+                        <Text className="mt-0.5 text-sm font-bold text-slate-900">
+                          {monthsLeft(goal, currentMonth)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {next ? (
                       <Pressable
                         accessibilityRole="button"
-                        disabled={savingCommitmentId === commitment.id}
-                        onPress={() => void confirmCommitment(commitment.id)}
-                        className="min-h-12 flex-1 rounded-xl bg-emerald-600 px-4 py-3"
+                        onPress={() => {
+                          setSelectedMonth(next.month);
+                          setView('monthly');
+                        }}
+                        className="mt-3 flex-row items-center justify-between rounded-2xl bg-emerald-50 px-3 py-2.5"
                       >
-                        <Text className="text-center font-bold text-white">
-                          {savingCommitmentId === commitment.id ? 'Saving…' : 'I have saved'}
+                        <Text className="text-sm font-semibold text-emerald-800">
+                          Next: {formatXAF(next.plannedAmount)} in {monthLabel(next.month, 'short')}
                         </Text>
+                        <Ionicons name="chevron-forward" size={16} color="#047857" />
                       </Pressable>
-                    </View>
-                  )}
+                    ) : null}
+                    {behind ? (
+                      <Text className="mt-2 text-xs font-semibold text-red-700">
+                        Not yet confirmed:{' '}
+                        {goal.overdueMonths.map((m) => monthLabel(m, 'short')).join(', ')}
+                      </Text>
+                    ) : null}
+
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${goal.name}`}
+                      onPress={() => removeGoal(goal)}
+                      className="mt-3 flex-row items-center gap-1 self-start"
+                      hitSlop={8}
+                    >
+                      <Ionicons name="trash-outline" size={16} color="#b91c1c" />
+                      <Text className="text-xs font-semibold text-red-700">Delete goal</Text>
+                    </Pressable>
+                  </View>
                 </View>
-              ))
-            ) : (
-              <Text className="text-sm text-slate-600">
-                No savings commitment is planned for this month.
-              </Text>
-            )}
-          </View>
+              );
+            })
+          )}
         </>
       ) : null}
     </PageLayout>

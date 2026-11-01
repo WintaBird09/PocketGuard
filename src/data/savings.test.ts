@@ -2,7 +2,13 @@ import { afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
 
 import { runMigrations } from './db';
-import { confirmSavingsCommitment, getSavingsOverview } from './savings';
+import {
+  addSavingsGoal,
+  confirmSavingsCommitment,
+  deleteSavingsGoal,
+  getSavingsOverview,
+  getSavingsPlanner,
+} from './savings';
 
 describe('persisted savings commitments', () => {
   let db: Database.Database | undefined;
@@ -84,5 +90,42 @@ describe('persisted savings commitments', () => {
     expect(() => confirmSavingsCommitment(db as never, 'household-1', 'missing')).toThrow(
       'Savings commitment was not found.',
     );
+  });
+
+  it('adds a goal with monthly commitments, an annual view, and deletes it', () => {
+    db = new Database(':memory:');
+    runMigrations(db as never);
+    db.prepare(
+      `INSERT INTO households (id, household_id, name) VALUES ('h1', 'h1', 'Personal');`,
+    ).run();
+
+    const goalId = addSavingsGoal(
+      db as never,
+      'h1',
+      { name: 'Laptop', target: 250000, monthlyAmount: 100000, dueDate: '2026-12-15' },
+      '2026-10',
+    );
+    const planner = getSavingsPlanner(db as never, 'h1', 2026, '2026-10');
+    expect(planner.goals[0]).toMatchObject({ name: 'Laptop', planned: 250000, saved: 0 });
+    expect(planner.goals[0].commitments.map((c) => c.plannedAmount)).toEqual([
+      100000, 100000, 50000,
+    ]);
+    expect(planner.months[9]).toMatchObject({ planned: 100000 });
+    expect(planner.yearPlanned).toBe(250000);
+    expect(
+      db.prepare(`SELECT COUNT(*) AS n FROM allocations WHERE planned_amount > 0;`).get(),
+    ).toMatchObject({ n: 3 });
+
+    expect(() =>
+      addSavingsGoal(
+        db as never,
+        'h1',
+        { name: 'Old', target: 1000, monthlyAmount: 100, dueDate: '2026-01-01' },
+        '2026-10',
+      ),
+    ).toThrow('this month or later');
+
+    deleteSavingsGoal(db as never, 'h1', goalId);
+    expect(getSavingsPlanner(db as never, 'h1', 2026, '2026-10').goals).toHaveLength(0);
   });
 });

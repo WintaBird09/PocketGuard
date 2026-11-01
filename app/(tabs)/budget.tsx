@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Switch, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Pressable, Switch, Text, TextInput, View } from 'react-native';
 
 import {
   addBudgetLine,
@@ -15,9 +16,11 @@ import {
   type LineKind,
 } from '@/src/data/plan';
 import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
+import { toneForUsedRatio } from '@/src/domain/lineBalance';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { Banner, Button, Chip, monthLabel } from '@/src/ui/controls';
+import { assignLineIcons } from '@/src/ui/lineIcons';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
@@ -113,27 +116,26 @@ export default function BudgetScreen() {
 
   const { plan, months } = view;
   const prev = previousMonth(month);
+  const icons = assignLineIcons(plan.lines);
+  const activeLines = plan.lines.filter((line) => !line.archived);
+  const totalSpent = activeLines.reduce((n, line) => n + line.spent, 0);
+  const usedPct =
+    plan.plannedOut > 0 ? Math.min(100, Math.round((totalSpent / plan.plannedOut) * 100)) : 0;
+  const allocatedPct =
+    plan.income > 0 ? Math.min(100, Math.round((plan.plannedOut / plan.income) * 100)) : 0;
+  const kindLabel: Record<string, string> = {
+    running: 'Running costs',
+    fixed: 'Fixed bills',
+    debt: 'Debt',
+    savings: 'Savings',
+    misc: 'Miscellaneous',
+  };
+  const groups = kinds
+    .map((kind) => ({ kind, lines: plan.lines.filter((line) => line.kind === kind) }))
+    .filter((group) => group.lines.length > 0);
 
   return (
-    <PageLayout
-      title="Budget plan"
-      loading={loading}
-      subtitle={monthLabel(month)}
-      action={
-        <Button
-          label={`Copy from ${monthLabel(prev, 'short')}`}
-          variant="outline"
-          onPress={() =>
-            run(() => {
-              const copied = copyForward(db!, householdId, prev, month);
-              return copied > 0
-                ? `Copied ${copied} line${copied === 1 ? '' : 's'} from ${monthLabel(prev)}.`
-                : `Nothing to copy: every line in ${monthLabel(month)} already has an amount, or ${monthLabel(prev)} has no plan.`;
-            })
-          }
-        />
-      }
-    >
+    <PageLayout title="Budget plan" loading={loading} subtitle={monthLabel(month)}>
       {error ? <Banner tone="error">{error}</Banner> : null}
       {message ? <Banner tone="info">{message}</Banner> : null}
 
@@ -149,100 +151,189 @@ export default function BudgetScreen() {
         <Chip label="+ Next" onPress={() => setMonth(view.nextAvailable)} />
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-300 bg-white p-4">
+      <View className="mb-5 rounded-3xl bg-slate-900 p-5">
         <View className="flex-row items-center justify-between">
-          <Text className="text-slate-500">Income (monthly)</Text>
-          <TextInput
-            accessibilityLabel="Planned monthly income"
-            keyboardType="number-pad"
-            value={incomeDraft ?? String(plan.income)}
-            onChangeText={setIncomeDraft}
-            onEndEditing={() => {
-              if (incomeDraft === null) return;
-              const value = Number(incomeDraft.replace(/[\s,]/g, ''));
-              setIncomeDraft(null);
-              run(() => setPlannedIncome(db!, householdId, value));
-            }}
-            className="min-h-12 min-w-[120px] rounded-lg bg-amber-50 px-3 py-3 text-right text-base font-semibold text-slate-900"
+          <View className="flex-1">
+            <Text className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+              Monthly income
+            </Text>
+            <TextInput
+              accessibilityLabel="Planned monthly income"
+              keyboardType="number-pad"
+              value={incomeDraft ?? String(plan.income)}
+              onChangeText={setIncomeDraft}
+              onEndEditing={() => {
+                if (incomeDraft === null) return;
+                const value = Number(incomeDraft.replace(/[\s,]/g, ''));
+                setIncomeDraft(null);
+                run(() => setPlannedIncome(db!, householdId, value));
+              }}
+              className="mt-1 min-h-12 rounded-xl bg-white/10 px-3 py-2 text-2xl font-extrabold text-white"
+            />
+          </View>
+        </View>
+
+        <View className="mt-4 h-3 overflow-hidden rounded-full bg-white/15">
+          <View
+            className={`h-full rounded-full ${plan.flexible < 0 ? 'bg-red-400' : 'bg-emerald-400'}`}
+            style={{ width: `${allocatedPct}%` }}
           />
         </View>
-        <View className="mt-1 flex-row justify-between">
-          <Text className="text-slate-500">Planned out</Text>
-          <Text className="text-base font-semibold text-slate-900">
-            {formatXAF(plan.plannedOut)}
-          </Text>
-        </View>
-        <View className="mt-2 flex-row justify-between border-t border-slate-200 pt-2">
-          <Text className="font-bold text-slate-900">Flexible to save</Text>
-          <Text
-            className={`text-base font-bold ${plan.flexible < 0 ? 'text-red-700' : 'text-slate-900'}`}
-          >
-            {formatXAF(plan.flexible)}
-          </Text>
+        <Text className="mt-2 text-xs text-slate-400">
+          {allocatedPct}% of income is planned out
+        </Text>
+
+        <View className="mt-4 flex-row gap-3">
+          <View className="flex-1 rounded-2xl bg-white/10 p-3">
+            <Text className="text-[11px] font-semibold text-slate-400">PLANNED OUT</Text>
+            <Text className="mt-1 text-sm font-bold text-white">{formatXAF(plan.plannedOut)}</Text>
+          </View>
+          <View className="flex-1 rounded-2xl bg-white/10 p-3">
+            <Text className="text-[11px] font-semibold text-slate-400">
+              {plan.flexible < 0 ? 'OVER INCOME' : 'FLEXIBLE'}
+            </Text>
+            <Text
+              className={`mt-1 text-sm font-bold ${plan.flexible < 0 ? 'text-red-300' : 'text-emerald-300'}`}
+            >
+              {formatXAF(Math.abs(plan.flexible))}
+            </Text>
+          </View>
+          <View className="flex-1 rounded-2xl bg-white/10 p-3">
+            <Text className="text-[11px] font-semibold text-slate-400">SPENT</Text>
+            <Text className="mt-1 text-sm font-bold text-white">
+              {formatXAF(totalSpent)} · {usedPct}%
+            </Text>
+          </View>
         </View>
         {plan.flexible < 0 ? (
-          <Text className="mt-1 text-xs text-red-700">
+          <Text className="mt-3 text-xs text-red-300">
             Planned spending is {formatXAF(-plan.flexible)} above income.
           </Text>
         ) : null}
-        <Text className="mt-2 text-xs text-slate-500">
+        <Text className="mt-3 text-xs text-slate-400">
           Total planned savings: {formatXAF(plan.plannedSavings)}
         </Text>
       </View>
 
-      <View className="mb-2 flex-row justify-between px-1">
-        <Text className="text-slate-500">Line</Text>
-        <Text className="text-slate-500">Planned / hard cap</Text>
-      </View>
+      <Pressable
+        accessibilityRole="button"
+        onPress={() =>
+          run(() => {
+            const copied = copyForward(db!, householdId, prev, month);
+            return copied > 0
+              ? `Copied ${copied} line${copied === 1 ? '' : 's'} from ${monthLabel(prev)}.`
+              : `Nothing to copy: every line in ${monthLabel(month)} already has an amount, or ${monthLabel(prev)} has no plan.`;
+          })
+        }
+        className="mb-5 min-h-12 flex-row items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3"
+      >
+        <Ionicons name="copy-outline" size={18} color="#0f172a" />
+        <Text className="text-base font-bold text-slate-900">
+          Copy from {monthLabel(prev, 'short')}
+        </Text>
+      </Pressable>
 
-      {plan.lines.map((line) => {
-        const over = line.spent - line.planned;
+      {groups.map((group) => {
+        const groupPlanned = group.lines.reduce((n, line) => n + line.planned, 0);
         return (
-          <View
-            key={line.id}
-            className={`mb-3 rounded-2xl border bg-white p-3 ${
-              over > 0 ? 'border-red-300' : 'border-slate-200'
-            } ${line.archived ? 'opacity-60' : ''}`}
-          >
-            <View className="flex-row items-center justify-between gap-3">
-              <View className="flex-1">
-                <Text className="text-base font-bold text-slate-900">{line.name}</Text>
-                <Text className="text-xs text-slate-500">
-                  {line.kind} · spent {formatXAF(line.spent)}
-                </Text>
-              </View>
-              <TextInput
-                accessibilityLabel={`Planned amount for ${line.name}`}
-                editable={!line.archived}
-                keyboardType="number-pad"
-                value={drafts[line.id] ?? String(line.planned)}
-                onChangeText={(value) => setDrafts((current) => ({ ...current, [line.id]: value }))}
-                onEndEditing={() => commitAmount(line.id)}
-                className="min-h-12 min-w-[100px] rounded-lg bg-amber-50 px-3 py-3 text-right text-base font-semibold text-slate-900"
-              />
-              <Switch
-                accessibilityLabel={`Hard cap for ${line.name}`}
-                value={line.hardCap}
-                disabled={line.archived}
-                onValueChange={(value) => run(() => setHardCap(db!, householdId, line.id, value))}
-              />
-            </View>
-            {over > 0 ? (
-              <Text className="mt-2 text-sm font-semibold text-red-700">
-                Over budget by {formatXAF(over)}
-              </Text>
-            ) : null}
-            <View className="mt-2 items-end">
-              <Text
-                accessibilityRole="button"
-                onPress={() =>
-                  run(() => setLineArchived(db!, householdId, line.id, !line.archived))
-                }
-                className="text-sm font-semibold text-slate-600"
-              >
-                {line.archived ? 'Restore line' : 'Archive line'}
+          <View key={group.kind} className="mb-5">
+            <View className="mb-2 flex-row items-end justify-between px-1">
+              <Text className="text-base font-bold text-slate-900">{kindLabel[group.kind]}</Text>
+              <Text className="text-xs font-semibold text-slate-500">
+                {formatXAF(groupPlanned)}
               </Text>
             </View>
+            {group.lines.map((line) => {
+              const over = line.spent - line.planned;
+              const ratio = line.planned > 0 ? line.spent / line.planned : line.spent > 0 ? 1 : 0;
+              const tone = toneForUsedRatio(ratio);
+              const barColor =
+                over > 0 || tone === 'red'
+                  ? 'bg-red-500'
+                  : tone === 'orange'
+                    ? 'bg-orange-400'
+                    : 'bg-emerald-500';
+              const icon = icons.get(line.id);
+              return (
+                <View
+                  key={line.id}
+                  className={`mb-3 rounded-2xl border bg-white p-4 ${
+                    over > 0 ? 'border-red-300' : 'border-slate-200'
+                  } ${line.archived ? 'opacity-60' : ''}`}
+                >
+                  <View className="flex-row items-center gap-3">
+                    <View
+                      className="h-11 w-11 items-center justify-center rounded-2xl"
+                      style={{ backgroundColor: icon?.bg ?? '#f1f5f9' }}
+                    >
+                      <Ionicons
+                        name={icon?.icon ?? 'ellipse'}
+                        size={22}
+                        color={icon?.tint ?? '#334155'}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Text numberOfLines={1} className="text-base font-bold text-slate-900">
+                        {line.name}
+                      </Text>
+                      <Text className="text-xs text-slate-500">
+                        Spent {formatXAF(line.spent)}
+                        {line.hardCap ? ' · hard cap' : ''}
+                      </Text>
+                    </View>
+                    <TextInput
+                      accessibilityLabel={`Planned amount for ${line.name}`}
+                      editable={!line.archived}
+                      keyboardType="number-pad"
+                      value={drafts[line.id] ?? String(line.planned)}
+                      onChangeText={(value) =>
+                        setDrafts((current) => ({ ...current, [line.id]: value }))
+                      }
+                      onEndEditing={() => commitAmount(line.id)}
+                      className="min-h-11 min-w-[100px] rounded-xl bg-amber-50 px-3 py-2 text-right text-base font-bold text-slate-900"
+                    />
+                  </View>
+                  <View className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
+                    <View
+                      className={`h-full rounded-full ${barColor}`}
+                      style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }}
+                    />
+                  </View>
+                  <View className="mt-2 flex-row items-center justify-between">
+                    <Text
+                      className={`text-xs font-semibold ${over > 0 ? 'text-red-700' : 'text-slate-500'}`}
+                    >
+                      {over > 0
+                        ? `Over budget by ${formatXAF(over)}`
+                        : `${formatXAF(line.planned - line.spent)} left`}
+                    </Text>
+                    <View className="flex-row items-center gap-2">
+                      <Text className="text-xs text-slate-500">Hard cap</Text>
+                      <Switch
+                        accessibilityLabel={`Hard cap for ${line.name}`}
+                        value={line.hardCap}
+                        disabled={line.archived}
+                        onValueChange={(value) =>
+                          run(() => setHardCap(db!, householdId, line.id, value))
+                        }
+                      />
+                    </View>
+                  </View>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() =>
+                      run(() => setLineArchived(db!, householdId, line.id, !line.archived))
+                    }
+                    className="mt-1 self-start"
+                    hitSlop={8}
+                  >
+                    <Text className="text-xs font-semibold text-slate-600">
+                      {line.archived ? 'Restore line' : 'Archive line'}
+                    </Text>
+                  </Pressable>
+                </View>
+              );
+            })}
           </View>
         );
       })}

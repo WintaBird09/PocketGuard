@@ -1,4 +1,6 @@
 import type { DatabaseLike } from './db';
+import { assertWholeAmount, inTransaction, newId, requirePrepared } from './household';
+import { addBudgetLine, nextMonth, setAllocation } from './plan';
 import { appendOutboxEntry } from './repos';
 import { effectiveNow } from '../domain/dates';
 
@@ -148,4 +150,181 @@ export function confirmSavingsCommitment(
     appendOutboxEntry(database, householdId, 'savings_commitments', commitmentId, 'upsert');
     return true;
   })() as boolean;
+}
+
+export type GoalPlan = {
+  id: string;
+  name: string;
+  target: number;
+  dueDate: string;
+  saved: number;
+  /** Everything planned across all months, confirmed or not. */
+  planned: number;
+  monthlyAmount: number;
+  thisMonthPlanned: number;
+  overdueMonths: string[];
+  commitments: SavingsCommitment[];
+};
+
+export type YearMonth = { month: string; planned: number; saved: number };
+
+export type SavingsPlanner = {
+  year: number;
+  goals: GoalPlan[];
+  months: YearMonth[];
+  yearPlanned: number;
+  yearSaved: number;
+  totalTarget: number;
+  totalSaved: number;
+};
+
+const maxCommitmentMonths = 120;
+
+export function getSavingsPlanner(
+  db: DatabaseLike,
+  householdId: string,
+  year: number,
+  currentMonth: string,
+): SavingsPlanner {
+  const database = requirePreparedDatabase(db);
+  const goalRows = database
+    .prepare(
+      `SELECT id, name, target_amount, due_date FROM savings_goals
+       WHERE household_id = ? AND deleted_at IS NULL ORDER BY created_at, id;`,
+    )
+    .all(householdId) as { id: string; name: string; target_amount: number; due_date: string }[];
+  const commitmentRows = database
+    .prepare(
+      `SELECT id, goal_id, month, planned_amount, saved_amount, saved_at FROM savings_commitments
+       WHERE household_id = ? AND deleted_at IS NULL ORDER BY month, id;`,
+    )
+    .all(householdId) as {
+    id: string;
+    goal_id: string;
+    month: string;
+    planned_amount: number;
+    saved_amount: number | null;
+    saved_at: string | null;
+  }[];
+
+  const goals: GoalPlan[] = goalRows.map((goal) => {
+    const commitments = commitmentRows
+      .filter((row) => row.goal_id === goal.id)
+      .map((row) => ({
+        id: row.id,
+        month: row.month,
+        plannedAmount: Number(row.planned_amount),
+        savedAmount: row.saved_amount === null ? null : Number(row.saved_amount),
+        savedAt: row.saved_at,
+      }));
+    return {
+      id: goal.id,
+      name: goal.name,
+      target: Number(goal.target_amount),
+      dueDate: goal.due_date,
+      saved: commitments.reduce((n, c) => n + (c.savedAt ? (c.savedAmount ?? 0) : 0), 0),
+      planned: commitments.reduce((n, c) => n + c.plannedAmount, 0),
+      monthlyAmount: commitments[0]?.plannedAmount ?? 0,
+      thisMonthPlanned: commitments
+        .filter((c) => c.month === currentMonth)
+        .reduce((n, c) => n + c.plannedAmount, 0),
+      overdueMonths: commitments
+        .filter((c) => !c.savedAt && c.month < currentMonth)
+        .map((c) => c.month),
+      commitments,
+    };
+  });
+
+  const months: YearMonth[] = Array.from({ length: 12 }, (_, index) => {
+    const month = `${year}-${String(index + 1).padStart(2, '0')}`;
+    const inMonth = goals.flatMap((goal) => goal.commitments).filter((c) => c.month === month);
+    return {
+      month,
+      planned: inMonth.reduce((n, c) => n + c.plannedAmount, 0),
+      saved: inMonth.reduce((n, c) => n + (c.savedAt ? (c.savedAmount ?? 0) : 0), 0),
+    };
+  });
+
+  return {
+    year,
+    goals,
+    months,
+    yearPlanned: months.reduce((n, m) => n + m.planned, 0),
+    yearSaved: months.reduce((n, m) => n + m.saved, 0),
+    totalTarget: goals.reduce((n, g) => n + g.target, 0),
+    totalSaved: goals.reduce((n, g) => n + g.saved, 0),
+  };
+}
+
+// Creates a goal, its savings budget line and one commitment (and allocation) per month
+// from `startMonth` to the due month. The last month only takes what is still missing.
+export function addSavingsGoal(
+  db: DatabaseLike,
+  householdId: string,
+  draft: { name: string; target: number; monthlyAmount: number; dueDate: string },
+  startMonth: string,
+): string {
+  const name = draft.name.trim();
+  if (!name) throw new Error('Enter a name for the savings goal.');
+  assertWholeAmount(draft.target);
+  assertWholeAmount(draft.monthlyAmount);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.dueDate)) throw new Error('Choose a target date.');
+  const dueMonth = draft.dueDate.slice(0, 7);
+  if (dueMonth < startMonth) throw new Error('The target date must be this month or later.');
+
+  const months: string[] = [];
+  for (let month = startMonth; month <= dueMonth; month = nextMonth(month)) months.push(month);
+  if (months.length > maxCommitmentMonths) throw new Error('Choose a target within 10 years.');
+
+  return inTransaction(db, () => {
+    const prepare = requirePrepared(db);
+    const lineId = addBudgetLine(db, householdId, { name, kind: 'savings' });
+    const goalId = newId();
+    const now = new Date().toISOString();
+    prepare(
+      `INSERT INTO savings_goals (id, household_id, name, target_amount, due_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?);`,
+    ).run(goalId, householdId, name, draft.target, draft.dueDate, now, now);
+    appendOutboxEntry(db, householdId, 'savings_goals', goalId, 'create');
+
+    let remaining = draft.target;
+    for (const month of months) {
+      const amount = Math.min(draft.monthlyAmount, remaining);
+      if (amount <= 0) break;
+      remaining -= amount;
+      const id = newId();
+      prepare(
+        `INSERT INTO savings_commitments
+           (id, household_id, goal_id, line_id, month, planned_amount, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+      ).run(id, householdId, goalId, lineId, month, amount, now, now);
+      appendOutboxEntry(db, householdId, 'savings_commitments', id, 'create');
+      setAllocation(db, householdId, lineId, month, amount);
+    }
+    return goalId;
+  });
+}
+
+export function deleteSavingsGoal(db: DatabaseLike, householdId: string, goalId: string): void {
+  inTransaction(db, () => {
+    const prepare = requirePrepared(db);
+    const now = new Date().toISOString();
+    const result = prepare(
+      `UPDATE savings_goals SET deleted_at = ?, updated_at = ?
+        WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+    ).run(now, now, goalId, householdId) as { changes?: number };
+    if (result.changes === 0) throw new Error('Savings goal was not found.');
+    appendOutboxEntry(db, householdId, 'savings_goals', goalId, 'delete');
+    const rows = prepare(
+      `SELECT id FROM savings_commitments
+        WHERE household_id = ? AND goal_id = ? AND deleted_at IS NULL;`,
+    ).all(householdId, goalId) as { id: string }[];
+    prepare(
+      `UPDATE savings_commitments SET deleted_at = ?, updated_at = ?
+        WHERE household_id = ? AND goal_id = ? AND deleted_at IS NULL;`,
+    ).run(now, now, householdId, goalId);
+    for (const row of rows) {
+      appendOutboxEntry(db, householdId, 'savings_commitments', row.id, 'delete');
+    }
+  });
 }
