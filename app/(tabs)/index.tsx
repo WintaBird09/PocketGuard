@@ -1,7 +1,10 @@
-import { Link, Redirect, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Link, Redirect, useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 
+import { useAuth } from '@/src/auth/AuthProvider';
+import { getDisplayLabel } from '@/src/auth/profile';
 import { needsOnboarding } from '@/src/data/bootstrap';
 import { getHomeDashboardSnapshot } from '@/src/data/dashboard';
 import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
@@ -12,13 +15,24 @@ import {
 } from '@/src/notifications/battery-optimization';
 import { BudgetRow, MetricCard, SectionCard } from '@/src/ui/epic3';
 import { PageLayout } from '@/src/ui/PageLayout';
+import { MicButton } from '@/src/ui/MicButton';
+import { ProfileAvatarButton } from '@/src/ui/ProfileAvatarButton';
 import { formatXAF } from '@/src/ui/theme';
 
 function currentMonthKey(): string {
   return monthKeyForDate(effectiveNow(), 'Africa/Douala');
 }
 
+function greetingFor(hour: number): string {
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
+
 export default function HomeScreen() {
+  const router = useRouter();
+  const { session } = useAuth();
+  const firstName = getDisplayLabel(session?.user).split(/\s+/)[0];
   const [dashboard, setDashboard] = useState<ReturnType<typeof getHomeDashboardSnapshot> | null>(
     null,
   );
@@ -126,22 +140,19 @@ export default function HomeScreen() {
 
   return (
     <PageLayout
-      title="Home"
+      title={`${greetingFor(new Date().getHours())}, ${firstName}`}
       subtitle={summary.label}
       action={
         <View className="flex-row items-center gap-3">
-          <Link
-            href="/add-transaction"
-            className="h-14 min-w-[110px] items-center justify-center rounded-2xl bg-emerald-600 px-4 shadow-sm"
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Add transaction"
+            onPress={() => router.push('/add-transaction')}
+            className="h-12 w-12 items-center justify-center rounded-full bg-slate-900"
           >
-            <Text className="text-base font-bold text-white">+ Add</Text>
-          </Link>
-          <Link
-            href="/voice"
-            className="h-14 w-14 items-center justify-center rounded-2xl border border-slate-200 bg-white shadow-sm"
-          >
-            <Text className="text-2xl">🎤</Text>
-          </Link>
+            <Ionicons name="add" size={26} color="#ffffff" />
+          </Pressable>
+          <ProfileAvatarButton size={48} />
         </View>
       }
     >
@@ -166,6 +177,41 @@ export default function HomeScreen() {
           </View>
         </View>
       ) : null}
+
+      <View className="mb-5 overflow-hidden rounded-3xl bg-slate-900 p-5">
+        <View className="flex-row items-center">
+          <View className="flex-1 pr-3">
+            <View className="flex-row items-center">
+              <Ionicons name="sparkles" size={14} color="#6ee7b7" />
+              <Text className="ml-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+                Voice entry
+              </Text>
+            </View>
+            <Text className="mt-2 text-xl font-extrabold text-white">Just say it</Text>
+            <Text className="mt-1 text-sm text-slate-300">
+              Tap the mic, speak, then review before anything is saved.
+            </Text>
+          </View>
+          <MicButton
+            active={false}
+            size={72}
+            label="Start voice entry"
+            onPress={() => router.push({ pathname: '/voice', params: { autostart: '1' } })}
+          />
+        </View>
+        <View className="mt-1 flex-row flex-wrap gap-2">
+          {['Spent 20,000 on fuel', 'Can I spend 30,000?', 'I saved 50,000'].map((example) => (
+            <Pressable
+              key={example}
+              accessibilityRole="button"
+              onPress={() => router.push({ pathname: '/voice', params: { transcript: example } })}
+              className="rounded-full bg-white/10 px-3 py-2"
+            >
+              <Text className="text-xs font-semibold text-slate-200">“{example}”</Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
 
       <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-4">
         <View className="flex-row justify-between">
@@ -282,10 +328,10 @@ export default function HomeScreen() {
           <Text className="text-center text-base font-bold text-white">Can I spend?</Text>
         </Link>
         <Link
-          href="/voice"
+          href="/add-transaction"
           className="flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3"
         >
-          <Text className="text-center text-base font-bold text-slate-900">Voice entry</Text>
+          <Text className="text-center text-base font-bold text-slate-900">Add manually</Text>
         </Link>
       </View>
     </PageLayout>

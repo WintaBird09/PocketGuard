@@ -10,12 +10,21 @@ import {
   updateTransaction,
   type ActivityItem,
 } from '@/src/data/activity';
-import { getMonthPlan, nextMonth, previousMonth } from '@/src/data/plan';
+import { getMonthPlan } from '@/src/data/plan';
+import {
+  monthsInRange,
+  rangeFor,
+  rangeLabel,
+  shiftAnchor,
+  type DateRange,
+  type RangeMode,
+} from '@/src/domain/dateRange';
 import { balancesAfterEachExpense } from '@/src/domain/lineBalance';
-import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
+import { localDateString } from '@/src/domain/dates';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
-import { Banner, Button, Chip, monthLabel } from '@/src/ui/controls';
+import { Banner, Button, Chip } from '@/src/ui/controls';
+import { DatePickerField } from '@/src/ui/DatePickerField';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
@@ -43,13 +52,22 @@ export default function TransactionsScreen() {
   const router = useRouter();
   const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
   const dateRevision = useDateOverrideRevision();
-  const currentMonth = monthKeyForDate(effectiveNow(), 'Africa/Douala');
-  const [monthSelection, setMonthSelection] = useState({
+  const today = localDateString();
+  const [view, setView] = useState({
     revision: dateRevision,
-    month: currentMonth,
+    mode: 'month' as RangeMode,
+    anchor: today,
   });
-  const month = monthSelection.revision === dateRevision ? monthSelection.month : currentMonth;
-  const setMonth = (value: string) => setMonthSelection({ revision: dateRevision, month: value });
+  const fresh = view.revision === dateRevision;
+  const mode = fresh ? view.mode : 'month';
+  const anchor = fresh ? view.anchor : today;
+  const [custom, setCustom] = useState<DateRange>(() => ({
+    from: rangeFor('month', localDateString()).from,
+    to: localDateString(),
+  }));
+  const range = mode === 'custom' ? custom : rangeFor(mode, anchor);
+  const changeView = (nextMode: RangeMode, nextAnchor = anchor) =>
+    setView({ revision: dateRevision, mode: nextMode, anchor: nextAnchor });
   const [filter, setFilter] = useState<Filter>('all');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
@@ -61,18 +79,38 @@ export default function TransactionsScreen() {
   const loaded = useMemo(() => {
     if (!db || !householdId) return { data: null, failure: null };
     try {
-      return {
-        data: {
-          allItems: listActivity(db, householdId, { month }),
-          items: listActivity(db, householdId, {
-            month,
-            lineId: filter !== 'all' && filter !== 'overrides' ? filter : null,
-            overridesOnly: filter === 'overrides',
-          }),
-          lines: getMonthPlan(db, householdId, month).lines,
-        },
-        failure: null,
+      const months = monthsInRange(range);
+      const inRange = (item: ActivityItem) => {
+        const day = localDay(item);
+        return day >= range.from && day <= range.to;
       };
+      const allItems = months.flatMap((month) => listActivity(db, householdId, { month }));
+      const planned = new Map<string, number>();
+      const lines = new Map<string, { id: string; name: string }>();
+      const balances = new Map<
+        string,
+        ReturnType<typeof balancesAfterEachExpense> extends Map<string, infer V> ? V : never
+      >();
+      for (const month of months) {
+        const monthLines = getMonthPlan(db, householdId, month).lines;
+        for (const line of monthLines) lines.set(line.id, { id: line.id, name: line.name });
+        planned.clear();
+        for (const line of monthLines) planned.set(line.id, line.planned);
+        const monthItems = allItems.filter(
+          (item) => item.occurredAt.slice(0, 7) === month || localDay(item).slice(0, 7) === month,
+        );
+        for (const [id, value] of balancesAfterEachExpense(
+          monthItems.filter((item) => localDay(item).slice(0, 7) === month),
+          planned,
+        )) {
+          balances.set(id, value);
+        }
+      }
+      const items = allItems.filter(inRange).filter((item) => {
+        if (filter === 'overrides') return item.overrideReason !== null;
+        return filter === 'all' || item.lineId === filter;
+      });
+      return { data: { items, lines: [...lines.values()], balances }, failure: null };
     } catch (cause) {
       return {
         data: null,
@@ -81,16 +119,17 @@ export default function TransactionsScreen() {
     }
     // tick re-reads after writes or when the tab regains focus
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [db, householdId, month, filter, tick]);
+  }, [db, householdId, range.from, range.to, filter, tick]);
 
-  const balances = useMemo(
-    () =>
-      balancesAfterEachExpense(
-        loaded.data?.allItems ?? [],
-        new Map((loaded.data?.lines ?? []).map((line) => [line.id, line.planned])),
-      ),
-    [loaded.data],
-  );
+  const balances = loaded.data?.balances;
+  const totals = useMemo(() => {
+    const items = loaded.data?.items ?? [];
+    return {
+      spent: items.filter((i) => i.direction === 'expense').reduce((n, i) => n + i.amount, 0),
+      income: items.filter((i) => i.direction === 'income').reduce((n, i) => n + i.amount, 0),
+      count: items.length,
+    };
+  }, [loaded.data]);
 
   const changed = () => {
     scheduleNotificationRefresh();
@@ -159,30 +198,20 @@ export default function TransactionsScreen() {
     return [...result.entries()];
   }, [data]);
 
+  const modes: { key: RangeMode; label: string }[] = [
+    { key: 'day', label: 'Day' },
+    { key: 'week', label: 'Week' },
+    { key: 'month', label: 'Month' },
+    { key: 'custom', label: 'Custom' },
+  ];
+  const step = (direction: 1 | -1) => {
+    if (mode === 'custom') return;
+    changeView(mode, shiftAnchor(mode, anchor, direction));
+    setEditingId(null);
+  };
+
   return (
-    <PageLayout
-      title="Transactions"
-      loading={loading}
-      subtitle={monthLabel(month)}
-      action={
-        <View className="flex-row gap-2">
-          <Chip
-            label="‹"
-            onPress={() => {
-              setMonth(previousMonth(month));
-              setEditingId(null);
-            }}
-          />
-          <Chip
-            label="›"
-            onPress={() => {
-              setMonth(nextMonth(month));
-              setEditingId(null);
-            }}
-          />
-        </View>
-      }
-    >
+    <PageLayout title="Transactions" loading={loading} subtitle={rangeLabel(mode, range, today)}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Add a new transaction"
@@ -192,6 +221,113 @@ export default function TransactionsScreen() {
         <Ionicons name="add-circle" size={24} color="#ffffff" />
         <Text className="ml-2 text-base font-bold text-white">Add transaction</Text>
       </Pressable>
+
+      <View className="mb-4 flex-row rounded-2xl bg-slate-200 p-1">
+        {modes.map((item) => {
+          const active = mode === item.key;
+          return (
+            <Pressable
+              key={item.key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => {
+                setEditingId(null);
+                if (item.key === 'custom') {
+                  setCustom(range);
+                  changeView('custom');
+                } else changeView(item.key, mode === 'custom' ? range.to : anchor);
+              }}
+              className={`min-h-10 flex-1 items-center justify-center rounded-xl ${
+                active ? 'bg-white' : ''
+              }`}
+            >
+              <Text className={`text-sm font-bold ${active ? 'text-slate-900' : 'text-slate-500'}`}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {mode === 'custom' ? (
+        <View className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+          <DatePickerField
+            label="From"
+            value={custom.from}
+            onChange={(value) =>
+              setCustom((c) => ({ from: value, to: value > c.to ? value : c.to }))
+            }
+            minimumDate={new Date(2020, 0, 1)}
+            maximumDate={new Date(2100, 11, 31)}
+            startOnToday
+          />
+          <DatePickerField
+            label="To"
+            value={custom.to}
+            onChange={(value) =>
+              setCustom((c) => ({ from: value < c.from ? value : c.from, to: value }))
+            }
+            minimumDate={new Date(2020, 0, 1)}
+            maximumDate={new Date(2100, 11, 31)}
+            startOnToday
+          />
+        </View>
+      ) : (
+        <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-2">
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Previous period"
+            onPress={() => step(-1)}
+            className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+          >
+            <Ionicons name="chevron-back" size={20} color="#0f172a" />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Jump to today"
+            onPress={() => changeView(mode, today)}
+          >
+            <Text className="text-base font-bold text-slate-900">
+              {rangeLabel(mode, range, today)}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Next period"
+            onPress={() => step(1)}
+            className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+          >
+            <Ionicons name="chevron-forward" size={20} color="#0f172a" />
+          </Pressable>
+        </View>
+      )}
+
+      <View className="mb-5 flex-row gap-3">
+        <View className="flex-1 rounded-2xl bg-red-50 p-3">
+          <Text className="text-xs font-semibold text-red-700">Spent</Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            className="mt-1 text-base font-extrabold text-red-800"
+          >
+            {formatXAF(totals.spent)}
+          </Text>
+        </View>
+        <View className="flex-1 rounded-2xl bg-emerald-50 p-3">
+          <Text className="text-xs font-semibold text-emerald-700">Income</Text>
+          <Text
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            className="mt-1 text-base font-extrabold text-emerald-800"
+          >
+            {formatXAF(totals.income)}
+          </Text>
+        </View>
+        <View className="flex-1 rounded-2xl bg-slate-100 p-3">
+          <Text className="text-xs font-semibold text-slate-600">Entries</Text>
+          <Text className="mt-1 text-base font-extrabold text-slate-900">{totals.count}</Text>
+        </View>
+      </View>
 
       <Text className="mb-3 text-lg font-bold text-slate-900">History</Text>
 
@@ -226,8 +362,7 @@ export default function TransactionsScreen() {
 
       {data && groups.length === 0 ? (
         <Text className="text-sm text-slate-600">
-          No transactions in {monthLabel(month)}
-          {filter === 'all' ? '.' : ' for this filter.'}
+          No transactions in this period{filter === 'all' ? '.' : ' for this filter.'}
         </Text>
       ) : null}
 
@@ -272,18 +407,18 @@ export default function TransactionsScreen() {
                     {formatXAF(item.amount)}
                   </Text>
                 </View>
-                {balances.get(item.id) ? (
+                {balances?.get(item.id) ? (
                   <Text
                     className={`mt-1 text-sm font-semibold ${
                       { green: 'text-emerald-600', orange: 'text-orange-500', red: 'text-red-600' }[
-                        balances.get(item.id)!.tone
+                        balances!.get(item.id)!.tone
                       ]
                     }`}
                   >
-                    {balances.get(item.id)!.left >= 0
-                      ? `${formatXAF(balances.get(item.id)!.left)} left`
-                      : `${formatXAF(-balances.get(item.id)!.left)} over`}{' '}
-                    on {item.lineName} · {Math.round(balances.get(item.id)!.usedRatio * 100)}% used
+                    {balances!.get(item.id)!.left >= 0
+                      ? `${formatXAF(balances!.get(item.id)!.left)} left`
+                      : `${formatXAF(-balances!.get(item.id)!.left)} over`}{' '}
+                    on {item.lineName} · {Math.round(balances!.get(item.id)!.usedRatio * 100)}% used
                   </Text>
                 ) : null}
                 {item.overrideReason ? (

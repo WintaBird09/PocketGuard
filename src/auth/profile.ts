@@ -36,3 +36,10 @@ export function validateNewPassword(password: string, confirm: string): string |
   if (password !== confirm) return 'Passwords do not match.';
   return null;
 }
+
+export function validateEmail(value: string, current?: string | null): string | null {
+  const email = value.trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return 'Enter a valid email address.';
+  if (current && email === current.trim().toLowerCase()) return 'That is already your email.';
+  return null;
+}

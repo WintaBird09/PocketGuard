@@ -3,6 +3,7 @@ import { effectiveNow, localDateString } from '../domain/dates';
 
 import type { DatabaseLike } from './db';
 import { assertWholeAmount, inTransaction, newId, requirePrepared } from './household';
+import { setAllocation } from './plan';
 import { appendOutboxEntry, transactions } from './repos';
 
 export type DebtPayment = {
@@ -29,6 +30,7 @@ export type DebtSummary = {
 export type ScheduleEntry = {
   month: string;
   debtId: string | null;
+  lineId: string;
   creditor: string;
   planned: number;
   paid: number;
@@ -123,7 +125,7 @@ export function getDebtSchedule(
 ): ScheduleEntry[] {
   const currentMonth = localDate(asOf).slice(0, 7);
   const rows = requirePrepared(db)(
-    `SELECT a.month, a.planned_amount, bl.name FROM allocations a
+    `SELECT a.month, a.planned_amount, a.line_id, bl.name FROM allocations a
        JOIN budget_lines bl ON bl.id = a.line_id AND bl.household_id = a.household_id
       WHERE a.household_id = ? AND a.deleted_at IS NULL AND bl.deleted_at IS NULL
         AND bl.kind = 'debt' AND a.planned_amount > 0
@@ -143,6 +145,7 @@ export function getDebtSchedule(
     return {
       month,
       debtId: debt?.id ?? null,
+      lineId: String(row.line_id),
       creditor: debt?.creditor ?? String(row.name),
       planned,
       paid,
@@ -198,5 +201,60 @@ export function recordDebtPayment(
       note: draft.note?.trim() || `Payment to ${debt.creditor}`,
       source: 'manual',
     }).id;
+  });
+}
+
+// Soft delete. Payments already recorded stay in Activity as spending on the debt's budget line.
+export function deleteDebt(db: DatabaseLike, householdId: string, debtId: string): void {
+  inTransaction(db, () => {
+    const now = new Date().toISOString();
+    const result = requirePrepared(db)(
+      `UPDATE debts SET deleted_at = ?, updated_at = ?
+        WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+    ).run(now, now, debtId, householdId) as { changes?: number };
+    if (result.changes === 0) throw new Error('Debt was not found.');
+    appendOutboxEntry(db, householdId, 'debts', debtId, 'delete');
+  });
+}
+
+function plannedFor(db: DatabaseLike, householdId: string, lineId: string, month: string): number {
+  const row = requirePrepared(db)(
+    `SELECT planned_amount FROM allocations
+      WHERE household_id = ? AND line_id = ? AND month = ? AND deleted_at IS NULL LIMIT 1;`,
+  ).get(householdId, lineId, month);
+  return Number(row?.planned_amount ?? 0);
+}
+
+// Removing a planned payment zeroes that month's allocation; recorded payments are untouched.
+export function removePlannedPayment(
+  db: DatabaseLike,
+  householdId: string,
+  lineId: string,
+  month: string,
+): void {
+  inTransaction(db, () => {
+    if (plannedFor(db, householdId, lineId, month) <= 0) {
+      throw new Error('That planned payment was not found.');
+    }
+    setAllocation(db, householdId, lineId, month, 0);
+  });
+}
+
+export function reschedulePlannedPayment(
+  db: DatabaseLike,
+  householdId: string,
+  lineId: string,
+  fromMonth: string,
+  toMonth: string,
+): void {
+  if (fromMonth === toMonth) throw new Error('Pick a different month.');
+  inTransaction(db, () => {
+    const amount = plannedFor(db, householdId, lineId, fromMonth);
+    if (amount <= 0) throw new Error('That planned payment was not found.');
+    if (plannedFor(db, householdId, lineId, toMonth) > 0) {
+      throw new Error('A payment is already planned for that month.');
+    }
+    setAllocation(db, householdId, lineId, toMonth, amount);
+    setAllocation(db, householdId, lineId, fromMonth, 0);
   });
 }

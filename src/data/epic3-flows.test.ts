@@ -16,7 +16,14 @@ import {
   needsOnboarding,
 } from './bootstrap';
 import { getHomeDashboardSnapshot } from './dashboard';
-import { addDebt, listDebts, recordDebtPayment } from './debts';
+import {
+  addDebt,
+  deleteDebt,
+  listDebts,
+  removePlannedPayment,
+  reschedulePlannedPayment,
+  recordDebtPayment,
+} from './debts';
 import { classifyInboxItem, discardInboxItem, listInbox } from './inbox';
 import {
   addBudgetLine,
@@ -160,6 +167,34 @@ describe('debts', () => {
   it('marks overdue debts and adds new ones', () => {
     const id = addDebt(d(), hh, { creditor: 'Bob', originalAmount: 5000, deadline: '2020-01-01' });
     expect(listDebts(d(), hh).find((x) => x.id === id)?.status).toBe('OVERDUE');
+  });
+
+  it('reschedules and removes a planned debt payment', () => {
+    setAllocation(d(), hh, 'line-debt-mom', '2026-11', 7000);
+    reschedulePlannedPayment(d(), hh, 'line-debt-mom', '2026-11', '2026-12');
+    const planned = (month: string) =>
+      (
+        db
+          .prepare(
+            "SELECT planned_amount AS a FROM allocations WHERE line_id = 'line-debt-mom' AND month = ?",
+          )
+          .get(month) as { a: number } | undefined
+      )?.a;
+    expect(planned('2026-11')).toBe(0);
+    expect(planned('2026-12')).toBe(7000);
+    expect(() =>
+      reschedulePlannedPayment(d(), hh, 'line-debt-mom', '2026-12', '2026-12'),
+    ).toThrow();
+    removePlannedPayment(d(), hh, 'line-debt-mom', '2026-12');
+    expect(planned('2026-12')).toBe(0);
+    expect(() => removePlannedPayment(d(), hh, 'line-debt-mom', '2026-12')).toThrow();
+  });
+
+  it('deletes a debt and rejects deleting it twice', () => {
+    const id = addDebt(d(), hh, { creditor: 'Bob', originalAmount: 5000 });
+    deleteDebt(d(), hh, id);
+    expect(listDebts(d(), hh).some((x) => x.id === id)).toBe(false);
+    expect(() => deleteDebt(d(), hh, id)).toThrow('Debt was not found.');
   });
 });
 

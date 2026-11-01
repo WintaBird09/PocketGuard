@@ -1,10 +1,12 @@
-import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { Banner, Button } from '@/src/ui/controls';
+import { MicButton } from '@/src/ui/MicButton';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { useDatabase } from '@/src/ui/useDatabase';
 import {
@@ -26,7 +28,10 @@ export default function VoiceScreen() {
   useDateOverrideRevision();
   const month = monthKeyForDate(effectiveNow(), 'Africa/Douala');
   const [speech, setSpeech] = useState<SpeechRecognitionSnapshot>(getSpeechRecognitionSnapshot());
-  const [transcript, setTranscript] = useState('');
+  const params = useLocalSearchParams<{ autostart?: string; transcript?: string }>();
+  const [transcript, setTranscript] = useState(
+    typeof params.transcript === 'string' ? params.transcript : '',
+  );
   const [items, setItems] = useState<ParseExpenseItem[]>([]);
   const [parsing, setParsing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -133,6 +138,20 @@ export default function VoiceScreen() {
     }
   };
 
+  const autostarted = useRef(false);
+  useEffect(() => {
+    if (params.autostart !== '1' || autostarted.current || !db || !householdId) return;
+    autostarted.current = true;
+    autoParseOnEnd.current = true;
+    startSpeechRecognition().catch((cause: unknown) => {
+      autoParseOnEnd.current = false;
+      setError(cause instanceof Error ? cause.message : 'Unable to start speech recognition.');
+    });
+  }, [params.autostart, db, householdId]);
+
+  const listening = speech.status === 'listening';
+  const stopping = speech.status === 'stopping';
+
   return (
     <PageLayout
       title="Voice entry"
@@ -151,48 +170,74 @@ export default function VoiceScreen() {
       {databaseError ? <Banner tone="error">{databaseError}</Banner> : null}
       {error || speech.error ? <Banner tone="error">{error ?? speech.error}</Banner> : null}
       {message ? <Banner tone="info">{message}</Banner> : null}
-      {speech.status === 'listening' ? (
-        <Banner tone="info">Listening… Speak clearly, then tap Stop.</Banner>
-      ) : null}
-      {speech.status === 'stopping' ? <Banner tone="info">Finishing transcription…</Banner> : null}
-
-      <View className="rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-base font-bold text-slate-900">Say a transaction or question</Text>
-        <Text className="mt-1 text-sm text-slate-600">
-          Examples: “Spent 20,000 on fuel”, “Can I spend 30,000 on fuel?”, or “I saved 92,000 for
-          the kids”.
+      <View className="items-center rounded-3xl bg-slate-900 px-5 pb-6 pt-4">
+        <Text className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
+          {listening ? 'Listening' : stopping ? 'Finishing' : parsing ? 'Understanding' : 'Ready'}
         </Text>
-        <View className="mt-4">
-          <Button
-            label={
-              speech.status === 'listening' || speech.status === 'stopping'
-                ? 'Stop recording'
-                : 'Start voice capture'
-            }
-            onPress={() => void toggleRecording()}
-            disabled={parsing}
-          />
+        <MicButton
+          active={listening}
+          busy={stopping || parsing}
+          label={listening ? 'Stop recording' : 'Start voice capture'}
+          onPress={() => void toggleRecording()}
+        />
+        <Text className="-mt-2 text-center text-base font-semibold text-white">
+          {listening
+            ? 'Speak now, tap to stop'
+            : stopping
+              ? 'Finishing transcription…'
+              : parsing
+                ? 'Working out what you said…'
+                : 'Tap the mic and speak'}
+        </Text>
+        <View className="mt-4 min-h-16 w-full rounded-2xl bg-white/10 p-3">
+          <Text className={`text-base ${transcript ? 'text-white' : 'text-slate-400'}`}>
+            {transcript || 'What you say appears here'}
+          </Text>
         </View>
-        <Text className="mb-1 mt-4 text-sm font-medium text-slate-700">Transcript</Text>
+      </View>
+
+      <View className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <Text className="text-sm font-bold text-slate-900">Try saying</Text>
+        <View className="mt-2 flex-row flex-wrap gap-2">
+          {[
+            'Spent 20,000 on fuel',
+            'Can I spend 30,000 on fuel?',
+            'I saved 92,000 for the kids',
+          ].map((example) => (
+            <Pressable
+              key={example}
+              accessibilityRole="button"
+              onPress={() => setTranscript(example)}
+              className="rounded-full bg-slate-100 px-3 py-2"
+            >
+              <Text className="text-xs font-semibold text-slate-700">“{example}”</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <Text className="mb-1 mt-4 text-sm font-medium text-slate-700">Edit or type instead</Text>
         <TextInput
           accessibilityLabel="Voice transcript"
           multiline
           value={transcript}
           onChangeText={setTranscript}
-          placeholder="Your speech or typed phrase appears here"
-          className="min-h-24 rounded-xl border border-slate-200 px-3 py-3 text-base"
+          placeholder="Type a phrase if you prefer"
+          className="min-h-20 rounded-xl border border-slate-200 px-3 py-3 text-base"
         />
         <View className="mt-3">
           <Button
-            label={parsing ? 'Parsing…' : 'Parse transcript'}
+            label={parsing ? 'Understanding…' : 'Review what I said'}
             onPress={() => void parseTranscript(transcript)}
-            disabled={parsing || !transcript.trim()}
+            disabled={parsing || listening || stopping || !transcript.trim()}
           />
         </View>
-        <Text className="mt-3 text-xs text-slate-500">
-          Speech transcription may work offline when English is installed on your device. Parsing
-          requires an internet connection and sign-in. Failed parses are saved in Inbox.
-        </Text>
+        <View className="mt-3 flex-row items-start">
+          <Ionicons name="information-circle" size={16} color="#94a3b8" />
+          <Text className="ml-1 flex-1 text-xs text-slate-500">
+            Speech may work offline if English is installed on your phone. Understanding it needs
+            internet and sign-in. If that fails, your note is saved in Inbox.
+          </Text>
+        </View>
       </View>
 
       {items.length ? (

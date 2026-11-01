@@ -37,6 +37,9 @@ type AuthContextValue = {
   updateDisplayName: (name: string) => Promise<void>;
   updateProfileMetadata: (metadata: Record<string, unknown>) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
+  // Sends a confirmation link; the address only changes once it is opened.
+  requestEmailChange: (email: string) => Promise<void>;
+  refreshUser: () => Promise<void>;
   exchangeCode: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
   retryHouseholdBootstrap: () => void;
@@ -259,6 +262,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
         const { error: updateError } = await supabase.auth.updateUser({ password });
         if (updateError) throw updateError;
+      },
+      async requestEmailChange(email) {
+        if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
+        const { data, error: updateError } = await supabase.auth.updateUser(
+          { email: email.trim().toLowerCase() },
+          { emailRedirectTo: Linking.createURL('auth/callback') },
+        );
+        if (updateError) throw updateError;
+        setSession((current) => (current && data.user ? { ...current, user: data.user } : current));
+      },
+      async refreshUser() {
+        if (!supabase) return;
+        const { data, error: getError } = await supabase.auth.getUser();
+        if (getError) throw getError;
+        setSession((current) => (current && data.user ? { ...current, user: data.user } : current));
       },
       async exchangeCode(code) {
         if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
