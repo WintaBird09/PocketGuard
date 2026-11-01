@@ -15,6 +15,9 @@ export async function openAppDatabase(name = 'pocket-guard.db'): Promise<Databas
   const sqlite = await import('expo-sqlite');
   const database = await sqlite.openDatabaseAsync(name, { enableChangeListener: false });
 
+  // expo-sqlite cannot nest transactions, so inner calls join the outer one.
+  let transactionDepth = 0;
+
   return {
     execSync: (sql) => database.execSync(sql),
     prepare: (sql) => ({
@@ -26,10 +29,16 @@ export async function openAppDatabase(name = 'pocket-guard.db'): Promise<Databas
         database.getAllSync<Record<string, unknown>>(sql, ...toSqliteBindValues(args)),
     }),
     transaction: (fn) => () => {
+      if (transactionDepth > 0) return fn();
       let result: unknown;
-      database.withTransactionSync(() => {
-        result = fn();
-      });
+      transactionDepth += 1;
+      try {
+        database.withTransactionSync(() => {
+          result = fn();
+        });
+      } finally {
+        transactionDepth -= 1;
+      }
       return result;
     },
   };
