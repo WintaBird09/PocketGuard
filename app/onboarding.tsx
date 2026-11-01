@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 
@@ -59,11 +59,7 @@ export default function OnboardingScreen() {
         />
       </View>
       <Text className="text-center text-sm text-slate-500">
-        Want your data backed up?{' '}
-        <Link href="/auth" className="font-bold text-slate-900">
-          Sign in to sync
-        </Link>{' '}
-        — optional, the app works offline without it.
+        Next, you’ll sign in or create an account to open Pocket Guard.
       </Text>
     </PageLayout>
   );

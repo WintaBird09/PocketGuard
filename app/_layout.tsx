@@ -5,6 +5,7 @@ import { Stack } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 
 import { AuthProvider } from '@/src/auth/AuthProvider';
+import { AuthGate } from '@/src/auth/AuthGate';
 import { initializeLocalApp } from '@/src/data/bootstrap';
 import { openAppDatabase } from '@/src/data/db';
 import { loadTimeTravelDate } from '@/src/dev/timeTravel';
@@ -66,7 +67,9 @@ export default function RootLayout() {
       <AppLockProvider>
         <SyncProvider>
           <VoiceDraftProvider>
-            <Stack screenOptions={{ headerShown: false }} />
+            <AuthGate>
+              <Stack screenOptions={{ headerShown: false }} />
+            </AuthGate>
           </VoiceDraftProvider>
         </SyncProvider>
       </AppLockProvider>

@@ -335,7 +335,7 @@ export default function SettingsScreen() {
       >
         <Text className="text-lg font-bold text-slate-900">Account and sign-in</Text>
         <Text className="mt-2 text-sm text-slate-600">
-          Optional cloud account. Your local household stays available when signed out.
+          Manage your Pocket Guard account and sign out.
         </Text>
         {syncSnapshot.error ? (
           <Text className="mt-2 text-xs text-red-700">Sync: {syncSnapshot.error}</Text>

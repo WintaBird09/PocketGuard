@@ -16,6 +16,9 @@ type AuthContextValue = {
   householdBootstrapStatus: HouseholdBootstrapStatus;
   householdBootstrapError: string | null;
   sendMagicLink: (email: string) => Promise<void>;
+  signInWithPassword: (email: string, password: string) => Promise<void>;
+  // Resolves true when the account was created but the email must be confirmed first.
+  signUpWithPassword: (email: string, password: string) => Promise<boolean>;
   exchangeCode: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
   retryHouseholdBootstrap: () => void;
@@ -135,6 +138,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           options: { emailRedirectTo: Linking.createURL('auth/callback') },
         });
         if (requestError) throw requestError;
+      },
+      async signInWithPassword(email, password) {
+        if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
+        const { data, error: signInError } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+        if (signInError) throw signInError;
+        setSession(data.session);
+        setError(null);
+      },
+      async signUpWithPassword(email, password) {
+        if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: Linking.createURL('auth/callback') },
+        });
+        if (signUpError) throw signUpError;
+        if (data.session) {
+          setSession(data.session);
+          setError(null);
+          return false;
+        }
+        return true;
       },
       async exchangeCode(code) {
         if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
