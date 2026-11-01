@@ -33,9 +33,12 @@ export function toPickedPerson(raw: RawContact): PickedPerson | null {
 }
 
 // The OS contact picker shows the user's contacts and returns only the one they choose,
-// so the app never reads the address book.
+// so the app never reads the address book. Android still needs READ_CONTACTS granted
+// for the module to load the chosen contact's details.
 async function systemPicker(): Promise<RawContact | null> {
   const contacts = await import('expo-contacts/legacy');
+  const permission = await contacts.requestPermissionsAsync();
+  if (!permission.granted) throw new Error('Contacts permission denied');
   return (await contacts.presentContactPickerAsync()) as RawContact | null;
 }
 

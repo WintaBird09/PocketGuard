@@ -9,12 +9,13 @@ import {
   loanToForm,
   type LoanFormFields,
 } from '@/src/data/loanForm';
-import { checkLendingCap, getLendingCap, setLendingCap } from '@/src/data/lendingCap';
+import { checkLendingCap, getLendingCap } from '@/src/data/lendingCap';
 import { createLoan, getLoan, updateLoan } from '@/src/data/loans';
 import { localDateString } from '@/src/domain/dates';
 import type { LoanPlan } from '@/src/domain/loans';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { Banner, Button, Chip } from '@/src/ui/controls';
+import { DatePickerField } from '@/src/ui/DatePickerField';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
@@ -27,6 +28,12 @@ const plans: { key: LoanPlan; label: string }[] = [
 
 const inputClass = 'mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base';
 
+function yearsFromNow(years: number): Date {
+  const date = new Date();
+  date.setFullYear(date.getFullYear() + years);
+  return date;
+}
+
 function Label({ children }: { children: string }) {
   return <Text className="mb-1 mt-2 text-xs font-semibold text-slate-500">{children}</Text>;
 }
@@ -38,8 +45,6 @@ export default function LoanFormScreen() {
   const [edits, setEdits] = useState<LoanFormFields | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [capInput, setCapInput] = useState('');
-  const [capVersion, setCapVersion] = useState(0);
 
   const existing = useMemo(() => {
     if (!id || !db || !householdId) return { fields: null, failure: null };
@@ -58,9 +63,8 @@ export default function LoanFormScreen() {
 
   const cap = useMemo(
     () => (db && householdId ? getLendingCap(db, householdId) : null),
-    // capVersion re-reads after the cap is changed on this screen
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [db, householdId, capVersion],
+
+    [db, householdId],
   );
 
   const capPreview = useMemo(() => {
@@ -100,18 +104,6 @@ export default function LoanFormScreen() {
       router.back();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save the loan.');
-    }
-  };
-
-  const saveCap = (value: number | null) => {
-    if (!db || !householdId) return;
-    setError(null);
-    try {
-      setLendingCap(db, householdId, value);
-      setCapInput('');
-      setCapVersion((version) => version + 1);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Unable to save the cap.');
     }
   };
 
@@ -169,12 +161,13 @@ export default function LoanFormScreen() {
             </Text>
           ) : null}
 
-          <Label>Date lent (YYYY-MM-DD)</Label>
-          <TextInput
-            accessibilityLabel="Date lent"
+          <DatePickerField
+            label="Date lent"
             value={form.lentOn}
-            onChangeText={(value) => set('lentOn', value)}
-            className={inputClass}
+            onChange={(value) => set('lentOn', value)}
+            minimumDate={yearsFromNow(-5)}
+            maximumDate={yearsFromNow(1)}
+            startOnToday
           />
 
           <Label>Payment plan</Label>
@@ -191,13 +184,13 @@ export default function LoanFormScreen() {
 
           {form.plan === 'installments' ? (
             <>
-              <Label>First installment due (YYYY-MM-DD)</Label>
-              <TextInput
-                accessibilityLabel="First installment date"
+              <DatePickerField
+                label="First installment due"
                 value={form.firstDueOn}
-                onChangeText={(value) => set('firstDueOn', value)}
-                placeholder="YYYY-MM-DD"
-                className={inputClass}
+                onChange={(value) => set('firstDueOn', value)}
+                minimumDate={yearsFromNow(-1)}
+                maximumDate={yearsFromNow(10)}
+                startOnToday
               />
               <Label>Number of monthly installments</Label>
               <TextInput
@@ -210,15 +203,13 @@ export default function LoanFormScreen() {
             </>
           ) : (
             <>
-              <Label>
-                {form.plan === 'single' ? 'Due date (YYYY-MM-DD)' : 'Expected by (optional)'}
-              </Label>
-              <TextInput
-                accessibilityLabel="Deadline"
+              <DatePickerField
+                label={form.plan === 'single' ? 'Due date' : 'Expected by (optional)'}
                 value={form.deadline}
-                onChangeText={(value) => set('deadline', value)}
-                placeholder="YYYY-MM-DD"
-                className={inputClass}
+                onChange={(value) => set('deadline', value)}
+                minimumDate={yearsFromNow(-1)}
+                maximumDate={yearsFromNow(10)}
+                startOnToday
               />
             </>
           )}
@@ -237,43 +228,6 @@ export default function LoanFormScreen() {
           </View>
         </View>
       ) : null}
-
-      <View className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <Text className="text-base font-bold text-slate-900">Monthly lending cap</Text>
-        <Text className="mt-1 text-sm text-slate-600">
-          {cap === null
-            ? 'Off. Turn it on to stop new loans above a monthly total.'
-            : `On: ${formatXAF(cap)} per month. Loans above it are blocked.`}
-        </Text>
-        <TextInput
-          accessibilityLabel="Lending cap"
-          placeholder="Cap in XAF"
-          keyboardType="number-pad"
-          value={capInput}
-          onChangeText={setCapInput}
-          className={`mt-2 ${inputClass}`}
-        />
-        <View className="flex-row gap-3">
-          <View className="flex-1">
-            <Button
-              label="Set cap"
-              onPress={() => {
-                const value = Number(capInput.replace(/[\s,]/g, ''));
-                if (!Number.isInteger(value) || value <= 0) {
-                  setError('Enter the cap as a whole number of XAF.');
-                  return;
-                }
-                saveCap(value);
-              }}
-            />
-          </View>
-          {cap !== null ? (
-            <View className="flex-1">
-              <Button label="Turn off" variant="outline" onPress={() => saveCap(null)} />
-            </View>
-          ) : null}
-        </View>
-      </View>
     </PageLayout>
   );
 }

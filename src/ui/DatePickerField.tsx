@@ -31,26 +31,34 @@ export function DatePickerField({
   onChange,
   error,
   maximumDate = new Date(),
+  minimumDate = new Date(1900, 0, 1),
   startYear = 1990,
+  startOnToday = false,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   error?: string | null;
   maximumDate?: Date;
+  minimumDate?: Date;
   startYear?: number;
+  startOnToday?: boolean;
 }) {
   const selected = parseDateKey(value);
   const [open, setOpen] = useState(false);
-  const [year, setYear] = useState(selected?.year ?? startYear);
-  const [month, setMonth] = useState(selected?.month ?? 1);
+  const today = new Date();
+  const initialYear = selected?.year ?? (startOnToday ? today.getFullYear() : startYear);
+  const initialMonth = selected?.month ?? (startOnToday ? today.getMonth() + 1 : 1);
+  const [year, setYear] = useState(initialYear);
+  const [month, setMonth] = useState(initialMonth);
   const [choosingYear, setChoosingYear] = useState(false);
   const maxYear = maximumDate.getFullYear();
-  const years = Array.from({ length: maxYear - 1900 + 1 }, (_, index) => maxYear - index);
+  const minYear = minimumDate.getFullYear();
+  const years = Array.from({ length: maxYear - minYear + 1 }, (_, index) => maxYear - index);
 
   const openPicker = () => {
-    setYear(selected?.year ?? startYear);
-    setMonth(selected?.month ?? 1);
+    setYear(initialYear);
+    setMonth(initialMonth);
     setChoosingYear(false);
     setOpen(true);
   };
@@ -58,14 +66,19 @@ export function DatePickerField({
   const shiftMonth = (delta: number) => {
     const index = year * 12 + (month - 1) + delta;
     const nextYear = Math.floor(index / 12);
-    if (nextYear > maxYear || nextYear < 1900) return;
+    if (nextYear > maxYear || nextYear < minYear) return;
     setYear(nextYear);
     setMonth((index % 12) + 1);
   };
 
-  const isFuture = (day: number) =>
-    toDateKey(year, month, day) >
-    toDateKey(maximumDate.getFullYear(), maximumDate.getMonth() + 1, maximumDate.getDate());
+  const outOfRange = (day: number) => {
+    const key = toDateKey(year, month, day);
+    return (
+      key >
+        toDateKey(maximumDate.getFullYear(), maximumDate.getMonth() + 1, maximumDate.getDate()) ||
+      key < toDateKey(minimumDate.getFullYear(), minimumDate.getMonth() + 1, minimumDate.getDate())
+    );
+  };
 
   return (
     <View className="mb-4">
@@ -171,7 +184,7 @@ export function DatePickerField({
                         day !== null && selected?.year === year && selected.month === month
                           ? selected.day === day
                           : false;
-                      const disabled = day === null || isFuture(day);
+                      const disabled = day === null || outOfRange(day);
                       return (
                         <View key={cellIndex} className="flex-1 p-0.5">
                           {day === null ? (
