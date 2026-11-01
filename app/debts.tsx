@@ -246,9 +246,9 @@ export default function DebtsScreen() {
             <Text className="text-lg font-bold text-slate-900">Planned schedule</Text>
             <Text className="text-sm text-slate-500">From your budget</Text>
           </View>
-          {data.schedule.map((entry) => (
+          {data.schedule.map((entry, index) => (
             <View
-              key={`${entry.month}-${entry.creditor}`}
+              key={`${entry.month}-${entry.creditor}-${index}`}
               className="mb-2 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-3"
             >
               <Text className="text-base text-slate-900">

@@ -14,6 +14,7 @@ type TransactionEntryDatabase = DatabaseLike & {
 export type ExpenseLineOption = {
   id: string;
   name: string;
+  kind: string;
   hardCap: boolean;
   planned: number;
 };
@@ -61,7 +62,7 @@ export function listExpenseLines(
 ): ExpenseLineOption[] {
   const rows = requireDatabase(db)
     .prepare(
-      `SELECT bl.id, bl.name, bl.hard_cap, COALESCE(a.planned_amount, 0) AS planned
+      `SELECT bl.id, bl.name, bl.kind, bl.hard_cap, COALESCE(a.planned_amount, 0) AS planned
        FROM budget_lines bl
        LEFT JOIN allocations a
          ON a.line_id = bl.id AND a.household_id = bl.household_id
@@ -74,6 +75,7 @@ export function listExpenseLines(
   return rows.map((row) => ({
     id: String(row.id),
     name: String(row.name),
+    kind: String(row.kind),
     hardCap: Boolean(row.hard_cap),
     planned: Number(row.planned),
   }));

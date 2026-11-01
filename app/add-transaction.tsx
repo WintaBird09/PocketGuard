@@ -2,6 +2,7 @@ import { Link } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
+import { addBudgetLine, type LineKind } from '@/src/data/plan';
 import {
   getExpenseReview,
   listExpenseLines,
@@ -13,6 +14,7 @@ import { localDateString, monthKeyForDate } from '@/src/domain/dates';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { authenticateForOverride } from '@/src/security/appLock';
+import { BudgetLinePicker } from '@/src/ui/BudgetLinePicker';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 
@@ -180,6 +182,28 @@ export default function AddTransactionScreen() {
     }
   };
 
+  // Reuses an existing line of the same name instead of rejecting the duplicate.
+  const createLine = (rawName: string, kind: LineKind): string | null => {
+    const name = rawName.trim();
+    if (!database || !householdId) return 'Your data is still loading.';
+    if (!name) return 'Enter a name for the budget line.';
+    const existing = lines.find((line) => line.name.toLowerCase() === name.toLowerCase());
+    try {
+      const id = existing?.id ?? addBudgetLine(database, householdId, { name, kind });
+      if (!existing) {
+        const month = monthKeyForDate(new Date(`${occurredOn}T12:00:00`), 'Africa/Douala');
+        setLines(listExpenseLines(database, householdId, month));
+      }
+      setSelectedLineId(id);
+      setConfirmWarning(false);
+      setOverrideOpen(false);
+      setMessage(existing ? `“${existing.name}” already exists, so it was selected.` : null);
+      return null;
+    } catch (cause) {
+      return cause instanceof Error ? cause.message : 'Unable to add the budget line.';
+    }
+  };
+
   return (
     <PageLayout title="Add transaction" subtitle="Fast capture before paying" loading={loading}>
       {error && !saving ? (
@@ -206,37 +230,17 @@ export default function AddTransactionScreen() {
         />
 
         <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Budget line</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {lines.map((line) => {
-            const isActive = line.id === selectedLineId;
-            return (
-              <Pressable
-                key={line.id}
-                onPress={() => {
-                  setSelectedLineId(line.id);
-                  setConfirmWarning(false);
-                  setOverrideOpen(false);
-                  setMessage(null);
-                }}
-                className={`min-h-12 items-center justify-center rounded-full px-4 py-3 ${
-                  isActive ? 'bg-emerald-100' : 'bg-slate-100'
-                }`}
-              >
-                <Text
-                  className={`text-sm font-medium ${isActive ? 'text-emerald-700' : 'text-slate-700'}`}
-                >
-                  {line.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-          {lines.length === 0 ? (
-            <Text className="text-sm text-slate-500">
-              No active budget lines for this month. Add a line in Budget before recording an
-              expense.
-            </Text>
-          ) : null}
-        </View>
+        <BudgetLinePicker
+          lines={lines}
+          selectedId={selectedLineId}
+          onSelect={(id) => {
+            setSelectedLineId(id);
+            setConfirmWarning(false);
+            setOverrideOpen(false);
+            setMessage(null);
+          }}
+          onCreate={createLine}
+        />
         <Text className="mt-2 text-xs text-slate-500">
           {selectedLine?.hardCap ? 'Hard cap line' : 'Flexible line'}
         </Text>

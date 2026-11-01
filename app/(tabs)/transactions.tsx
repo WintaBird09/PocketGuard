@@ -11,6 +11,7 @@ import {
   type ActivityItem,
 } from '@/src/data/activity';
 import { getMonthPlan, nextMonth, previousMonth } from '@/src/data/plan';
+import { balancesAfterEachExpense } from '@/src/domain/lineBalance';
 import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
@@ -62,6 +63,7 @@ export default function TransactionsScreen() {
     try {
       return {
         data: {
+          allItems: listActivity(db, householdId, { month }),
           items: listActivity(db, householdId, {
             month,
             lineId: filter !== 'all' && filter !== 'overrides' ? filter : null,
@@ -80,6 +82,15 @@ export default function TransactionsScreen() {
     // tick re-reads after writes or when the tab regains focus
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [db, householdId, month, filter, tick]);
+
+  const balances = useMemo(
+    () =>
+      balancesAfterEachExpense(
+        loaded.data?.allItems ?? [],
+        new Map((loaded.data?.lines ?? []).map((line) => [line.id, line.planned])),
+      ),
+    [loaded.data],
+  );
 
   const changed = () => {
     scheduleNotificationRefresh();
@@ -261,6 +272,20 @@ export default function TransactionsScreen() {
                     {formatXAF(item.amount)}
                   </Text>
                 </View>
+                {balances.get(item.id) ? (
+                  <Text
+                    className={`mt-1 text-sm font-semibold ${
+                      { green: 'text-emerald-600', orange: 'text-orange-500', red: 'text-red-600' }[
+                        balances.get(item.id)!.tone
+                      ]
+                    }`}
+                  >
+                    {balances.get(item.id)!.left >= 0
+                      ? `${formatXAF(balances.get(item.id)!.left)} left`
+                      : `${formatXAF(-balances.get(item.id)!.left)} over`}{' '}
+                    on {item.lineName} · {Math.round(balances.get(item.id)!.usedRatio * 100)}% used
+                  </Text>
+                ) : null}
                 {item.overrideReason ? (
                   <Text className="mt-1 text-xs text-red-700">
                     Override reason: {item.overrideReason}
