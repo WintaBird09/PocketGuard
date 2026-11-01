@@ -1,5 +1,5 @@
 import { Link } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { addBudgetLine, type LineKind } from '@/src/data/plan';
@@ -15,7 +15,18 @@ import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { authenticateForOverride } from '@/src/security/appLock';
 import { BudgetLinePicker } from '@/src/ui/BudgetLinePicker';
+import { MicButton } from '@/src/ui/MicButton';
 import { PageLayout } from '@/src/ui/PageLayout';
+import { parseLocally } from '@/src/voice/localParse';
+import { parseVoiceTranscript } from '@/src/voice/parser';
+import {
+  abortSpeechRecognition,
+  getSpeechRecognitionSnapshot,
+  startSpeechRecognition,
+  stopSpeechRecognition,
+  subscribeSpeechRecognition,
+  type SpeechRecognitionSnapshot,
+} from '@/src/voice/stt';
 import { formatXAF } from '@/src/ui/theme';
 
 export default function AddTransactionScreen() {
@@ -41,6 +52,11 @@ export default function AddTransactionScreen() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [reload, setReload] = useState(0);
+  const [speech, setSpeech] = useState<SpeechRecognitionSnapshot>(getSpeechRecognitionSnapshot());
+  const [heard, setHeard] = useState('');
+  const [parsing, setParsing] = useState(false);
+  const waitingForVoice = useRef(false);
+  const applyVoiceRef = useRef<(text: string) => Promise<void>>(async () => {});
   useEffect(() => {
     let active = true;
 
@@ -78,6 +94,97 @@ export default function AddTransactionScreen() {
       active = false;
     };
   }, [occurredOn, reload]);
+
+  const resetChecks = () => {
+    setConfirmWarning(false);
+    setOverrideOpen(false);
+    setMessage(null);
+  };
+
+  // Fills the amount and budget line from what was said; the server parser is tried first.
+  const applyVoice = async (text: string) => {
+    if (!database || !householdId) return;
+    setParsing(true);
+    let amountFound: number | null = null;
+    let lineFound: string | null = null;
+    let noteFound = '';
+    try {
+      const response = await parseVoiceTranscript(database, householdId, text, occurredOn);
+      const item = response.items.find((entry) => entry.intent === 'log_expense');
+      if (item) {
+        amountFound = item.amount_xaf > 0 ? item.amount_xaf : null;
+        lineFound =
+          item.line_id && lines.some((line) => line.id === item.line_id)
+            ? item.line_id
+            : item.line_guess_name
+              ? parseLocally(item.line_guess_name, lines).lineId
+              : null;
+        noteFound = item.note;
+      }
+    } catch {
+      // Offline or signed out: fall back to on-device parsing below.
+    }
+    if (amountFound === null || lineFound === null) {
+      const local = parseLocally(text, lines);
+      amountFound ??= local.amount;
+      lineFound ??= local.lineId;
+    }
+    setParsing(false);
+    resetChecks();
+    if (amountFound !== null) setAmountInput(String(amountFound));
+    if (lineFound !== null) setSelectedLineId(lineFound);
+    if (noteFound && !note) setNote(noteFound);
+    const lineName = lines.find((line) => line.id === lineFound)?.name;
+    setMessage(
+      amountFound === null && lineFound === null
+        ? `Heard “${text}”, but couldn't find an amount or budget line. Try “20000 on fuel”.`
+        : `Heard “${text}”. ${amountFound !== null ? `Amount ${formatXAF(amountFound)}. ` : 'No amount found. '}${
+            lineName ? `Budget line: ${lineName}.` : 'No budget line matched, please pick one.'
+          }`,
+    );
+  };
+  useEffect(() => {
+    applyVoiceRef.current = applyVoice;
+  });
+
+  useEffect(() => {
+    const subscription = subscribeSpeechRecognition((next) => {
+      setSpeech(next);
+      if (next.status === 'error') {
+        waitingForVoice.current = false;
+        setError(next.error);
+      } else if (next.status === 'idle' && waitingForVoice.current) {
+        waitingForVoice.current = false;
+        if (next.transcript.trim()) {
+          setHeard(next.transcript);
+          void applyVoiceRef.current(next.transcript);
+        } else {
+          setMessage('Nothing was heard. Tap the mic and try again.');
+        }
+      }
+    });
+    return () => {
+      subscription.remove();
+      waitingForVoice.current = false;
+      abortSpeechRecognition();
+    };
+  }, []);
+
+  const toggleVoice = async () => {
+    setError(null);
+    if (speech.status === 'listening' || speech.status === 'stopping') {
+      stopSpeechRecognition();
+      return;
+    }
+    waitingForVoice.current = true;
+    setMessage(null);
+    try {
+      await startSpeechRecognition();
+    } catch (cause) {
+      waitingForVoice.current = false;
+      setError(cause instanceof Error ? cause.message : 'Unable to start speech recognition.');
+    }
+  };
 
   const amount = Number(amountInput);
   const reviewState = useMemo(() => {
@@ -211,6 +318,30 @@ export default function AddTransactionScreen() {
           {error}
         </Text>
       ) : null}
+      <View className="mb-5 flex-row items-center gap-4 rounded-2xl bg-slate-900 p-4">
+        <MicButton
+          active={speech.status === 'listening'}
+          busy={parsing || speech.status === 'stopping'}
+          size={64}
+          onPress={() => void toggleVoice()}
+          label={speech.status === 'listening' ? 'Stop listening' : 'Fill by voice'}
+        />
+        <View className="flex-1">
+          <Text className="text-base font-bold text-white">
+            {speech.status === 'listening'
+              ? 'Listening…'
+              : parsing
+                ? 'Working it out…'
+                : 'Fill by voice'}
+          </Text>
+          <Text numberOfLines={2} className="mt-0.5 text-xs text-slate-300">
+            {speech.status === 'listening' && speech.transcript
+              ? speech.transcript
+              : heard || 'Say something like “20000 on fuel”.'}
+          </Text>
+        </View>
+      </View>
+
       <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <Text className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
           Amount (XAF)
