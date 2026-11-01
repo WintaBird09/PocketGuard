@@ -5,6 +5,7 @@ import { useRootNavigationState, useRouter, useSegments } from 'expo-router';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 
 import { useAuth } from './AuthProvider';
+import { isProfileComplete } from './personalInfo';
 import { resolveAuthRedirect } from './guard';
 
 export function AuthGate({ children }: { children: ReactNode }) {
@@ -15,6 +16,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const navigationReady = Boolean(useRootNavigationState()?.key);
   const signedIn = session !== null;
   const userId = session?.user.id ?? null;
+  const profileComplete = isProfileComplete(session?.user);
   const segmentKey = segments.join('/');
 
   useEffect(() => {
@@ -22,9 +24,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
     const target = resolveAuthRedirect({
       segments: segmentKey ? segmentKey.split('/') : [],
       signedIn,
+      profileComplete,
     });
     if (target) router.replace(target as Parameters<typeof router.replace>[0]);
-  }, [loading, navigationReady, router, segmentKey, signedIn]);
+  }, [loading, navigationReady, profileComplete, router, segmentKey, signedIn]);
 
   useEffect(() => {
     if (localDatabaseStatus === 'ready') scheduleNotificationRefresh();

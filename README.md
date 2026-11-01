@@ -7,6 +7,9 @@ account's data is stored in its own local database on the device.
 
 - The app opens on the login screen. Signed-out users can only reach login, sign-up and the
   sign-in callback; everything else redirects to login. Order: sign in → onboarding → home.
+- Onboarding has two steps: personal details (name, phone, date of birth via a calendar,
+  profession — saved in the Supabase account's user metadata), then this month's budget
+  (expected income and an amount per budget line, with quick-add suggestions).
 - Profile, display name, password change and sign-out live under **More → Profile**.
 - Each account gets a separate SQLite file. The first account to sign in after upgrading from a
   pre-accounts build adopts the existing on-device data; later accounts start empty.

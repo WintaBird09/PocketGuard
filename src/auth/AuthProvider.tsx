@@ -35,6 +35,7 @@ type AuthContextValue = {
   // Resolves true when the account was created but the email must be confirmed first.
   signUpWithPassword: (email: string, password: string) => Promise<boolean>;
   updateDisplayName: (name: string) => Promise<void>;
+  updateProfileMetadata: (metadata: Record<string, unknown>) => Promise<void>;
   updatePassword: (password: string) => Promise<void>;
   exchangeCode: (code: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -245,6 +246,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data, error: updateError } = await supabase.auth.updateUser({
           data: { display_name: name.trim() },
         });
+        if (updateError) throw updateError;
+        setSession((current) => (current && data.user ? { ...current, user: data.user } : current));
+      },
+      async updateProfileMetadata(metadata) {
+        if (!supabase) throw new Error(authConfigurationError ?? 'Supabase is not configured.');
+        const { data, error: updateError } = await supabase.auth.updateUser({ data: metadata });
         if (updateError) throw updateError;
         setSession((current) => (current && data.user ? { ...current, user: data.user } : current));
       },
