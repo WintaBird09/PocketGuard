@@ -3,7 +3,7 @@ import { Link, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
-import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
+import { effectiveNow, localDateString, monthKeyForDate } from '@/src/domain/dates';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { Banner, Button } from '@/src/ui/controls';
 import { MicButton } from '@/src/ui/MicButton';
@@ -18,6 +18,7 @@ import {
 } from '@/src/voice/stt';
 import { createVoiceDraft, saveVoiceDraftParse } from '@/src/voice/drafts';
 import { listPendingVoiceSavingsCommitments } from '@/src/voice/commitments';
+import { localExpenseItem } from '@/src/voice/localParse';
 import { parseVoiceTranscript } from '@/src/voice/parser';
 import { VoiceConfirmCard } from '@/src/voice/VoiceConfirmCard';
 import type { ParseExpenseItem, ParseExpenseResponse } from '@/src/voice/contract';
@@ -64,6 +65,15 @@ export default function VoiceScreen() {
       try {
         response = await parseVoiceTranscript(db, householdId, normalized);
       } catch (cause) {
+        const local = localExpenseItem(normalized, reviewData.lines, localDateString());
+        if (local) {
+          setItems([local]);
+          setMessage(
+            'Online understanding is unavailable, so this was read on your phone. Please check it.',
+          );
+          setParsing(false);
+          return;
+        }
         try {
           createVoiceDraft(db, householdId, normalized);
           setItems([]);
@@ -107,7 +117,7 @@ export default function VoiceScreen() {
       );
       setParsing(false);
     },
-    [db, householdId, refresh],
+    [db, householdId, refresh, reviewData.lines],
   );
 
   useEffect(() => {

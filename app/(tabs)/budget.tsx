@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 
 import {
   addBudgetLine,
@@ -41,6 +41,7 @@ export default function BudgetScreen() {
   const [incomeDraft, setIncomeDraft] = useState<string | null>(null);
   const [showArchived, setShowArchived] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [collapsed, setCollapsed] = useState<string[]>([]);
   const [newName, setNewName] = useState('');
   const [newKind, setNewKind] = useState<LineKind>('running');
   const [message, setMessage] = useState<string | null>(null);
@@ -130,26 +131,131 @@ export default function BudgetScreen() {
     savings: 'Savings',
     misc: 'Miscellaneous',
   };
+  const kindStyle: Record<
+    string,
+    { icon: keyof typeof Ionicons.glyphMap; tint: string; bg: string }
+  > = {
+    running: { icon: 'cart', tint: '#b45309', bg: '#fef3c7' },
+    fixed: { icon: 'home', tint: '#1d4ed8', bg: '#dbeafe' },
+    debt: { icon: 'card', tint: '#b91c1c', bg: '#fee2e2' },
+    savings: { icon: 'wallet', tint: '#047857', bg: '#d1fae5' },
+    misc: { icon: 'apps', tint: '#6d28d9', bg: '#ede9fe' },
+  };
   const groups = kinds
     .map((kind) => ({ kind, lines: plan.lines.filter((line) => line.kind === kind) }))
     .filter((group) => group.lines.length > 0);
 
   return (
-    <PageLayout title="Budget plan" loading={loading} subtitle={monthLabel(month)}>
+    <PageLayout
+      title="Budget plan"
+      loading={loading}
+      subtitle={monthLabel(month)}
+      action={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add a new budget line"
+          onPress={() => setAdding((current) => !current)}
+          className="min-h-11 flex-row items-center gap-1 rounded-full bg-slate-900 px-4 py-2.5"
+        >
+          <Ionicons name={adding ? 'close' : 'add'} size={18} color="#fff" />
+          <Text className="text-sm font-bold text-white">{adding ? 'Close' : 'Add line'}</Text>
+        </Pressable>
+      }
+    >
       {error ? <Banner tone="error">{error}</Banner> : null}
       {message ? <Banner tone="info">{message}</Banner> : null}
 
-      <View className="mb-4 flex-row flex-wrap gap-2">
-        {months.map((key) => (
-          <Chip
-            key={key}
-            label={monthLabel(key, 'short')}
-            active={key === month}
-            onPress={() => setMonth(key)}
+      {adding ? (
+        <View className="mb-5 rounded-3xl border border-slate-300 bg-white p-4">
+          <TextInput
+            accessibilityLabel="New line name"
+            placeholder="Line name"
+            value={newName}
+            onChangeText={setNewName}
+            className="min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
           />
-        ))}
-        <Chip label="+ Next" onPress={() => setMonth(view.nextAvailable)} />
-      </View>
+          <View className="mt-3 flex-row flex-wrap gap-2">
+            {kinds.map((kind) => (
+              <Chip
+                key={kind}
+                label={kind}
+                active={kind === newKind}
+                onPress={() => setNewKind(kind)}
+              />
+            ))}
+          </View>
+          <Text className="mt-2 text-xs text-slate-500">
+            Running and misc lines default to a hard cap; you can change it afterwards.
+          </Text>
+          <View className="mt-3 flex-row gap-3">
+            <View className="flex-1">
+              <Button label="Cancel" variant="outline" onPress={() => setAdding(false)} />
+            </View>
+            <View className="flex-1">
+              <Button
+                label="Save line"
+                onPress={() =>
+                  run(() => {
+                    addBudgetLine(db!, householdId, { name: newName, kind: newKind });
+                    setNewName('');
+                    setAdding(false);
+                    return 'Line added. Set its planned amount above.';
+                  })
+                }
+              />
+            </View>
+          </View>
+        </View>
+      ) : null}
+
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        className="-mx-1 mb-4"
+        contentContainerStyle={{ paddingHorizontal: 4, gap: 8 }}
+      >
+        {months.map((key) => {
+          const active = key === month;
+          return (
+            <Pressable
+              key={key}
+              accessibilityRole="button"
+              accessibilityState={{ selected: active }}
+              onPress={() => setMonth(key)}
+              className={`min-w-[68px] items-center rounded-2xl border px-3 py-2 ${
+                active ? 'border-slate-900 bg-slate-900' : 'border-slate-200 bg-white'
+              }`}
+            >
+              <Text
+                className={`text-[10px] font-semibold ${active ? 'text-slate-400' : 'text-slate-400'}`}
+              >
+                {key.slice(0, 4)}
+              </Text>
+              <Text
+                className={`text-base font-extrabold ${active ? 'text-white' : 'text-slate-900'}`}
+              >
+                {monthLabel(key, 'short').slice(0, 3)}
+              </Text>
+              {key === currentMonth ? (
+                <View
+                  className={`mt-1 h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-400' : 'bg-emerald-500'}`}
+                />
+              ) : (
+                <View className="mt-1 h-1.5 w-1.5" />
+              )}
+            </Pressable>
+          );
+        })}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Add next month"
+          onPress={() => setMonth(view.nextAvailable)}
+          className="min-w-[68px] items-center justify-center rounded-2xl border border-dashed border-slate-300 px-3 py-2"
+        >
+          <Ionicons name="add" size={20} color="#64748b" />
+          <Text className="text-[11px] font-semibold text-slate-500">Next</Text>
+        </Pressable>
+      </ScrollView>
 
       <View className="mb-5 rounded-3xl bg-slate-900 p-5">
         <View className="flex-row items-center justify-between">
@@ -233,107 +339,167 @@ export default function BudgetScreen() {
         </Text>
       </Pressable>
 
+      <Text className="mb-3 text-lg font-bold text-slate-900">Categories</Text>
       {groups.map((group) => {
         const groupPlanned = group.lines.reduce((n, line) => n + line.planned, 0);
+        const groupSpent = group.lines.reduce((n, line) => n + line.spent, 0);
+        const groupRatio = groupPlanned > 0 ? Math.min(1, groupSpent / groupPlanned) : 0;
+        const style = kindStyle[group.kind];
+        const open = !collapsed.includes(group.kind);
         return (
-          <View key={group.kind} className="mb-5">
-            <View className="mb-2 flex-row items-end justify-between px-1">
-              <Text className="text-base font-bold text-slate-900">{kindLabel[group.kind]}</Text>
-              <Text className="text-xs font-semibold text-slate-500">
-                {formatXAF(groupPlanned)}
-              </Text>
-            </View>
-            {group.lines.map((line) => {
-              const over = line.spent - line.planned;
-              const ratio = line.planned > 0 ? line.spent / line.planned : line.spent > 0 ? 1 : 0;
-              const tone = toneForUsedRatio(ratio);
-              const barColor =
-                over > 0 || tone === 'red'
-                  ? 'bg-red-500'
-                  : tone === 'orange'
-                    ? 'bg-orange-400'
-                    : 'bg-emerald-500';
-              const icon = icons.get(line.id);
-              return (
+          <View
+            key={group.kind}
+            className="mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-white"
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ expanded: open }}
+              onPress={() =>
+                setCollapsed((current) =>
+                  current.includes(group.kind)
+                    ? current.filter((item) => item !== group.kind)
+                    : [...current, group.kind],
+                )
+              }
+              className="p-4"
+            >
+              <View className="flex-row items-center gap-3">
                 <View
-                  key={line.id}
-                  className={`mb-3 rounded-2xl border bg-white p-4 ${
-                    over > 0 ? 'border-red-300' : 'border-slate-200'
-                  } ${line.archived ? 'opacity-60' : ''}`}
+                  className="h-11 w-11 items-center justify-center rounded-2xl"
+                  style={{ backgroundColor: style.bg }}
                 >
-                  <View className="flex-row items-center gap-3">
-                    <View
-                      className="h-11 w-11 items-center justify-center rounded-2xl"
-                      style={{ backgroundColor: icon?.bg ?? '#f1f5f9' }}
-                    >
-                      <Ionicons
-                        name={icon?.icon ?? 'ellipse'}
-                        size={22}
-                        color={icon?.tint ?? '#334155'}
-                      />
-                    </View>
-                    <View className="flex-1">
-                      <Text numberOfLines={1} className="text-base font-bold text-slate-900">
-                        {line.name}
-                      </Text>
-                      <Text className="text-xs text-slate-500">
-                        Spent {formatXAF(line.spent)}
-                        {line.hardCap ? ' · hard cap' : ''}
-                      </Text>
-                    </View>
-                    <TextInput
-                      accessibilityLabel={`Planned amount for ${line.name}`}
-                      editable={!line.archived}
-                      keyboardType="number-pad"
-                      value={drafts[line.id] ?? String(line.planned)}
-                      onChangeText={(value) =>
-                        setDrafts((current) => ({ ...current, [line.id]: value }))
-                      }
-                      onEndEditing={() => commitAmount(line.id)}
-                      className="min-h-11 min-w-[100px] rounded-xl bg-amber-50 px-3 py-2 text-right text-base font-bold text-slate-900"
-                    />
-                  </View>
-                  <View className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100">
-                    <View
-                      className={`h-full rounded-full ${barColor}`}
-                      style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }}
-                    />
-                  </View>
-                  <View className="mt-2 flex-row items-center justify-between">
-                    <Text
-                      className={`text-xs font-semibold ${over > 0 ? 'text-red-700' : 'text-slate-500'}`}
-                    >
-                      {over > 0
-                        ? `Over budget by ${formatXAF(over)}`
-                        : `${formatXAF(line.planned - line.spent)} left`}
-                    </Text>
-                    <View className="flex-row items-center gap-2">
-                      <Text className="text-xs text-slate-500">Hard cap</Text>
-                      <Switch
-                        accessibilityLabel={`Hard cap for ${line.name}`}
-                        value={line.hardCap}
-                        disabled={line.archived}
-                        onValueChange={(value) =>
-                          run(() => setHardCap(db!, householdId, line.id, value))
-                        }
-                      />
-                    </View>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() =>
-                      run(() => setLineArchived(db!, householdId, line.id, !line.archived))
-                    }
-                    className="mt-1 self-start"
-                    hitSlop={8}
-                  >
-                    <Text className="text-xs font-semibold text-slate-600">
-                      {line.archived ? 'Restore line' : 'Archive line'}
-                    </Text>
-                  </Pressable>
+                  <Ionicons name={style.icon} size={22} color={style.tint} />
                 </View>
-              );
-            })}
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-slate-900">
+                    {kindLabel[group.kind]}
+                  </Text>
+                  <Text className="text-xs text-slate-500">
+                    {group.lines.length} {group.lines.length === 1 ? 'line' : 'lines'} · spent{' '}
+                    {formatXAF(groupSpent)}
+                  </Text>
+                </View>
+                <View className="items-end">
+                  <Text className="text-sm font-extrabold text-slate-900">
+                    {formatXAF(groupPlanned)}
+                  </Text>
+                  <Ionicons name={open ? 'chevron-up' : 'chevron-down'} size={16} color="#94a3b8" />
+                </View>
+              </View>
+              <View className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <View
+                  className="h-full rounded-full"
+                  style={{ width: `${Math.round(groupRatio * 100)}%`, backgroundColor: style.tint }}
+                />
+              </View>
+            </Pressable>
+            {open ? (
+              <View className="border-t border-slate-100 px-3 pb-1 pt-3">
+                {group.lines.map((line) => {
+                  const over = line.spent - line.planned;
+                  const ratio =
+                    line.planned > 0 ? line.spent / line.planned : line.spent > 0 ? 1 : 0;
+                  const tone = toneForUsedRatio(ratio);
+                  const barColor =
+                    over > 0 || tone === 'red'
+                      ? 'bg-red-500'
+                      : tone === 'orange'
+                        ? 'bg-orange-400'
+                        : 'bg-emerald-500';
+                  const icon = icons.get(line.id);
+                  return (
+                    <View
+                      key={line.id}
+                      className={`mb-3 rounded-2xl border bg-slate-50 p-3 ${
+                        over > 0 ? 'border-red-300' : 'border-slate-100'
+                      } ${line.archived ? 'opacity-60' : ''}`}
+                    >
+                      <View className="flex-row items-center gap-3">
+                        <View
+                          className="h-10 w-10 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: icon?.bg ?? '#f1f5f9' }}
+                        >
+                          <Ionicons
+                            name={icon?.icon ?? 'ellipse'}
+                            size={20}
+                            color={icon?.tint ?? '#334155'}
+                          />
+                        </View>
+                        <View className="flex-1">
+                          <Text numberOfLines={1} className="text-base font-bold text-slate-900">
+                            {line.name}
+                          </Text>
+                          <Text className="text-xs text-slate-500">
+                            Spent {formatXAF(line.spent)}
+                          </Text>
+                        </View>
+                        <TextInput
+                          accessibilityLabel={`Planned amount for ${line.name}`}
+                          editable={!line.archived}
+                          keyboardType="number-pad"
+                          value={drafts[line.id] ?? String(line.planned)}
+                          onChangeText={(value) =>
+                            setDrafts((current) => ({ ...current, [line.id]: value }))
+                          }
+                          onEndEditing={() => commitAmount(line.id)}
+                          className="min-h-11 min-w-[96px] rounded-xl bg-amber-50 px-3 py-2 text-right text-base font-bold text-slate-900"
+                        />
+                      </View>
+                      <View className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+                        <View
+                          className={`h-full rounded-full ${barColor}`}
+                          style={{ width: `${Math.min(100, Math.round(ratio * 100))}%` }}
+                        />
+                      </View>
+                      <View className="mt-2 flex-row items-center justify-between">
+                        <Text
+                          className={`flex-1 text-xs font-semibold ${over > 0 ? 'text-red-700' : 'text-slate-500'}`}
+                        >
+                          {over > 0
+                            ? `Over budget by ${formatXAF(over)}`
+                            : `${formatXAF(line.planned - line.spent)} left`}
+                        </Text>
+                        <Pressable
+                          accessibilityRole="switch"
+                          accessibilityLabel={`Hard cap for ${line.name}`}
+                          accessibilityState={{ checked: line.hardCap, disabled: line.archived }}
+                          disabled={line.archived}
+                          onPress={() =>
+                            run(() => setHardCap(db!, householdId, line.id, !line.hardCap))
+                          }
+                          className={`flex-row items-center gap-1.5 rounded-full px-3 py-1.5 ${
+                            line.hardCap ? 'bg-red-100' : 'bg-slate-200'
+                          }`}
+                        >
+                          <Ionicons
+                            name={line.hardCap ? 'lock-closed' : 'lock-open-outline'}
+                            size={13}
+                            color={line.hardCap ? '#b91c1c' : '#475569'}
+                          />
+                          <Text
+                            className={`text-xs font-bold ${line.hardCap ? 'text-red-700' : 'text-slate-600'}`}
+                          >
+                            {line.hardCap ? 'Hard cap' : 'Flexible'}
+                          </Text>
+                        </Pressable>
+                      </View>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() =>
+                          run(() => setLineArchived(db!, householdId, line.id, !line.archived))
+                        }
+                        className="mt-2 self-start"
+                        hitSlop={8}
+                      >
+                        <Text className="text-xs font-semibold text-slate-500">
+                          {line.archived ? 'Restore line' : 'Archive line'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  );
+                })}
+              </View>
+            ) : null}
           </View>
         );
       })}
@@ -344,53 +510,7 @@ export default function BudgetScreen() {
         </Text>
       ) : null}
 
-      {adding ? (
-        <View className="mb-3 rounded-2xl border border-slate-300 bg-white p-4">
-          <TextInput
-            accessibilityLabel="New line name"
-            placeholder="Line name"
-            value={newName}
-            onChangeText={setNewName}
-            className="min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
-          />
-          <View className="mt-3 flex-row flex-wrap gap-2">
-            {kinds.map((kind) => (
-              <Chip
-                key={kind}
-                label={kind}
-                active={kind === newKind}
-                onPress={() => setNewKind(kind)}
-              />
-            ))}
-          </View>
-          <Text className="mt-2 text-xs text-slate-500">
-            Running and misc lines default to a hard cap; you can change it afterwards.
-          </Text>
-          <View className="mt-3 flex-row gap-3">
-            <View className="flex-1">
-              <Button label="Cancel" variant="outline" onPress={() => setAdding(false)} />
-            </View>
-            <View className="flex-1">
-              <Button
-                label="Save line"
-                onPress={() =>
-                  run(() => {
-                    addBudgetLine(db!, householdId, { name: newName, kind: newKind });
-                    setNewName('');
-                    setAdding(false);
-                    return 'Line added. Set its planned amount above.';
-                  })
-                }
-              />
-            </View>
-          </View>
-        </View>
-      ) : null}
-
       <View className="mt-2 flex-row gap-3">
-        <View className="flex-1">
-          <Button label="+ Add line" variant="outline" onPress={() => setAdding(true)} />
-        </View>
         <View className="flex-1">
           <Button
             label={showArchived ? 'Hide archived' : 'Show archived'}

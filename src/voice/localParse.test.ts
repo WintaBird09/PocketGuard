@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractAmount, matchLine, parseLocally } from './localParse';
+import { extractAmount, localExpenseItem, matchLine, parseLocally } from './localParse';
 
 const lines = [
   { id: 'fuel', name: 'Fuel' },
@@ -26,5 +26,18 @@ describe('local voice parsing', () => {
 
   it('returns both together', () => {
     expect(parseLocally('spent 20000 on fuel', lines)).toEqual({ amount: 20000, lineId: 'fuel' });
+  });
+
+  it('builds a reviewable item offline', () => {
+    expect(localExpenseItem('spent 20000 on fuel', lines, '2026-11-01')).toMatchObject({
+      intent: 'log_expense',
+      amount_xaf: 20000,
+      line_id: 'fuel',
+      date: '2026-11-01',
+    });
+    expect(localExpenseItem('can I spend 5000 on food', lines, '2026-11-01')?.intent).toBe(
+      'check_spend',
+    );
+    expect(localExpenseItem('hello there', lines, '2026-11-01')).toBeNull();
   });
 });

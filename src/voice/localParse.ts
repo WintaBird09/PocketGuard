@@ -1,3 +1,5 @@
+import type { ParseExpenseItem } from './contract';
+
 export type LocalVoiceResult = { amount: number | null; lineId: string | null };
 
 const multipliers: Record<string, number> = {
@@ -45,4 +47,24 @@ export function parseLocally(
   lines: readonly { id: string; name: string }[],
 ): LocalVoiceResult {
   return { amount: extractAmount(transcript), lineId: matchLine(transcript, lines) };
+}
+
+// Builds a reviewable item when the online parser is unavailable. Returns null without an amount.
+export function localExpenseItem(
+  transcript: string,
+  lines: readonly { id: string; name: string }[],
+  today: string,
+): ParseExpenseItem | null {
+  const { amount, lineId } = parseLocally(transcript, lines);
+  if (amount === null) return null;
+  const asking = /\b(can i|should i|may i|is it ok)\b/i.test(transcript);
+  return {
+    intent: asking ? 'check_spend' : 'log_expense',
+    amount_xaf: amount,
+    line_id: lineId,
+    line_guess_name: null,
+    note: '',
+    date: today,
+    confidence: 0.5,
+  };
 }
