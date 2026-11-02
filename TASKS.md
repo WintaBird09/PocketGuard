@@ -185,6 +185,24 @@ Approved by the owner, to be done **before Task 6.3**. Rules: no change to finis
 
 ---
 
+## EPIC 11 — UX polish and feature expansion (owner requests after the MVP screens)
+
+Done as small, verified changes (typecheck, lint, all tests). Visual changes are not yet checked on a device. Native changes need `npx expo run:android`.
+
+- **11.1 Budget line dropdown and unique icons (done):** `BudgetLinePicker` dropdown; `src/ui/lineIcons.ts` gives every line a distinct icon (tested against the Ionicons glyph map).
+- **11.2 Transactions redesign (done):** Day / Week / Month / Custom ranges (`src/domain/dateRange.ts`, tested), summary strip, client-side filtering by local day, and per-line balance left with green / orange / red tones (`src/domain/lineBalance.ts`, tested).
+- **11.3 Contacts permission fix (done):** `READ_CONTACTS` in `app.json` and the manifest; permission requested before the picker. Native rebuild required.
+- **11.4 Loans redesign (done):** calendar date pickers, separate lending-cap screen (`app/lending-cap.tsx`), visual Loans screen with cap progress.
+- **11.5 Debts redesign (done):** amber hero, add at top, swipe-to-delete (`deleteDebt`), remove and reschedule planned payments (`removePlannedPayment`, `reschedulePlannedPayment`), duplicate-key fix.
+- **11.6 Profile (done):** photo (device-only, `src/auth/avatar.ts`), personal details, email change with verification, invite/share (`src/auth/invite.ts`). Needs `expo-image-picker` (native rebuild) and the Supabase redirect URL.
+- **11.7 Voice (done):** redesigned Voice screen and `MicButton`; microphone and speech-recognition permissions enabled (`RECORD_AUDIO`, speech service query; the image-picker plugin no longer blocks the microphone); on-device fallback parser (`src/voice/localParse.ts`, tested) used by both Voice and Add transaction; voice fill on Add transaction.
+- **11.8 Savings redesign (done):** multiple goals, `addSavingsGoal`, `deleteSavingsGoal`, `getSavingsPlanner` (tested), `app/savings-form.tsx`, monthly and annual views, goal cards.
+- **11.9 Budget plan redesign (done):** Add line in the header, month strip, collapsible categories, hard-cap pill.
+- **11.10 Home redesign (done):** greeting header with avatar, spending hero, voice strip, Savings & goals, Debt, analytics (`src/domain/spendingInsights.ts`, tested), Needs attention; one theme colour per feature (spending indigo, savings green, debt amber).
+- **Open follow-ups:** apply the line icons to `can-i-spend`; diagnose the "sync error" (check `loan_repayments` vs `loan_payments` naming); store link in the invite message; demo account needs "Confirm email" turned off in Supabase; device verification of all Epic 11 screens.
+
+---
+
 ## Phase 2 backlog — SMS capture (do not start until the owner asks)
 
 - P2.1 👤 Collect 15–20 redacted MTN MoMo SMS samples (payments, withdrawals, deposits, fees, airtime).

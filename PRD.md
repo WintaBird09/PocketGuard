@@ -90,26 +90,29 @@ Notes for agents: use the latest stable Expo SDK at scaffold time and follow cur
 
 - FR-1. First launch: sign in or sign up (email+password or magic link via Supabase) — required before any use — then onboarding creates the household and offers **"Load my Sep–Dec 2026 plan"** (seed in §10).
 - FR-2. All seed values are editable in the app afterwards.
-- FR-3. Sign-in is required before using the app; once signed in the app works offline, and sync runs when network is available. Each account's local data is isolated in its own database; no account can read another's data locally or on the server (RLS). Profile editing and sign-out are under More → Profile.
+- FR-3. Sign-in is required before using the app; once signed in the app works offline, and sync runs when network is available. Each account's local data is isolated in its own database; no account can read another's data locally or on the server (RLS). Profile editing and sign-out are under More → Profile (see §7.11).
 
 ### 7.2 Budget lines and monthly plan
 
 - FR-4. CRUD budget lines (name, kind, hard cap on/off, sort order, archive).
 - FR-5. Planned amount per line per month (allocation), copy-forward from previous month.
 - FR-6. A month view shows income, each line's planned vs spent, "unallocated / flexible" remainder, and total planned savings.
+- FR-6b. **Budget plan presentation:** "Add line" lives in the header; months are a scrolling strip of cards; lines are grouped into collapsible **Categories** (Running costs, Fixed bills, Debt, Savings, Miscellaneous) with planned, spent and a progress bar per category; each line shows its icon, a colour-coded progress bar and "X left" / "Over budget by X"; the hard cap is a labelled pill (Hard cap / Flexible).
 - FR-7. A **Miscellaneous** line exists by default (the owner's most common overrun) with its own cap.
 
 ### 7.3 Recording transactions
 
-- FR-8. **Quick add:** amount (numeric keypad), line (recent/top lines as chips), optional note, date defaults to now. Save in ≤3 taps after entering the amount.
-- FR-9. **Voice add:** one-tap mic button on the home screen. Examples:
+- FR-8. **Quick add:** amount (numeric keypad), budget line chosen from a dropdown picker (each line has its own distinct icon; lines can be created inline), optional note, date defaults to now. Save in ≤3 taps after entering the amount.
+- FR-8b. **Voice fill on Add transaction:** a mic card at the top of Add transaction listens, then fills the amount and selects the budget line (and note when available). Nothing is saved until the owner taps Save, and the spend check still runs.
+- FR-9. **Voice add:** one-tap mic strip on the home screen (opens the Voice screen and starts listening). Microphone and speech-recognition permissions are requested on first use. Examples:
   - "Spent 20,000 on fuel in Douala"
   - "Paid 5,000 car wash and 3,000 for airtime" (multiple items → multiple confirm cards)
   - "Can I spend 30,000 on fuel?" (intent = check; nothing is saved)
   - "I saved 92,000 to the kids account" (intent = savings confirmation)
 - FR-10. The app **always shows a confirm card** (amount, line, note, date) before saving a voice entry. Low-confidence line match is highlighted for correction.
-- FR-11. **Offline voice:** if the parse service is unreachable, store the raw transcript as a _pending draft_, show it in an Inbox, and parse automatically when online. The owner can also classify it manually.
+- FR-11. **Offline voice:** if the parse service is unreachable, an on-device parser (amount such as `20000`, `20,000`, `15k`, `1.5 million`, plus a budget-line match by shared words; "can I…" becomes a spend check) still produces a confirm card, flagged as read on the phone. If no amount can be found, store the raw transcript as a _pending draft_, show it in an Inbox, and parse automatically when online. The owner can also classify it manually.
 - FR-12. Edit and delete (soft delete) any transaction. Editing re-runs budget calculations.
+- FR-12b. **Transactions screen:** view by **Day, Week (Mon–Sun), Month or a Custom From–To range** with previous/next navigation and a Spent / Income / Entries summary for the range. History is grouped by day, and each expense shows the balance left on its budget line after that transaction ("X left on <line> · N% used"), coloured green below 40% used, orange from 40% to 80%, red above 80% ("over" when over budget). Range filtering uses the local day, not the UTC timestamp.
 - FR-13. Income can be recorded (salary). Transfers (bank → MoMo) are recorded as `transfer` and **do not count as spending**; they exist so the owner can reconcile cash on hand.
 - FR-14. Inbox screen lists pending voice drafts and unassigned items.
 
@@ -140,7 +143,9 @@ else OK
 
 ### 7.5 Dashboard
 
-- FR-19. Home shows: month progress (days left), per-line progress bars (green <80%, amber 80–100%, red >100%), total spent vs planned, cash flow (income − expenses), savings progress toward the 2,000,000 XAF goal, debt remaining.
+- FR-19. Home shows, in a calm hierarchy with one theme colour per feature (**spending = indigo, savings = green, debt = amber, attention = red**): a spending hero (spent vs planned, days left, a month-pace marker and a pace sentence, income and cash flow), a compact voice strip, a Savings & goals card (total saved vs target and the top goals, tap to open Savings), a Debt row (only when debt remains, opens Debts), Where your money goes, Where to focus, and a Needs attention list (lines over plan or ≥80% used; a green note when all are on plan). Per-line progress bars live on the Budget plan screen.
+- FR-19b. **Spending analytics:** the top spending lines this month (savings excluded) with share of spending and change versus last month, and up to four plain-language priorities, most urgent first: a line over budget, a line projected to overspend, one line taking ≥30% of spending, a line up ≥25% on last month, savings behind plan. Pure logic in `src/domain/spendingInsights.ts`.
+- FR-19c. The Home header shows a greeting with the month and the user's profile picture, which opens the profile, plus a quick-add button.
 - FR-20. Each line shows "**X% used, N days left, at this pace you finish at Y**".
 - FR-21. Status banner mirrors the workbook logic: ON TRACK / BEHIND for the savings goal, using _actual confirmed_ savings versus the plan.
 
@@ -155,27 +160,37 @@ else OK
 
 ### 7.7 Savings follow-up
 
-- FR-28. Savings goal (seed: 2,000,000 XAF by 31 Dec 2026, "kids savings counts toward target = YES").
+- FR-28. Savings goals (seed: 2,000,000 XAF by 31 Dec 2026, "kids savings counts toward target = YES"). The owner can add **several goals**, each with a name, target, target date and monthly commitment (suggested as target ÷ months); creating a goal creates a savings budget line, one commitment and one allocation per month up to the target date (the last month only takes what is still missing). A goal can be deleted (its commitments are soft-deleted; allocations already set stay).
 - FR-29. Each month has savings commitments (kids account transfer, flexible extra save). Each shows `planned` and `saved`.
 - FR-30. Button **"I have saved"** records the amount (default = planned, editable) with a timestamp, and updates goal progress. Unconfirmed commitments after the due date show as overdue and trigger the reminder.
 - FR-31. The Savings screen shows the gap analysis: projected total if the plan is followed vs. goal, and the shortfall.
+- FR-31b. **Savings screen layout:** "Add new savings" at the top; a summary card (total saved vs target, this month, year plan); a **Monthly | Annual** switch. Monthly view steps month by month with saved vs planned and an "I have saved" row per goal. Annual view steps year by year with planned vs saved totals, a 12-month bar chart and a month list that opens that month. Each goal is a card with its own icon, status (On track / Behind / Goal reached), progress, per-month, per-year and months-left figures, next payment, unconfirmed months and delete.
 
 ### 7.8 Debt tracker
 
 - FR-32. Debts with creditor, original amount, deadline, schedule per month. Payments are transactions tagged to the debt; balance is derived (never typed in).
 - FR-33. Status: OPEN / PAID / OVERDUE derived from balance and deadline.
+- FR-33b. **Debts screen:** "Add debt" is at the top with a calendar deadline picker; a debt can be deleted by swiping it left (confirm, soft delete). Planned schedule rows can be **removed** or **rescheduled** to another month with a calendar (the month's allocation moves; recorded payments are untouched). The screen uses an amber "You owe" hero card.
 
 ### 7.8b Loans (money lent to friends and family) — Epic 10
 
 Loans are money owed **to the owner**; Debts (§7.8) are money the owner owes. Lending is not spending: a loan is never an expense against a budget line and never counts as savings or toward the 2,000,000 goal, unless the optional Lending line below is enabled.
 
-- FR-L1. A loan records: date, person (picked from phone contacts, with a manual name/phone fallback), amount, payment plan, expected deadline, and note. Plans: **one payment**, **installments** (default 4 monthly, editable), or **flexible** (deadline only). Contacts permission is requested only when the picker is opened; only name and phone number are stored.
+- FR-L1. A loan records: date, person (picked from phone contacts, with a manual name/phone fallback), amount, payment plan, expected deadline, and note. Dates (date lent, first installment, deadline) are chosen from a calendar picker. Android needs the `READ_CONTACTS` permission, requested when the picker opens. Plans: **one payment**, **installments** (default 4 monthly, editable), or **flexible** (deadline only). Contacts permission is requested only when the picker is opened; only name and phone number are stored.
 - FR-L2. Repayments are recorded against the loan; the outstanding balance is derived (never typed in). Status is derived, not typed: **Pending** (nothing paid, not late), **Partial payment** (some paid), **Complete** (fully paid), **Overdue** (past deadline or past an unpaid installment, balance > 0; Overdue wins over Partial but partial progress still shows), and **Written off** (set by the owner, stops overdue alerts). A "Send reminder" button opens WhatsApp with a polite pre-written message to the borrower (link only, no integration).
 - FR-L3. Local reminders (offline): 7 days before, 2 days before, on the due date, and weekly while overdue.
 - FR-L4. Per-person summary: total lent, outstanding, and history for each borrower.
+- FR-L4b. **Lending cap:** a monthly cap on how much can be lent, set on its own screen (not in the loan form). The top of the Loans screen shows the percentage of the cap lent this month; new loans above the cap are blocked. The Loans screen has a green hero (owed, repaid progress, lent / repaid / overdue), a people strip, filter pills with counts and status-coloured loan cards.
 - FR-L5. Optional "Lending" budget line with a hard cap, **off by default**. When on, a new loan is checked with the same spend check and hard stop as other spending.
 - Not included: interest or fees, borrower reliability scores.
 - Deferred to later epics: sync of loan tables (after Epic 6), "Owed to you" Home tile and loan rows in Activity (touch finished screens), voice entry "Lent 20k to Desmond until month end" (Epic 7), loans in CSV export (Epic 8).
+
+### 7.8c Profile and invites
+
+- FR-P1. More → Profile (also opened from the avatar on Home): add, change or remove a profile picture (kept on the device only, not synced); edit name, phone, date of birth and profession; see member-since date.
+- FR-P2. **Email change with verification:** the new address is pending until the verification link is confirmed (redirect `pocketguard://auth/callback` must be allowed in Supabase); a pending banner is shown meanwhile.
+- FR-P3. **Invite and share:** the app can share an invitation message through the system share sheet.
+- FR-P4. Password change and sign-out remain on this screen.
 
 ### 7.9 Sync and backup
 
@@ -292,15 +307,16 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 
 ## 11. Screens (MVP)
 
-1. **Home / Dashboard** — month header, savings progress ring, line list with bars, big buttons: `+ Add`, `🎤 Voice`, `Can I spend?`.
-2. **Add transaction** — keypad, line chips, note, date, save; override flow when blocked.
-3. **Voice sheet** — listening state, transcript, confirm card(s).
+1. **Home / Dashboard** — greeting header with profile avatar and quick add, spending hero (indigo), voice strip, Savings & goals (green), Debt (amber), Where your money goes, Where to focus, Needs attention, `Can I spend?` and `Add manually`.
+2. **Add transaction** — voice fill, amount, budget-line dropdown, note, date, save; override flow when blocked.
+3. **Voice entry** — mic with listening animation, live transcript, example phrases, confirm card(s).
 4. **Inbox** — pending voice drafts and unclassified items.
-5. **Transactions** — list by month, filter by line, edit/delete.
-6. **Budget** — month plan, allocations per line, copy forward.
-7. **Savings** — goal progress, monthly commitments with "I have saved", gap analysis.
-8. **Debts** — balances, schedule, payment history, status.
-9. **Loans** (Epic 10) — list with status badges, add/edit loan, detail with repayments and write-off, per-person summary.
+5. **Transactions** — Day / Week / Month / Custom range, summary strip, history with line balance left, filter by line, edit/delete.
+6. **Budget** — month strip, income summary, collapsible categories, allocations per line, copy forward, add line in header.
+7. **Savings** — add new savings, monthly and annual views, goal cards, "I have saved", gap analysis.
+8. **Debts** — balances, add at top, swipe to delete, reschedulable schedule, payment history, status.
+9. **Loans** (Epic 10) — visual list with cap progress, add/edit loan, lending cap, detail with repayments and write-off, per-person summary.
+10a. **Profile** — photo, personal details, email change, invite, password, sign-out.
 10. **Settings** — account/profile, sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
 
 UX principles: one-handed use; large numbers; amounts always `120,000 XAF`; light and dark themes; no tables on phone; the most-used action (add) is always reachable in one tap.
