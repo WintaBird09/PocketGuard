@@ -19,9 +19,16 @@ def make_database():
         CREATE TABLE budget_lines (
           id TEXT PRIMARY KEY, household_id TEXT, name TEXT, archived INTEGER, deleted_at TEXT
         );
+        CREATE TABLE income_streams (
+          id TEXT PRIMARY KEY, household_id TEXT, name TEXT, kind TEXT, deleted_at TEXT
+        );
+        CREATE TABLE allocations (
+          id TEXT PRIMARY KEY, household_id TEXT, line_id TEXT, month TEXT,
+          planned_amount INTEGER, income_stream_id TEXT, deleted_at TEXT
+        );
         CREATE TABLE transactions (
           id TEXT PRIMARY KEY, household_id TEXT, occurred_at TEXT, amount INTEGER,
-          direction TEXT, line_id TEXT, debt_id TEXT, note TEXT, source TEXT, raw_text TEXT,
+          direction TEXT, line_id TEXT, debt_id TEXT, income_stream_id TEXT, note TEXT, source TEXT, raw_text TEXT,
           status TEXT, override_reason TEXT, device_id TEXT, created_at TEXT, updated_at TEXT,
           deleted_at TEXT
         );
@@ -31,6 +38,8 @@ def make_database():
         );
         INSERT INTO households VALUES ('household-1', '2026-01-01', NULL);
         INSERT INTO budget_lines VALUES ('line-fuel', 'household-1', 'Fuel', 0, NULL);
+        INSERT INTO income_streams VALUES ('income-salary', 'household-1', 'Income from Salary', 'salary', NULL);
+        INSERT INTO allocations VALUES ('allocation-1', 'household-1', 'line-fuel', '2026-09', 50000, 'income-salary', NULL);
         """
     )
     return database
@@ -52,12 +61,12 @@ class WorkbookImportTests(unittest.TestCase):
             result = IMPORTER.import_rows(database, rows)
         self.assertEqual(result, (1, 2, 0))
         transaction = database.execute(
-            "SELECT occurred_at, amount, direction, line_id, note, source, status "
+            "SELECT occurred_at, amount, direction, line_id, income_stream_id, note, source, status "
             "FROM transactions"
         ).fetchone()
         self.assertEqual(
             transaction,
-            ("2026-09-05T11:00:00.000Z", 20000, "expense", "line-fuel", "fuel purchase", "manual", "confirmed"),
+            ("2026-09-05T11:00:00.000Z", 20000, "expense", "line-fuel", "income-salary", "fuel purchase", "manual", "confirmed"),
         )
         self.assertEqual(
             database.execute("SELECT table_name, row_id, op FROM outbox").fetchone(),

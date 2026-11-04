@@ -18,6 +18,7 @@ export type PlanLine = {
   archived: boolean;
   planned: number;
   spent: number;
+  incomeStreamId: string | null;
 };
 
 export type MonthPlan = {
@@ -81,6 +82,7 @@ export function getMonthPlan(
   const rows = prepare(
     `SELECT bl.id, bl.name, bl.kind, bl.hard_cap, bl.archived,
         COALESCE(a.planned_amount, 0) AS planned,
+        a.income_stream_id,
         COALESCE((SELECT SUM(t.amount) FROM transactions t
           WHERE t.household_id = bl.household_id AND t.line_id = bl.id
             AND t.direction = 'expense' AND t.status = 'confirmed'
@@ -101,6 +103,7 @@ export function getMonthPlan(
     archived: Boolean(row.archived),
     planned: Number(row.planned),
     spent: Number(row.spent),
+    incomeStreamId: typeof row.income_stream_id === 'string' ? String(row.income_stream_id) : null,
   }));
   const active = lines.filter((line) => !line.archived);
   const plannedOut = active.reduce((sum, line) => sum + line.planned, 0);
@@ -133,10 +136,11 @@ export function setAllocation(
   lineId: string,
   month: string,
   amount: number,
+  incomeStreamId?: string | null,
 ): void {
   assertMonthKey(month);
   assertWholeAmount(amount, true);
-  inTransaction(db, () => writeAllocation(db, householdId, lineId, month, amount));
+  inTransaction(db, () => writeAllocation(db, householdId, lineId, month, amount, incomeStreamId));
 }
 
 function writeAllocation(
@@ -145,12 +149,19 @@ function writeAllocation(
   lineId: string,
   month: string,
   amount: number,
+  incomeStreamId?: string | null,
 ): void {
   const prepare = requirePrepared(db);
   const line = prepare(
     'SELECT id FROM budget_lines WHERE id = ? AND household_id = ? AND deleted_at IS NULL;',
   ).get(lineId, householdId);
   if (!line) throw new Error('Budget line was not found.');
+  if (incomeStreamId) {
+    const stream = prepare(
+      'SELECT id FROM income_streams WHERE id = ? AND household_id = ? AND deleted_at IS NULL;',
+    ).get(incomeStreamId, householdId);
+    if (!stream) throw new Error('Income source was not found.');
+  }
 
   const now = new Date().toISOString();
   const existing = prepare(
@@ -160,17 +171,24 @@ function writeAllocation(
   let id: string;
   if (existing) {
     id = String(existing.id);
-    prepare('UPDATE allocations SET planned_amount = ?, updated_at = ? WHERE id = ?;').run(
-      amount,
-      now,
-      id,
-    );
+    if (incomeStreamId === undefined) {
+      prepare('UPDATE allocations SET planned_amount = ?, updated_at = ? WHERE id = ?;').run(
+        amount,
+        now,
+        id,
+      );
+    } else {
+      prepare(
+        'UPDATE allocations SET planned_amount = ?, income_stream_id = ?, updated_at = ? WHERE id = ?;',
+      ).run(amount, incomeStreamId, now, id);
+    }
   } else {
     id = newId();
     prepare(
-      `INSERT INTO allocations (id, household_id, line_id, month, planned_amount, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?);`,
-    ).run(id, householdId, lineId, month, amount, now, now);
+      `INSERT INTO allocations
+        (id, household_id, line_id, month, planned_amount, income_stream_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+    ).run(id, householdId, lineId, month, amount, incomeStreamId ?? null, now, now);
   }
   appendOutboxEntry(db, householdId, 'allocations', id, 'upsert');
 }
@@ -188,7 +206,7 @@ export function copyForward(
   return inTransaction(db, () => {
     const prepare = requirePrepared(db);
     const rows = prepare(
-      `SELECT src.line_id, src.planned_amount FROM allocations src
+      `SELECT src.line_id, src.planned_amount, src.income_stream_id FROM allocations src
          JOIN budget_lines bl ON bl.id = src.line_id AND bl.household_id = src.household_id
         WHERE src.household_id = ? AND src.month = ? AND src.deleted_at IS NULL
           AND bl.deleted_at IS NULL AND bl.archived = 0
@@ -197,7 +215,14 @@ export function copyForward(
                              AND dst.month = ? AND dst.deleted_at IS NULL);`,
     ).all(householdId, from, to);
     for (const row of rows) {
-      writeAllocation(db, householdId, String(row.line_id), to, Number(row.planned_amount));
+      writeAllocation(
+        db,
+        householdId,
+        String(row.line_id),
+        to,
+        Number(row.planned_amount),
+        typeof row.income_stream_id === 'string' ? String(row.income_stream_id) : null,
+      );
     }
     return rows.length;
   });

@@ -11,6 +11,8 @@ export type ActivityItem = {
   direction: 'expense' | 'income' | 'transfer';
   lineId: string | null;
   lineName: string | null;
+  incomeStreamId: string | null;
+  incomeStreamName: string | null;
   debtId: string | null;
   note: string;
   source: string;
@@ -24,9 +26,12 @@ export type ActivityFilter = {
 };
 
 const activitySelect = `SELECT t.id, t.occurred_at, t.amount, t.direction, t.line_id, t.debt_id,
-    t.note, t.source, t.override_reason, bl.name AS line_name
+    t.income_stream_id, t.note, t.source, t.override_reason, bl.name AS line_name,
+    ins.name AS income_stream_name
   FROM transactions t
-  LEFT JOIN budget_lines bl ON bl.id = t.line_id AND bl.household_id = t.household_id`;
+  LEFT JOIN budget_lines bl ON bl.id = t.line_id AND bl.household_id = t.household_id
+  LEFT JOIN income_streams ins
+    ON ins.id = t.income_stream_id AND ins.household_id = t.household_id`;
 
 function toItem(row: Record<string, unknown>): ActivityItem {
   return {
@@ -36,6 +41,14 @@ function toItem(row: Record<string, unknown>): ActivityItem {
     direction: row.direction as ActivityItem['direction'],
     lineId: row.line_id === null ? null : String(row.line_id),
     lineName: row.line_name === null || row.line_name === undefined ? null : String(row.line_name),
+    incomeStreamId:
+      row.income_stream_id === null || row.income_stream_id === undefined
+        ? null
+        : String(row.income_stream_id),
+    incomeStreamName:
+      row.income_stream_name === null || row.income_stream_name === undefined
+        ? null
+        : String(row.income_stream_name),
     debtId: row.debt_id === null ? null : String(row.debt_id),
     note: row.note === null || row.note === undefined ? '' : String(row.note),
     source: String(row.source),
@@ -119,12 +132,25 @@ export function updateTransaction(
   inTransaction(db, () => {
     const prepare = requirePrepared(db);
     const existing = prepare(
-      `SELECT direction, line_id FROM transactions
+      `SELECT direction, line_id, income_stream_id, recurring_income_month FROM transactions
         WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
     ).get(id, householdId);
     if (!existing) throw new Error('Transaction was not found.');
 
     let lineId = existing.line_id === null ? null : String(existing.line_id);
+    if (
+      typeof existing.recurring_income_month === 'string' &&
+      occurredAt.slice(0, 7) !== existing.recurring_income_month
+    ) {
+      const duplicate = prepare(
+        `SELECT id FROM transactions
+          WHERE household_id = ? AND income_stream_id = ?
+            AND recurring_income_month = ? AND deleted_at IS NULL AND id != ?;`,
+      ).get(householdId, existing.income_stream_id, occurredAt.slice(0, 7), id);
+      if (duplicate) {
+        throw new Error('This income source already has a confirmed entry for that month.');
+      }
+    }
     if (edit.lineId !== undefined && existing.direction === 'expense') {
       if (!edit.lineId) throw new Error('Choose a budget line.');
       const line = prepare(
@@ -135,13 +161,20 @@ export function updateTransaction(
     }
 
     prepare(
-      `UPDATE transactions SET amount = ?, note = ?, occurred_at = ?, line_id = ?, updated_at = ?
+      `UPDATE transactions
+          SET amount = ?, note = ?, occurred_at = ?, line_id = ?,
+              recurring_income_month = CASE
+                WHEN recurring_income_month IS NULL THEN NULL
+                ELSE substr(?, 1, 7)
+              END,
+              updated_at = ?
         WHERE id = ? AND household_id = ?;`,
     ).run(
       edit.amount,
       edit.note.trim() || null,
       occurredAt,
       lineId,
+      occurredAt,
       new Date().toISOString(),
       id,
       householdId,
@@ -183,21 +216,24 @@ function csvCell(value: unknown, guardFormula = false): string {
 
 export function buildTransactionsCsv(db: DatabaseLike, householdId: string): string {
   const rows = requirePrepared(db)(
-    `SELECT t.occurred_at, t.direction, bl.name AS line_name, d.creditor, t.amount, t.note,
-            t.source, t.status, t.override_reason
+    `SELECT t.occurred_at, t.direction, bl.name AS line_name, d.creditor,
+            ins.name AS income_stream_name, t.amount, t.note, t.source, t.status, t.override_reason
        FROM transactions t
        LEFT JOIN budget_lines bl ON bl.id = t.line_id AND bl.household_id = t.household_id
        LEFT JOIN debts d ON d.id = t.debt_id AND d.household_id = t.household_id
+       LEFT JOIN income_streams ins
+         ON ins.id = t.income_stream_id AND ins.household_id = t.household_id
       WHERE t.household_id = ? AND t.deleted_at IS NULL
       ORDER BY t.occurred_at, t.created_at;`,
   ).all(householdId);
-  const header = 'date,type,line,debt,amount_xaf,note,source,status,override_reason';
+  const header = 'date,type,line,debt,income_stream,amount_xaf,note,source,status,override_reason';
   const body = rows.map((row) =>
     [
       csvCell(String(row.occurred_at).slice(0, 10)),
       csvCell(row.direction),
       csvCell(row.line_name, true),
       csvCell(row.creditor, true),
+      csvCell(row.income_stream_name, true),
       csvCell(row.amount),
       csvCell(row.note, true),
       csvCell(row.source),
@@ -230,15 +266,23 @@ export function buildBudgetLinesCsv(db: DatabaseLike, householdId: string): stri
 
 export function buildAllocationsCsv(db: DatabaseLike, householdId: string): string {
   const rows = requirePrepared(db)(
-    `SELECT bl.name AS line, a.month, a.planned_amount FROM allocations a
+    `SELECT bl.name AS line, a.month, a.planned_amount, ins.name AS income_stream_name
+       FROM allocations a
       JOIN budget_lines bl ON bl.id = a.line_id AND bl.household_id = a.household_id
+      LEFT JOIN income_streams ins
+        ON ins.id = a.income_stream_id AND ins.household_id = a.household_id
       WHERE a.household_id = ? AND a.deleted_at IS NULL AND bl.deleted_at IS NULL
       ORDER BY a.month, bl.sort_order, bl.name;`,
   ).all(householdId);
   return [
-    'line,month,planned_amount_xaf',
+    'line,month,planned_amount_xaf,income_stream',
     ...rows.map((row) =>
-      [csvCell(row.line, true), csvCell(row.month), csvCell(row.planned_amount)].join(','),
+      [
+        csvCell(row.line, true),
+        csvCell(row.month),
+        csvCell(row.planned_amount),
+        csvCell(row.income_stream_name, true),
+      ].join(','),
     ),
   ].join('\n');
 }

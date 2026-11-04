@@ -122,16 +122,29 @@ export function saveVoiceDraftParse(
               status: 'draft',
             }).id;
       if (index === 0) {
+        const occurredAt = occurredAtForDate(item.date);
+        const allocation =
+          item.intent === 'log_expense' && item.line_id
+            ? prepare(
+                `SELECT income_stream_id FROM allocations
+                  WHERE household_id = ? AND line_id = ?
+                    AND substr(month, 1, 7) = substr(?, 1, 7) AND deleted_at IS NULL
+                  ORDER BY updated_at DESC LIMIT 1;`,
+              ).get(householdId, item.line_id, occurredAt)
+            : undefined;
+        const incomeStreamId =
+          typeof allocation?.income_stream_id === 'string' ? allocation.income_stream_id : null;
         prepare(
-          `UPDATE transactions SET amount = ?, direction = ?, line_id = ?, note = ?,
-             occurred_at = ?, updated_at = ?
+          `UPDATE transactions SET amount = ?, direction = ?, line_id = ?, income_stream_id = ?,
+             note = ?, occurred_at = ?, updated_at = ?
            WHERE id = ? AND household_id = ? AND status = 'draft' AND deleted_at IS NULL;`,
         ).run(
           item.amount_xaf,
           item.intent === 'log_income' ? 'income' : 'expense',
           item.line_id,
+          incomeStreamId,
           encodeVoiceDraftMetadata(item),
-          occurredAtForDate(item.date),
+          occurredAt,
           now,
           draftId,
           householdId,

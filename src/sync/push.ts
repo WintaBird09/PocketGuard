@@ -4,6 +4,7 @@ type LocalRow = Record<string, unknown>;
 type SupportedTable =
   | 'households'
   | 'budget_lines'
+  | 'income_streams'
   | 'allocations'
   | 'transactions'
   | 'debts'
@@ -48,6 +49,7 @@ type SyncStatement = {
 const supportedTables = new Set<SupportedTable>([
   'households',
   'budget_lines',
+  'income_streams',
   'allocations',
   'transactions',
   'debts',
@@ -61,8 +63,12 @@ const supportedTables = new Set<SupportedTable>([
 const supportedTableList = [...supportedTables].map((table) => `'${table}'`).join(', ');
 
 const idReferences: Partial<Record<SupportedTable, Record<string, SupportedTable>>> = {
-  allocations: { line_id: 'budget_lines' },
-  transactions: { line_id: 'budget_lines', debt_id: 'debts' },
+  allocations: { line_id: 'budget_lines', income_stream_id: 'income_streams' },
+  transactions: {
+    line_id: 'budget_lines',
+    debt_id: 'debts',
+    income_stream_id: 'income_streams',
+  },
   savings_commitments: { goal_id: 'savings_goals', line_id: 'budget_lines' },
 };
 
@@ -96,13 +102,14 @@ export async function pushOutbox(
        CASE table_name
          WHEN 'households' THEN 0
          WHEN 'budget_lines' THEN 1
-         WHEN 'debts' THEN 2
-         WHEN 'savings_goals' THEN 3
-         WHEN 'allocations' THEN 4
-         WHEN 'savings_commitments' THEN 5
-         WHEN 'transactions' THEN 6
-         WHEN 'settings' THEN 7
-         ELSE 8
+         WHEN 'income_streams' THEN 2
+         WHEN 'debts' THEN 3
+         WHEN 'savings_goals' THEN 4
+         WHEN 'allocations' THEN 5
+         WHEN 'savings_commitments' THEN 6
+         WHEN 'transactions' THEN 7
+         WHEN 'settings' THEN 8
+         ELSE 9
        END,
        created_at,
        id

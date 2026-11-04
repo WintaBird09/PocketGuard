@@ -407,6 +407,11 @@ export default function TransactionsScreen() {
                     {formatXAF(item.amount)}
                   </Text>
                 </View>
+                {item.incomeStreamName ? (
+                  <Text className="mt-1 text-xs font-medium text-emerald-700">
+                    Funded by {item.incomeStreamName}
+                  </Text>
+                ) : null}
                 {balances?.get(item.id) ? (
                   <Text
                     className={`mt-1 text-sm font-semibold ${

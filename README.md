@@ -18,6 +18,22 @@ account's data is stored in its own local database on the device.
   `pocketguard://auth/callback`. Set `EXPO_PUBLIC_SUPABASE_URL` and
   `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env` and in the EAS production environment.
 
+## Income and source-of-funds tracking
+
+Open **More → Income** to add named Salary, Business, Rental, or Other income streams and record
+income against them. In **Budget**, assign each monthly budget allocation to a source. New expenses
+inherit the budget line's source by default, and **Add transaction** lets you choose a different
+source or leave it unassigned. The Transactions screen and CSV exports show the source when one is
+linked. Swipe left/right on the monthly summary (or use its arrows) to browse month-specific totals
+and income sources. Fixed monthly income can be added as a plan with an expected payday; it appears
+in each month from its start month and stays planned until you confirm it was received. Confirmation
+adds one income transaction for that month. Use **Edit plan** to correct the scheduled amount or
+payday; edit a received income entry to correct its amount, date, or note.
+
+Source records, allocations, transactions, and recurring plans sync through Supabase after applying
+the `supabase/migrations/20261104010000_income_streams.sql` and
+`supabase/migrations/20261104020000_recurring_income.sql` migrations to the linked project.
+
 ## Android personal release
 
 The Android application ID is `com.nkabeh.pocketguard`; the launcher name and icon are configured

@@ -17,6 +17,7 @@ export type ExpenseLineOption = {
   kind: string;
   hardCap: boolean;
   planned: number;
+  incomeStreamId: string | null;
 };
 
 export type ExpenseReview = {
@@ -32,6 +33,7 @@ export type ExpenseReview = {
 
 export type ExpenseDraft = {
   lineId: string;
+  incomeStreamId?: string | null;
   amount: number;
   note: string;
   occurredOn: string;
@@ -62,7 +64,8 @@ export function listExpenseLines(
 ): ExpenseLineOption[] {
   const rows = requireDatabase(db)
     .prepare(
-      `SELECT bl.id, bl.name, bl.kind, bl.hard_cap, COALESCE(a.planned_amount, 0) AS planned
+      `SELECT bl.id, bl.name, bl.kind, bl.hard_cap, COALESCE(a.planned_amount, 0) AS planned,
+        a.income_stream_id
        FROM budget_lines bl
        LEFT JOIN allocations a
          ON a.line_id = bl.id AND a.household_id = bl.household_id
@@ -78,6 +81,7 @@ export function listExpenseLines(
     kind: String(row.kind),
     hardCap: Boolean(row.hard_cap),
     planned: Number(row.planned),
+    incomeStreamId: typeof row.income_stream_id === 'string' ? String(row.income_stream_id) : null,
   }));
 }
 
@@ -175,6 +179,7 @@ export function submitExpense(
     amount: draft.amount,
     direction: 'expense' satisfies TransactionDirection,
     line_id: draft.lineId,
+    income_stream_id: draft.incomeStreamId,
     note: draft.note.trim() || null,
     source: draft.source ?? 'manual',
     raw_text: draft.rawText ?? null,

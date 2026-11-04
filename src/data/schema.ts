@@ -30,6 +30,23 @@ export const budgetLines = {
   },
 };
 
+export const incomeStreams = {
+  name: 'income_streams',
+  columns: {
+    id: 'TEXT PRIMARY KEY',
+    household_id: 'TEXT NOT NULL',
+    name: 'TEXT NOT NULL',
+    kind: 'TEXT NOT NULL',
+    recurring_amount: 'INTEGER NULL',
+    recurring_day: 'INTEGER NULL',
+    recurring_start_month: 'TEXT NULL',
+    device_id: 'TEXT NULL',
+    created_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    updated_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    deleted_at: 'TEXT NULL',
+  },
+};
+
 export const allocations = {
   name: 'allocations',
   columns: {
@@ -38,6 +55,7 @@ export const allocations = {
     line_id: 'TEXT NOT NULL',
     month: 'TEXT NOT NULL',
     planned_amount: 'INTEGER NOT NULL',
+    income_stream_id: 'TEXT NULL',
     device_id: 'TEXT NULL',
     created_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
     updated_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
@@ -55,6 +73,8 @@ export const transactions = {
     direction: 'TEXT NOT NULL',
     line_id: 'TEXT NULL',
     debt_id: 'TEXT NULL',
+    income_stream_id: 'TEXT NULL',
+    recurring_income_month: 'TEXT NULL',
     note: 'TEXT NULL',
     source: 'TEXT NOT NULL DEFAULT "manual"',
     raw_text: 'TEXT NULL',
@@ -215,6 +235,7 @@ export const loanPayments = {
 const definitions = [
   households,
   budgetLines,
+  incomeStreams,
   allocations,
   transactions,
   debts,

@@ -1,12 +1,26 @@
 import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 
-import { budgetLines, households, outbox, transactions } from './schema';
+import {
+  allocations,
+  budgetLines,
+  households,
+  incomeStreams,
+  outbox,
+  transactions,
+} from './schema';
 
 describe('schema + migrations', () => {
   it('defines the expected tables and columns', () => {
     expect(households).toBeDefined();
     expect(budgetLines).toBeDefined();
+    expect(incomeStreams).toBeDefined();
+    expect(incomeStreams.columns.recurring_amount).toBe('INTEGER NULL');
+    expect(incomeStreams.columns.recurring_day).toBe('INTEGER NULL');
+    expect(incomeStreams.columns.recurring_start_month).toBe('TEXT NULL');
+    expect(allocations.columns.income_stream_id).toBe('TEXT NULL');
+    expect(transactions.columns.income_stream_id).toBe('TEXT NULL');
+    expect(transactions.columns.recurring_income_month).toBe('TEXT NULL');
     expect(transactions).toBeDefined();
     expect(outbox).toBeDefined();
   });
@@ -70,5 +84,49 @@ describe('schema + migrations', () => {
     runMigrations(db as never);
     expect(db.prepare('SELECT COUNT(*) AS c FROM households').get()).toEqual({ c: 1 });
     expect(db.prepare('SELECT COUNT(*) AS c FROM loans').get()).toEqual({ c: 0 });
+  });
+
+  it('adds income source columns to existing allocations and transactions tables', async () => {
+    const { runMigrations } = await import('./db');
+    const db = new Database(':memory:');
+    db.exec(
+      `CREATE TABLE allocations (
+        id TEXT PRIMARY KEY, household_id TEXT NOT NULL, line_id TEXT NOT NULL,
+        month TEXT NOT NULL, planned_amount INTEGER NOT NULL,
+        device_id TEXT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, deleted_at TEXT NULL
+      );
+      CREATE TABLE income_streams (
+        id TEXT PRIMARY KEY, household_id TEXT NOT NULL, name TEXT NOT NULL, kind TEXT NOT NULL,
+        device_id TEXT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, deleted_at TEXT NULL
+      );
+      CREATE TABLE transactions (
+        id TEXT PRIMARY KEY, household_id TEXT NOT NULL, occurred_at TEXT NOT NULL,
+        amount INTEGER NOT NULL, direction TEXT NOT NULL, line_id TEXT NULL,
+        debt_id TEXT NULL, note TEXT NULL, source TEXT NOT NULL DEFAULT 'manual',
+        raw_text TEXT NULL, status TEXT NOT NULL DEFAULT 'confirmed',
+        override_reason TEXT NULL, device_id TEXT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, deleted_at TEXT NULL
+      );`,
+    );
+    runMigrations(db as never);
+    runMigrations(db as never);
+    const allocationColumns = (
+      db.prepare('PRAGMA table_info(allocations);').all() as { name: string }[]
+    ).map(({ name }) => name);
+    const transactionColumns = (
+      db.prepare('PRAGMA table_info(transactions);').all() as { name: string }[]
+    ).map(({ name }) => name);
+    const incomeStreamColumns = (
+      db.prepare('PRAGMA table_info(income_streams);').all() as { name: string }[]
+    ).map(({ name }) => name);
+    expect(allocationColumns.filter((name) => name === 'income_stream_id')).toHaveLength(1);
+    expect(transactionColumns.filter((name) => name === 'income_stream_id')).toHaveLength(1);
+    expect(transactionColumns.filter((name) => name === 'recurring_income_month')).toHaveLength(1);
+    expect(incomeStreamColumns.filter((name) => name === 'recurring_amount')).toHaveLength(1);
+    expect(incomeStreamColumns.filter((name) => name === 'recurring_day')).toHaveLength(1);
+    expect(incomeStreamColumns.filter((name) => name === 'recurring_start_month')).toHaveLength(1);
   });
 });

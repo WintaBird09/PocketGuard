@@ -79,4 +79,31 @@ export function runMigrations(db: DatabaseLike): void {
   for (const definition of tableDefinitions) {
     runSql(createTableSql(definition));
   }
+
+  addColumnIfMissing(db, 'allocations', 'income_stream_id', 'TEXT NULL');
+  addColumnIfMissing(db, 'income_streams', 'recurring_amount', 'INTEGER NULL');
+  addColumnIfMissing(db, 'income_streams', 'recurring_day', 'INTEGER NULL');
+  addColumnIfMissing(db, 'income_streams', 'recurring_start_month', 'TEXT NULL');
+  addColumnIfMissing(db, 'transactions', 'income_stream_id', 'TEXT NULL');
+  addColumnIfMissing(db, 'transactions', 'recurring_income_month', 'TEXT NULL');
+  runSql(
+    `CREATE UNIQUE INDEX IF NOT EXISTS transactions_recurring_income_month_unique
+       ON transactions (household_id, income_stream_id, recurring_income_month)
+       WHERE recurring_income_month IS NOT NULL AND deleted_at IS NULL;`,
+  );
+}
+
+function addColumnIfMissing(
+  db: DatabaseLike,
+  table: 'allocations' | 'income_streams' | 'transactions',
+  column: string,
+  definition: string,
+): void {
+  if (!db.prepare) throw new Error('Database implementation does not support prepared queries.');
+  const columns = db.prepare(`PRAGMA table_info(${table});`).all();
+  if (!columns.some((entry) => entry.name === column)) {
+    const runSql = db.exec ?? db.execSync;
+    if (!runSql) throw new Error('Database implementation does not support exec() or execSync().');
+    runSql.call(db, `ALTER TABLE ${table} ADD COLUMN ${column} ${definition};`);
+  }
 }

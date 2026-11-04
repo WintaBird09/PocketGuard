@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ensureRemoteHouseholdMapping } from '../auth/householdBootstrap';
 import { deleteTransaction, restoreTransaction, updateTransaction } from '../data/activity';
 import { initializeLocalApp } from '../data/bootstrap';
+import { addIncomeStream, confirmRecurringIncome } from '../data/income';
+import { setAllocation } from '../data/plan';
+import { transactions } from '../data/repos';
 
 import { pushOutbox, type PushApi } from './push';
 
@@ -61,6 +64,70 @@ describe('persisted outbox push', () => {
     fixture?.db.close();
     fixture = createTransactionDatabase();
     apiState = createApi();
+  });
+
+  it('pushes income sources before budget and transaction references', async () => {
+    const timestamp = startTime.toISOString();
+    fixture.db.prepare('DELETE FROM outbox;').run();
+    const stream = addIncomeStream(fixture.db as never, fixture.householdId, {
+      kind: 'salary',
+      name: 'Monthly salary',
+    });
+
+    setAllocation(
+      fixture.db as never,
+      fixture.householdId,
+      'line-real',
+      '2026-10',
+      10000,
+      stream.id,
+    );
+    transactions.add(fixture.db as never, fixture.householdId, {
+      occurred_at: timestamp,
+      amount: 2500,
+      direction: 'expense',
+      line_id: 'line-real',
+      income_stream_id: stream.id,
+    });
+
+    const result = await pushOutbox(fixture.db as never, apiState.api, { now: startTime });
+    expect(result).toMatchObject({ sent: 3, remaining: 0, error: null });
+    const calls = vi.mocked(apiState.api.upsert).mock.calls;
+    expect(calls.map(([table]) => table)).toEqual([
+      'income_streams',
+      'allocations',
+      'transactions',
+    ]);
+    const pushedStream = calls[0]?.[1];
+    expect(calls[1]?.[1].income_stream_id).toBe(pushedStream?.id);
+    expect(calls[2]?.[1].income_stream_id).toBe(pushedStream?.id);
+  });
+
+  it('pushes recurring income configuration before its monthly confirmation', async () => {
+    fixture.db.prepare('DELETE FROM outbox;').run();
+    const stream = addIncomeStream(fixture.db as never, fixture.householdId, {
+      kind: 'salary',
+      name: 'Monthly salary',
+      recurring: { amount: 350000, day: 1, startMonth: '2026-10' },
+    });
+    confirmRecurringIncome(fixture.db as never, fixture.householdId, stream.id, '2026-10');
+
+    const result = await pushOutbox(fixture.db as never, apiState.api, { now: startTime });
+
+    expect(result).toMatchObject({ sent: 2, remaining: 0, error: null });
+    const calls = vi.mocked(apiState.api.upsert).mock.calls;
+    expect(calls.map(([table]) => table)).toEqual(['income_streams', 'transactions']);
+    expect(calls[0]?.[1]).toMatchObject({
+      recurring_amount: 350000,
+      recurring_day: 1,
+      recurring_start_month: '2026-10',
+    });
+    expect(calls[1]?.[1]).toMatchObject({
+      amount: 350000,
+      income_stream_id: calls[0]?.[1].id,
+      recurring_income_month: '2026-10',
+      source: 'recurring',
+    });
   });
 
   it('pushes the persisted transaction once using stable UUIDs for local IDs', async () => {

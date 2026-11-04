@@ -113,7 +113,7 @@ Notes for agents: use the latest stable Expo SDK at scaffold time and follow cur
 - FR-11. **Offline voice:** if the parse service is unreachable, an on-device parser (amount such as `20000`, `20,000`, `15k`, `1.5 million`, plus a budget-line match by shared words; "can I…" becomes a spend check) still produces a confirm card, flagged as read on the phone. If no amount can be found, store the raw transcript as a _pending draft_, show it in an Inbox, and parse automatically when online. The owner can also classify it manually.
 - FR-12. Edit and delete (soft delete) any transaction. Editing re-runs budget calculations.
 - FR-12b. **Transactions screen:** view by **Day, Week (Mon–Sun), Month or a Custom From–To range** with previous/next navigation and a Spent / Income / Entries summary for the range. History is grouped by day, and each expense shows the balance left on its budget line after that transaction ("X left on <line> · N% used"), coloured green below 40% used, orange from 40% to 80%, red above 80% ("over" when over budget). Range filtering uses the local day, not the UTC timestamp.
-- FR-13. Income can be recorded (salary). Transfers (bank → MoMo) are recorded as `transfer` and **do not count as spending**; they exist so the owner can reconcile cash on hand.
+- FR-13. Income streams can be created as Salary, Business, Rental, or Other (with a custom name such as "Income from Salary") and income can be recorded against a stream. The Income screen supports previous/next month navigation and shows month-specific income totals and sources. A fixed monthly income can be scheduled with an expected payday; it remains planned until the user confirms receipt, which records at most one recurring income transaction per source per month. Monthly budget allocations and expenses can reference an income stream so spending can be traced to its funding source. Transfers (bank → MoMo) are recorded as `transfer` and **do not count as spending**; they exist so the owner can reconcile cash on hand.
 - FR-14. Inbox screen lists pending voice drafts and unassigned items.
 
 ### 7.4 Spend check and hard stop (important semantics)
@@ -256,8 +256,9 @@ All tables: `id uuid pk (client-generated)`, `household_id uuid`, `created_at`, 
 - `households(id, name, month_start_day default 1, currency default 'XAF')`
 - `household_members(id, household_id, user_id, role)` — one row in MVP
 - `budget_lines(id, name, kind, hard_cap, sort_order, archived)`
-- `allocations(id, line_id, month, planned_amount)` — unique (line_id, month)
-- `transactions(id, occurred_at, amount, direction 'expense|income|transfer', line_id null, debt_id null, note, source 'manual|voice|sms', raw_text null, status 'confirmed|draft', override_reason null)`
+- `income_streams(id, name, kind 'salary|business|rental|other')`
+- `allocations(id, line_id, month, planned_amount, income_stream_id null)` — unique (line_id, month)
+- `transactions(id, occurred_at, amount, direction 'expense|income|transfer', line_id null, debt_id null, income_stream_id null, note, source 'manual|voice|sms', raw_text null, status 'confirmed|draft', override_reason null)`
 - `debts(id, creditor, original_amount, deadline null, note)`
 - `savings_goals(id, name, target_amount, due_date, include_kids_savings bool)`
 - `savings_commitments(id, goal_id, line_id, month, planned_amount, saved_amount null, saved_at null)`

@@ -59,6 +59,87 @@ function createPullApi(rowsByTable: Partial<Record<PullTable, Record<string, unk
 }
 
 describe('remote pull sync', () => {
+  it('restores a source before applying linked allocations and transactions', async () => {
+    const db = createDatabase();
+    const lineId = 'd4000000-0000-4000-8000-000000000004';
+    const streamId = 'f6000000-0000-4000-8000-000000000006';
+    const occurredAt = remoteUpdate;
+    const row = (id: string, values: Record<string, unknown>) => ({
+      id,
+      household_id: householdId,
+      created_at: lastPull,
+      updated_at: remoteUpdate,
+      deleted_at: null,
+      ...values,
+    });
+    const { api } = createPullApi({
+      budget_lines: [
+        row(lineId, {
+          name: 'Food',
+          kind: 'running',
+          hard_cap: false,
+          sort_order: 0,
+          archived: false,
+        }),
+      ],
+      income_streams: [
+        row(streamId, {
+          name: 'Monthly salary',
+          kind: 'salary',
+          recurring_amount: 350000,
+          recurring_day: 1,
+          recurring_start_month: '2026-10',
+          device_id: null,
+        }),
+      ],
+      allocations: [
+        row('a7000000-0000-4000-8000-000000000007', {
+          line_id: lineId,
+          income_stream_id: streamId,
+          month: '2026-10',
+          planned_amount: 50000,
+        }),
+      ],
+      transactions: [
+        row('b8000000-0000-4000-8000-000000000008', {
+          occurred_at: occurredAt,
+          amount: 2500,
+          direction: 'income',
+          line_id: null,
+          debt_id: null,
+          income_stream_id: streamId,
+          recurring_income_month: '2026-10',
+          note: null,
+          source: 'manual',
+          raw_text: null,
+          status: 'confirmed',
+          override_reason: null,
+          device_id: null,
+        }),
+      ],
+    });
+
+    const result = await pullRemoteChanges(db as never, api, householdId);
+    expect(result).toMatchObject({ fetched: 4, applied: 4, error: null });
+    expect(
+      db
+        .prepare('SELECT income_stream_id FROM allocations WHERE line_id = ? AND month = ?;')
+        .get(lineId, '2026-10'),
+    ).toEqual({ income_stream_id: streamId });
+    expect(
+      db.prepare('SELECT income_stream_id FROM transactions WHERE amount = 2500;').get(),
+    ).toEqual({ income_stream_id: streamId });
+    expect(
+      db.prepare('SELECT recurring_income_month FROM transactions WHERE amount = 2500;').get(),
+    ).toEqual({ recurring_income_month: '2026-10' });
+    expect(
+      db
+        .prepare('SELECT recurring_amount, recurring_day FROM income_streams WHERE id = ?;')
+        .get(streamId),
+    ).toEqual({ recurring_amount: 350000, recurring_day: 1 });
+    db.close();
+  });
+
   it('pulls newer server edits, resolves stable local IDs and references, and advances the cursor', async () => {
     const db = createDatabase();
     saveIdMapping(db, 'budget_lines', 'line-local', 'd4000000-0000-4000-8000-000000000004');

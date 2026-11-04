@@ -1,4 +1,5 @@
 import { notifyOutboxAppended } from './outboxEvents';
+import { assertMonthKey } from './household';
 
 type SqlStatement = {
   run: (...args: unknown[]) => unknown;
@@ -195,6 +196,8 @@ export const transactions = {
       direction: TransactionDirection;
       line_id?: string | null;
       debt_id?: string | null;
+      income_stream_id?: string | null;
+      recurring_income_month?: string | null;
       note?: string | null;
       source?: string;
       raw_text?: string | null;
@@ -207,6 +210,52 @@ export const transactions = {
       const timestamp = nowIso();
       const source = draft.source ?? 'manual';
       const status = draft.status ?? 'confirmed';
+      const recurringIncomeMonth = draft.recurring_income_month ?? null;
+      let incomeStreamId = draft.income_stream_id ?? null;
+      if (draft.income_stream_id === undefined && draft.direction === 'expense' && draft.line_id) {
+        const allocation = prepareStatement(
+          db,
+          `SELECT income_stream_id FROM allocations
+            WHERE household_id = ? AND line_id = ?
+              AND substr(month, 1, 7) = substr(?, 1, 7) AND deleted_at IS NULL
+            ORDER BY updated_at DESC LIMIT 1;`,
+        ).get(householdId, draft.line_id, draft.occurred_at);
+        incomeStreamId =
+          typeof allocation?.income_stream_id === 'string' ? allocation.income_stream_id : null;
+      }
+      if (incomeStreamId) {
+        const stream = prepareStatement(
+          db,
+          `SELECT id, recurring_amount, recurring_start_month FROM income_streams
+            WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+        ).get(incomeStreamId, householdId);
+        if (!stream) throw new Error('Income source was not found.');
+
+        if (recurringIncomeMonth !== null) {
+          assertMonthKey(recurringIncomeMonth);
+          if (
+            draft.direction !== 'income' ||
+            status !== 'confirmed' ||
+            stream.recurring_amount !== draft.amount ||
+            typeof stream.recurring_start_month !== 'string' ||
+            recurringIncomeMonth < stream.recurring_start_month ||
+            draft.occurred_at.slice(0, 7) !== recurringIncomeMonth
+          ) {
+            throw new Error('This recurring income does not match its monthly plan.');
+          }
+          const existingOccurrence = prepareStatement(
+            db,
+            `SELECT id FROM transactions
+              WHERE household_id = ? AND income_stream_id = ?
+                AND recurring_income_month = ? AND deleted_at IS NULL;`,
+          ).get(householdId, incomeStreamId, recurringIncomeMonth);
+          if (existingOccurrence) {
+            throw new Error('This recurring income has already been confirmed for that month.');
+          }
+        }
+      } else if (recurringIncomeMonth !== null) {
+        throw new Error('A recurring income confirmation requires an income source.');
+      }
 
       prepareStatement(
         db,
@@ -218,6 +267,8 @@ export const transactions = {
           direction,
           line_id,
           debt_id,
+          income_stream_id,
+          recurring_income_month,
           note,
           source,
           raw_text,
@@ -227,7 +278,7 @@ export const transactions = {
           updated_at,
           deleted_at,
           device_id
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL);`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL);`,
       ).run(
         id,
         householdId,
@@ -236,6 +287,8 @@ export const transactions = {
         draft.direction,
         draft.line_id ?? null,
         draft.debt_id ?? null,
+        incomeStreamId,
+        recurringIncomeMonth,
         draft.note ?? null,
         source,
         draft.raw_text ?? null,
@@ -255,6 +308,8 @@ export const transactions = {
         direction: draft.direction,
         line_id: draft.line_id ?? null,
         debt_id: draft.debt_id ?? null,
+        income_stream_id: incomeStreamId,
+        recurring_income_month: recurringIncomeMonth,
         note: draft.note ?? null,
         source,
         raw_text: draft.raw_text ?? null,

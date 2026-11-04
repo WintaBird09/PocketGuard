@@ -15,6 +15,7 @@ import {
   setPlannedIncome,
   type LineKind,
 } from '@/src/data/plan';
+import { listIncomeStreams } from '@/src/data/income';
 import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
 import { toneForUsedRatio } from '@/src/domain/lineBalance';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
@@ -56,6 +57,7 @@ export default function BudgetScreen() {
           months: months.includes(month) ? months : [...months, month].sort(),
           nextAvailable: nextMonth(last ?? month),
           plan: getMonthPlan(db, householdId, month, showArchived),
+          incomeStreams: listIncomeStreams(db, householdId),
         },
         failure: null,
       };
@@ -115,7 +117,7 @@ export default function BudgetScreen() {
     );
   }
 
-  const { plan, months } = view;
+  const { plan, months, incomeStreams } = view;
   const prev = previousMonth(month);
   const icons = assignLineIcons(plan.lines);
   const activeLines = plan.lines.filter((line) => !line.archived);
@@ -482,6 +484,54 @@ export default function BudgetScreen() {
                             {line.hardCap ? 'Hard cap' : 'Flexible'}
                           </Text>
                         </Pressable>
+                      </View>
+                      <View className="mt-3">
+                        <Text className="mb-2 text-xs font-semibold text-slate-600">
+                          Budget funded by
+                        </Text>
+                        {incomeStreams.length > 0 ? (
+                          <View className="flex-row flex-wrap gap-2">
+                            {[{ id: null, name: 'Unassigned' }, ...incomeStreams].map((stream) => {
+                              const active = line.incomeStreamId === stream.id;
+                              return (
+                                <Pressable
+                                  key={stream.id ?? 'unassigned'}
+                                  accessibilityRole="button"
+                                  accessibilityLabel={`${line.name} funded by ${stream.name}`}
+                                  accessibilityState={{ selected: active, disabled: line.archived }}
+                                  disabled={line.archived}
+                                  onPress={() =>
+                                    run(() =>
+                                      setAllocation(
+                                        db!,
+                                        householdId,
+                                        line.id,
+                                        month,
+                                        line.planned,
+                                        stream.id,
+                                      ),
+                                    )
+                                  }
+                                  className={`min-h-10 justify-center rounded-full px-3 py-2 ${
+                                    active ? 'bg-emerald-100' : 'bg-white'
+                                  }`}
+                                >
+                                  <Text
+                                    className={`text-xs font-semibold ${
+                                      active ? 'text-emerald-800' : 'text-slate-600'
+                                    }`}
+                                  >
+                                    {stream.name}
+                                  </Text>
+                                </Pressable>
+                              );
+                            })}
+                          </View>
+                        ) : (
+                          <Text className="text-xs text-slate-500">
+                            Add an income source from More → Income to link this budget.
+                          </Text>
+                        )}
                       </View>
                       <Pressable
                         accessibilityRole="button"

@@ -199,6 +199,7 @@ Done as small, verified changes (typecheck, lint, all tests). Visual changes are
 - **11.8 Savings redesign (done):** multiple goals, `addSavingsGoal`, `deleteSavingsGoal`, `getSavingsPlanner` (tested), `app/savings-form.tsx`, monthly and annual views, goal cards.
 - **11.9 Budget plan redesign (done):** Add line in the header, month strip, collapsible categories, hard-cap pill.
 - **11.10 Home redesign (done):** greeting header with avatar, spending hero, voice strip, Savings & goals, Debt, analytics (`src/domain/spendingInsights.ts`, tested), Needs attention; one theme colour per feature (spending indigo, savings green, debt amber).
+- **11.11 Income streams (implemented):** More → Income manages Salary, Business, Rental, and Other sources; month navigation shows source-level totals, and fixed monthly income stays planned until received and confirmed. Monthly budget allocations and expenses retain their source, visible in Transactions and CSV exports. Apply the Supabase migrations before syncing source data; device walkthrough pending.
 - **Open follow-ups:** apply the line icons to `can-i-spend`; diagnose the "sync error" (check `loan_repayments` vs `loan_payments` naming); store link in the invite message; demo account needs "Confirm email" turned off in Supabase; device verification of all Epic 11 screens.
 
 ---

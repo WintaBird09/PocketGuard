@@ -4,6 +4,7 @@ type LocalRow = Record<string, unknown>;
 export type PullTable =
   | 'households'
   | 'budget_lines'
+  | 'income_streams'
   | 'allocations'
   | 'transactions'
   | 'debts'
@@ -58,12 +59,26 @@ const tableColumns: Record<PullTable, string[]> = {
     'updated_at',
     'deleted_at',
   ],
+  income_streams: [
+    'id',
+    'household_id',
+    'name',
+    'kind',
+    'recurring_amount',
+    'recurring_day',
+    'recurring_start_month',
+    'device_id',
+    'created_at',
+    'updated_at',
+    'deleted_at',
+  ],
   allocations: [
     'id',
     'household_id',
     'line_id',
     'month',
     'planned_amount',
+    'income_stream_id',
     'device_id',
     'created_at',
     'updated_at',
@@ -77,6 +92,8 @@ const tableColumns: Record<PullTable, string[]> = {
     'direction',
     'line_id',
     'debt_id',
+    'income_stream_id',
+    'recurring_income_month',
     'note',
     'source',
     'raw_text',
@@ -138,8 +155,12 @@ const tableColumns: Record<PullTable, string[]> = {
 };
 
 const referenceTables: Partial<Record<PullTable, Record<string, PullTable>>> = {
-  allocations: { line_id: 'budget_lines' },
-  transactions: { line_id: 'budget_lines', debt_id: 'debts' },
+  allocations: { line_id: 'budget_lines', income_stream_id: 'income_streams' },
+  transactions: {
+    line_id: 'budget_lines',
+    debt_id: 'debts',
+    income_stream_id: 'income_streams',
+  },
   savings_commitments: { goal_id: 'savings_goals', line_id: 'budget_lines' },
 };
 
@@ -151,6 +172,7 @@ const booleanColumns: Partial<Record<PullTable, string[]>> = {
 const pullOrder: PullTable[] = [
   'households',
   'budget_lines',
+  'income_streams',
   'debts',
   'savings_goals',
   'allocations',

@@ -18,7 +18,8 @@ import { useDatabase } from '@/src/ui/useDatabase';
 type MoreItem = {
   title: string;
   detail: string;
-  href: '/income-transfer' | '/inbox' | '/debts' | '/loans' | '/overrides' | '/settings';
+  href:
+    '/income' | '/income-transfer' | '/inbox' | '/debts' | '/loans' | '/overrides' | '/settings';
   icon: keyof typeof Ionicons.glyphMap;
   tint: string;
   bg: string;
@@ -86,6 +87,14 @@ export default function MoreScreen() {
       icon: 'people',
       tint: '#7c3aed',
       bg: '#ede9fe',
+    },
+    {
+      title: 'Income',
+      detail: 'Income streams and source tracking',
+      href: '/income',
+      icon: 'cash',
+      tint: '#059669',
+      bg: '#d1fae5',
     },
     {
       title: 'Overrides report',

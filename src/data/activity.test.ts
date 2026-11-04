@@ -7,8 +7,11 @@ import {
   buildBudgetLinesCsv,
   buildLoansCsv,
   buildTransactionsCsv,
+  listActivity,
 } from './activity';
 import { createLoan, recordLoanRepayment } from './loans';
+import { addIncomeStream } from './income';
+import { setAllocation } from './plan';
 import { transactions } from './repos';
 
 const householdId = 'household-seed';
@@ -30,6 +33,8 @@ describe('CSV export', () => {
 
   it('exports transactions, budget lines, allocations, and loan repayment history', () => {
     const database = createDb();
+    const stream = addIncomeStream(database as never, householdId, { kind: 'salary' });
+    setAllocation(database as never, householdId, 'line-fuel', '2026-10', 120000, stream.id);
     transactions.add(database as never, householdId, {
       occurred_at: '2026-10-26T12:00:00.000Z',
       amount: 2500,
@@ -50,9 +55,16 @@ describe('CSV export', () => {
       note: 'cash, today',
     });
 
-    expect(buildTransactionsCsv(database as never, householdId)).toContain("'=1+1");
+    const transactionsCsv = buildTransactionsCsv(database as never, householdId);
+    expect(listActivity(database as never, householdId, { month: '2026-10' })).toMatchObject([
+      { incomeStreamId: stream.id, incomeStreamName: 'Income from Salary' },
+    ]);
+    expect(transactionsCsv).toContain("'=1+1");
+    expect(transactionsCsv).toContain('income_stream');
+    expect(transactionsCsv).toContain('Income from Salary');
     expect(buildBudgetLinesCsv(database as never, householdId)).toContain('Fuel,running,1');
     expect(buildAllocationsCsv(database as never, householdId)).toContain('Fuel,2026-10,120000');
+    expect(buildAllocationsCsv(database as never, householdId)).toContain('Income from Salary');
     const loans = buildLoansCsv(database as never, householdId);
     expect(loans).toContain('"Desmond, friend"');
     expect(loans).toContain('7000,PARTIAL');

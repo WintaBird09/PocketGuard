@@ -118,13 +118,30 @@ def import_rows(database, rows, sheet_name="Transactions"):
         stable_source = f"{household_id}\0{sheet_name}\0{offset}".encode()
         transaction_id = str(uuid.UUID(bytes=hashlib.sha256(stable_source).digest()[:16], version=4))
         outbox_id = str(uuid.uuid5(uuid.NAMESPACE_URL, f"pocket-guard-import:{transaction_id}"))
+        allocation = database.execute(
+            """SELECT income_stream_id FROM allocations
+              WHERE household_id = ? AND line_id = ? AND month = ? AND deleted_at IS NULL
+              LIMIT 1""",
+            (household_id, line_id, occurred_date.strftime("%Y-%m")),
+        ).fetchone()
+        income_stream_id = allocation[0] if allocation else None
 
         cursor = database.execute(
             """INSERT OR IGNORE INTO transactions
-              (id, household_id, occurred_at, amount, direction, line_id, debt_id, note,
-               source, raw_text, status, override_reason, device_id, created_at, updated_at, deleted_at)
-              VALUES (?, ?, ?, ?, 'expense', ?, NULL, ?, 'manual', NULL, 'confirmed', NULL, NULL, ?, ?, NULL)""",
-            (transaction_id, household_id, occurred_at, amount, line_id, note or None, timestamp, timestamp),
+              (id, household_id, occurred_at, amount, direction, line_id, debt_id, income_stream_id,
+               note, source, raw_text, status, override_reason, device_id, created_at, updated_at, deleted_at)
+              VALUES (?, ?, ?, ?, 'expense', ?, NULL, ?, ?, 'manual', NULL, 'confirmed', NULL, NULL, ?, ?, NULL)""",
+            (
+                transaction_id,
+                household_id,
+                occurred_at,
+                amount,
+                line_id,
+                income_stream_id,
+                note or None,
+                timestamp,
+                timestamp,
+            ),
         )
         if cursor.rowcount == 0:
             duplicates += 1

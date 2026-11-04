@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
+import { Link } from 'expo-router';
 
+import { listIncomeStreams, type IncomeStream } from '@/src/data/income';
 import { getActiveHouseholdId } from '@/src/data/household';
 import { openAppDatabase, runMigrations, type DatabaseLike } from '@/src/data/db';
 import { transactions, type TransactionDirection } from '@/src/data/repos';
@@ -52,6 +54,8 @@ export default function IncomeTransferScreen() {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [entries, setEntries] = useState<RecordedEntry[]>([]);
+  const [incomeStreams, setIncomeStreams] = useState<IncomeStream[]>([]);
+  const [selectedIncomeStreamId, setSelectedIncomeStreamId] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -66,9 +70,12 @@ export default function IncomeTransferScreen() {
         const openedDatabase = await openAppDatabase();
         runMigrations(openedDatabase);
         const recordedEntries = getRecordedEntries(openedDatabase);
+        const streams = listIncomeStreams(openedDatabase, getActiveHouseholdId(openedDatabase));
         if (!active) return;
         setDatabase(openedDatabase);
         setEntries(recordedEntries);
+        setIncomeStreams(streams);
+        setSelectedIncomeStreamId((current) => current || streams[0]?.id || '');
       } catch (cause) {
         if (active) {
           setError(cause instanceof Error ? cause.message : 'Unable to open the local database.');
@@ -94,6 +101,10 @@ export default function IncomeTransferScreen() {
       setError('The local database is not ready yet.');
       return;
     }
+    if (direction === 'income' && !selectedIncomeStreamId) {
+      setError('Add an income source from More → Income before recording income.');
+      return;
+    }
 
     setSaving(true);
     setError(null);
@@ -103,6 +114,7 @@ export default function IncomeTransferScreen() {
         occurred_at: new Date(`${localDateString()}T12:00:00`).toISOString(),
         amount: parsedAmount,
         direction,
+        income_stream_id: direction === 'income' ? selectedIncomeStreamId : null,
         note: note.trim() || null,
         source: 'manual',
       });
@@ -158,6 +170,41 @@ export default function IncomeTransferScreen() {
             );
           })}
         </View>
+        {direction === 'income' ? (
+          <View className="mt-4">
+            <Text className="mb-2 text-sm font-medium text-slate-700">Income source</Text>
+            {incomeStreams.length > 0 ? (
+              <View className="flex-row flex-wrap gap-2">
+                {incomeStreams.map((stream) => {
+                  const active = selectedIncomeStreamId === stream.id;
+                  return (
+                    <Pressable
+                      key={stream.id}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active }}
+                      onPress={() => setSelectedIncomeStreamId(stream.id)}
+                      className={`min-h-11 justify-center rounded-full px-4 py-2 ${
+                        active ? 'bg-emerald-100' : 'bg-slate-100'
+                      }`}
+                    >
+                      <Text
+                        className={`font-semibold ${
+                          active ? 'text-emerald-800' : 'text-slate-700'
+                        }`}
+                      >
+                        {stream.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <Link href="/income" className="min-h-11 justify-center">
+                <Text className="font-semibold text-emerald-700">Add a source in Income</Text>
+              </Link>
+            )}
+          </View>
+        ) : null}
 
         <Text className="mb-2 mt-5 text-sm font-medium text-slate-700">Amount (XAF)</Text>
         <TextInput

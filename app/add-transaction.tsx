@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { addBudgetLine, type LineKind } from '@/src/data/plan';
+import { listIncomeStreams, type IncomeStream } from '@/src/data/income';
 import {
   getExpenseReview,
   listExpenseLines,
@@ -34,7 +35,9 @@ export default function AddTransactionScreen() {
   const [database, setDatabase] = useState<DatabaseLike | null>(null);
   const [householdId, setHouseholdId] = useState('');
   const [lines, setLines] = useState<ExpenseLineOption[]>([]);
+  const [incomeStreams, setIncomeStreams] = useState<IncomeStream[]>([]);
   const [selectedLineId, setSelectedLineId] = useState('');
+  const [selectedIncomeStreamId, setSelectedIncomeStreamId] = useState('');
   const [amountInput, setAmountInput] = useState('');
   const [note, setNote] = useState('');
   const [dateSelection, setDateSelection] = useState(() => ({
@@ -74,11 +77,16 @@ export default function AddTransactionScreen() {
         }
         const month = monthKeyForDate(new Date(`${occurredOn}T12:00:00`), 'Africa/Douala');
         const lineOptions = listExpenseLines(db, household.id, month);
+        const streams = listIncomeStreams(db, household.id);
         if (!active) return;
         setDatabase(db);
         setHouseholdId(household.id);
         setLines(lineOptions);
         setSelectedLineId((current) => current || lineOptions[0]?.id || '');
+        const selectedLine =
+          lineOptions.find((line) => line.id === selectedLineId) ?? lineOptions[0];
+        setSelectedIncomeStreamId((current) => current || selectedLine?.incomeStreamId || '');
+        setIncomeStreams(streams);
         setError(null);
       } catch (cause) {
         if (active) {
@@ -93,7 +101,7 @@ export default function AddTransactionScreen() {
     return () => {
       active = false;
     };
-  }, [occurredOn, reload]);
+  }, [occurredOn, reload, selectedLineId]);
 
   const resetChecks = () => {
     setConfirmWarning(false);
@@ -132,7 +140,10 @@ export default function AddTransactionScreen() {
     setParsing(false);
     resetChecks();
     if (amountFound !== null) setAmountInput(String(amountFound));
-    if (lineFound !== null) setSelectedLineId(lineFound);
+    if (lineFound !== null) {
+      setSelectedLineId(lineFound);
+      setSelectedIncomeStreamId(lines.find((line) => line.id === lineFound)?.incomeStreamId ?? '');
+    }
     if (noteFound && !note) setNote(noteFound);
     const lineName = lines.find((line) => line.id === lineFound)?.name;
     setMessage(
@@ -256,7 +267,13 @@ export default function AddTransactionScreen() {
       const submission = submitExpense(
         database,
         householdId,
-        { lineId: selectedLineId, amount, note, occurredOn },
+        {
+          lineId: selectedLineId,
+          incomeStreamId: selectedIncomeStreamId || null,
+          amount,
+          note,
+          occurredOn,
+        },
         confirmWarning,
         override,
       );
@@ -302,6 +319,7 @@ export default function AddTransactionScreen() {
         setLines(listExpenseLines(database, householdId, month));
       }
       setSelectedLineId(id);
+      setSelectedIncomeStreamId(lines.find((line) => line.id === id)?.incomeStreamId ?? '');
       setConfirmWarning(false);
       setOverrideOpen(false);
       setMessage(existing ? `“${existing.name}” already exists, so it was selected.` : null);
@@ -366,6 +384,7 @@ export default function AddTransactionScreen() {
           selectedId={selectedLineId}
           onSelect={(id) => {
             setSelectedLineId(id);
+            setSelectedIncomeStreamId(lines.find((line) => line.id === id)?.incomeStreamId ?? '');
             setConfirmWarning(false);
             setOverrideOpen(false);
             setMessage(null);
@@ -375,6 +394,55 @@ export default function AddTransactionScreen() {
         <Text className="mt-2 text-xs text-slate-500">
           {selectedLine?.hardCap ? 'Hard cap line' : 'Flexible line'}
         </Text>
+
+        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Income source</Text>
+        {incomeStreams.length > 0 ? (
+          <View className="flex-row flex-wrap gap-2">
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: !selectedIncomeStreamId }}
+              onPress={() => setSelectedIncomeStreamId('')}
+              className={`min-h-11 justify-center rounded-full px-4 py-2 ${
+                selectedIncomeStreamId ? 'bg-slate-100' : 'bg-emerald-100'
+              }`}
+            >
+              <Text
+                className={`text-sm font-semibold ${
+                  selectedIncomeStreamId ? 'text-slate-700' : 'text-emerald-800'
+                }`}
+              >
+                Unassigned
+              </Text>
+            </Pressable>
+            {incomeStreams.map((stream) => {
+              const active = selectedIncomeStreamId === stream.id;
+              return (
+                <Pressable
+                  key={stream.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Income source ${stream.name}`}
+                  accessibilityState={{ selected: active }}
+                  onPress={() => setSelectedIncomeStreamId(stream.id)}
+                  className={`min-h-11 justify-center rounded-full px-4 py-2 ${
+                    active ? 'bg-emerald-100' : 'bg-slate-100'
+                  }`}
+                >
+                  <Text
+                    className={`text-sm font-semibold ${
+                      active ? 'text-emerald-800' : 'text-slate-700'
+                    }`}
+                  >
+                    {stream.name}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        ) : (
+          <Text className="text-xs text-slate-500">
+            Add an income source from More → Income to trace this expense to its funding source.
+          </Text>
+        )}
 
         <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Date</Text>
         <TextInput
