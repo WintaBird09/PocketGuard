@@ -19,6 +19,7 @@ import { DatePickerField } from '@/src/ui/DatePickerField';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 const plans: { key: LoanPlan; label: string }[] = [
   { key: 'single', label: 'One payment' },
@@ -26,7 +27,8 @@ const plans: { key: LoanPlan; label: string }[] = [
   { key: 'flexible', label: 'Flexible' },
 ];
 
-const inputClass = 'mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base';
+const inputClass =
+  'mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base';
 
 function yearsFromNow(years: number): Date {
   const date = new Date();
@@ -35,7 +37,11 @@ function yearsFromNow(years: number): Date {
 }
 
 function Label({ children }: { children: string }) {
-  return <Text className="mb-1 mt-2 text-xs font-semibold text-slate-500">{children}</Text>;
+  return (
+    <Text className="mb-1 mt-2 text-xs font-semibold text-slate-500 dark:text-slate-400">
+      {children}
+    </Text>
+  );
 }
 
 export default function LoanFormScreen() {
@@ -119,7 +125,7 @@ export default function LoanFormScreen() {
       {notice ? <Banner tone="info">{notice}</Banner> : null}
 
       {loaded ? (
-        <View className="rounded-2xl border border-slate-300 bg-white p-4">
+        <View className="rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-4">
           <Label>Person</Label>
           <Button
             label={form.personName ? 'Pick a different contact' : 'Pick from contacts'}
@@ -142,7 +148,7 @@ export default function LoanFormScreen() {
             className={inputClass}
           />
 
-          <Label>Amount (XAF)</Label>
+          <Label>{`Amount (${getCurrencyCode()})`}</Label>
           <TextInput
             accessibilityLabel="Amount"
             placeholder="e.g. 20000"
@@ -153,7 +159,7 @@ export default function LoanFormScreen() {
           />
           {capPreview && cap !== null ? (
             <Text
-              className={`mb-2 text-sm ${capPreview.status === 'BLOCKED' ? 'text-red-700' : 'text-slate-600'}`}
+              className={`mb-2 text-sm ${capPreview.status === 'BLOCKED' ? 'text-red-700 dark:text-red-400' : 'text-slate-600 dark:text-slate-300'}`}
             >
               {capPreview.status === 'BLOCKED'
                 ? capPreview.reason

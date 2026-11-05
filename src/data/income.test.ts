@@ -5,12 +5,15 @@ import { runMigrations } from './db';
 import {
   addIncomeStream,
   confirmRecurringIncome,
+  deleteIncomeStream,
+  removeRecurringIncomePlan,
+  updateIncomeStream,
   getIncomeMonth,
   listIncomeStreams,
   updateRecurringIncomePlan,
 } from './income';
-import { updateTransaction } from './activity';
-import { setAllocation, copyForward, getMonthPlan } from './plan';
+import { deleteTransaction, updateTransaction } from './activity';
+import { addBudgetLine, setAllocation, copyForward, getMonthPlan } from './plan';
 import { transactions } from './repos';
 
 describe('income streams', () => {
@@ -79,6 +82,28 @@ describe('income streams', () => {
     expect(() => setAllocation(db as never, 'h1', 'line-1', '2026-11', 100, 'foreign')).toThrow(
       'Income source was not found.',
     );
+  });
+
+  it('creates a budget line with its planned amount and income source in one step', () => {
+    db = new Database(':memory:');
+    runMigrations(db as never);
+    db.prepare(
+      `INSERT INTO households (id, household_id, name) VALUES ('h1', 'h1', 'Personal');`,
+    ).run();
+    const stream = addIncomeStream(db as never, 'h1', { kind: 'salary' });
+    const id = addBudgetLine(db as never, 'h1', {
+      name: 'Groceries',
+      kind: 'running',
+      month: '2026-11',
+      amount: 40000,
+      incomeStreamId: stream.id,
+    });
+    expect(
+      getMonthPlan(db as never, 'h1', '2026-11').lines.find((line) => line.id === id),
+    ).toMatchObject({ planned: 40000, incomeStreamId: stream.id });
+    expect(() =>
+      addBudgetLine(db as never, 'h1', { name: 'Gym', kind: 'running', amount: 5 }),
+    ).toThrow('Choose a month');
   });
 
   it('shows fixed income as planned each month and confirms it only once when received', () => {
@@ -195,5 +220,35 @@ describe('income streams', () => {
     expect(
       db.prepare('SELECT recurring_income_month FROM transactions WHERE id = ?;').get(received.id),
     ).toEqual({ recurring_income_month: '2026-12' });
+  });
+
+  it('renames, stops the fixed plan of, and deletes an income source', () => {
+    db = new Database(':memory:');
+    runMigrations(db as never);
+    db.prepare(
+      `INSERT INTO households (id, household_id, name) VALUES ('h1', 'h1', 'Personal');`,
+    ).run();
+    const stream = addIncomeStream(db as never, 'h1', {
+      kind: 'salary',
+      recurring: { amount: 1000, day: 1, startMonth: '2026-11' },
+    });
+    addIncomeStream(db as never, 'h1', { kind: 'other', name: 'Gifts' });
+
+    updateIncomeStream(db as never, 'h1', stream.id, { name: 'Main job', kind: 'business' });
+    expect(
+      listIncomeStreams(db as never, 'h1').find((item) => item.id === stream.id),
+    ).toMatchObject({ name: 'Main job', kind: 'business' });
+    expect(() =>
+      updateIncomeStream(db as never, 'h1', stream.id, { name: 'gifts', kind: 'other' }),
+    ).toThrow('An income source with this name already exists.');
+
+    const received = confirmRecurringIncome(db as never, 'h1', stream.id, '2026-11');
+    expect(() => deleteIncomeStream(db as never, 'h1', stream.id)).toThrow('linked to it');
+    removeRecurringIncomePlan(db as never, 'h1', stream.id);
+    expect(getIncomeMonth(db as never, 'h1', '2026-11').plannedIncome).toHaveLength(0);
+
+    deleteTransaction(db as never, 'h1', received.id);
+    deleteIncomeStream(db as never, 'h1', stream.id);
+    expect(listIncomeStreams(db as never, 'h1').map((item) => item.name)).toEqual(['Gifts']);
   });
 });

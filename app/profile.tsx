@@ -27,7 +27,7 @@ import { DatePickerField } from '@/src/ui/DatePickerField';
 import { PageLayout } from '@/src/ui/PageLayout';
 
 const inputClass =
-  'mt-3 min-h-12 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900';
+  'mt-3 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-base text-slate-900 dark:text-slate-100';
 
 type Notice = { tone: 'success' | 'error'; text: string } | null;
 
@@ -193,7 +193,7 @@ export default function ProfileScreen() {
 
   return (
     <PageLayout title="Profile" subtitle="Your account on Pocket Guard">
-      <View className="mb-5 items-center rounded-2xl border border-slate-200 bg-white p-6">
+      <View className="mb-5 items-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Change profile picture"
@@ -209,20 +209,24 @@ export default function ProfileScreen() {
               <Text className="text-4xl font-bold text-white">{getInitials(label)}</Text>
             </View>
           )}
-          <View className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-900">
+          <View className="absolute bottom-0 right-0 h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-slate-900 dark:bg-slate-800">
             <Ionicons name="camera" size={15} color="#ffffff" />
           </View>
         </Pressable>
-        <Text className="mt-3 text-xl font-bold text-slate-900">{label}</Text>
-        {user?.email ? <Text className="mt-1 text-sm text-slate-600">{user.email}</Text> : null}
+        <Text className="mt-3 text-xl font-bold text-slate-900 dark:text-slate-100">{label}</Text>
+        {user?.email ? (
+          <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">{user.email}</Text>
+        ) : null}
         {savedInfo.profession ? (
-          <Text className="mt-1 text-sm text-slate-500">{savedInfo.profession}</Text>
+          <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            {savedInfo.profession}
+          </Text>
         ) : null}
         <View className="mt-4 flex-row gap-3">
           <Pressable
             accessibilityRole="button"
             onPress={() => void choosePhoto()}
-            className="min-h-11 flex-row items-center rounded-full bg-slate-900 px-4"
+            className="min-h-11 flex-row items-center rounded-full bg-slate-900 dark:bg-slate-800 px-4"
           >
             <Ionicons name="image" size={16} color="#ffffff" />
             <Text className="ml-2 text-sm font-bold text-white">
@@ -233,10 +237,10 @@ export default function ProfileScreen() {
             <Pressable
               accessibilityRole="button"
               onPress={deletePhoto}
-              className="min-h-11 flex-row items-center rounded-full border border-red-200 bg-red-50 px-4"
+              className="min-h-11 flex-row items-center rounded-full border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/30 px-4"
             >
               <Ionicons name="trash" size={16} color="#b91c1c" />
-              <Text className="ml-2 text-sm font-bold text-red-700">Remove</Text>
+              <Text className="ml-2 text-sm font-bold text-red-700 dark:text-red-400">Remove</Text>
             </Pressable>
           ) : null}
         </View>
@@ -250,8 +254,10 @@ export default function ProfileScreen() {
         </Text>
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-lg font-bold text-slate-900">Personal details</Text>
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          Personal details
+        </Text>
         <TextInput
           accessibilityLabel="Display name"
           autoCapitalize="words"
@@ -262,7 +268,7 @@ export default function ProfileScreen() {
           value={info.name}
         />
         {infoErrors.name && info.name !== savedInfo.name ? (
-          <Text className="mt-1 text-sm text-red-700">{infoErrors.name}</Text>
+          <Text className="mt-1 text-sm text-red-700 dark:text-red-400">{infoErrors.name}</Text>
         ) : null}
         <TextInput
           accessibilityLabel="Phone number"
@@ -273,7 +279,7 @@ export default function ProfileScreen() {
           value={info.phone}
         />
         {infoErrors.phone && info.phone !== savedInfo.phone ? (
-          <Text className="mt-1 text-sm text-red-700">{infoErrors.phone}</Text>
+          <Text className="mt-1 text-sm text-red-700 dark:text-red-400">{infoErrors.phone}</Text>
         ) : null}
         <View className="mt-3">
           <DatePickerField
@@ -299,9 +305,11 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-lg font-bold text-slate-900">Email</Text>
-        <Text className="mt-1 text-sm text-slate-600">Signed in as {user?.email ?? '—'}</Text>
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">Email</Text>
+        <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+          Signed in as {user?.email ?? '—'}
+        </Text>
         {pendingEmail ? (
           <View className="mt-3">
             <Banner tone="info">
@@ -338,8 +346,10 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-lg font-bold text-slate-900">Change password</Text>
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          Change password
+        </Text>
         <TextInput
           accessibilityLabel="New password"
           autoCapitalize="none"
@@ -378,29 +388,31 @@ export default function ProfileScreen() {
         />
       </View>
 
-      <View className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-5">
+      <View className="mb-5 rounded-2xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30 p-5">
         <View className="flex-row items-center">
           <Ionicons name="people" size={22} color="#047857" />
-          <Text className="ml-2 text-lg font-bold text-slate-900">Invite friends & family</Text>
+          <Text className="ml-2 text-lg font-bold text-slate-900 dark:text-slate-100">
+            Invite friends & family
+          </Text>
         </View>
-        <Text className="mb-4 mt-1 text-sm text-slate-600">
+        <Text className="mb-4 mt-1 text-sm text-slate-600 dark:text-slate-300">
           Share {appName} by message, WhatsApp, email or any app. Everyone gets their own private
           account.
         </Text>
         <Button label="Share invitation" onPress={() => void invite()} />
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-lg font-bold text-slate-900">Account</Text>
-        <Text className="mt-1 text-sm text-slate-600">
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">Account</Text>
+        <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           Member since{' '}
           {user?.created_at ? new Date(user.created_at).toLocaleDateString('en-GB') : '—'}
         </Text>
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-lg font-bold text-slate-900">Sign out</Text>
-        <Text className="mb-4 mt-1 text-sm text-slate-600">
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">Sign out</Text>
+        <Text className="mb-4 mt-1 text-sm text-slate-600 dark:text-slate-300">
           You’ll need to sign in again to open Pocket Guard. Your budget stays safely on this
           device.
         </Text>

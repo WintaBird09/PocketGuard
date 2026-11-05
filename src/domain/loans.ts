@@ -1,5 +1,7 @@
 // Pure loan rules (PRD §7.8b). Dates are `YYYY-MM-DD` strings; amounts are integer XAF.
 
+import { getCurrencyCode } from './currency';
+
 export type LoanPlan = 'single' | 'installments' | 'flexible';
 export type LoanStatus = 'PENDING' | 'PARTIAL' | 'COMPLETE' | 'OVERDUE' | 'WRITTEN_OFF';
 
@@ -43,7 +45,8 @@ export function generateInstallments(input: {
   if (!Number.isInteger(amount) || amount <= 0)
     throw new Error('Amount must be a positive whole number.');
   if (!Number.isInteger(count) || count < 1) throw new Error('Choose at least one installment.');
-  if (count > amount) throw new Error('There cannot be more installments than XAF to repay.');
+  if (count > amount)
+    throw new Error(`There cannot be more installments than ${getCurrencyCode()} to repay.`);
   parseDate(firstDueOn);
 
   const base = Math.floor(amount / count);
@@ -68,7 +71,7 @@ export function assertRepayable(amount: number, repayment: number, balance: numb
     throw new Error('Repayment must be a positive whole number.');
   }
   if (repayment > balance) {
-    throw new Error(`Repayment exceeds the remaining balance of ${balance} XAF.`);
+    throw new Error(`Repayment exceeds the remaining balance of ${balance} ${getCurrencyCode()}.`);
   }
   if (amount <= 0) throw new Error('Loan amount is invalid.');
 }

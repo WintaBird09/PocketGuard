@@ -1,4 +1,5 @@
 import type { DatabaseLike } from './db';
+import { getCurrencyCode } from '../domain/currency';
 
 export function requirePrepared(db: DatabaseLike): NonNullable<DatabaseLike['prepare']> {
   const prepare = db.prepare?.bind(db);
@@ -35,8 +36,8 @@ export function assertWholeAmount(amount: number, allowZero = false): void {
   if (!valid) {
     throw new Error(
       allowZero
-        ? 'Enter a whole amount in XAF (0 or more).'
-        : 'Enter a positive whole amount in XAF.',
+        ? `Enter a whole amount in ${getCurrencyCode()} (0 or more).`
+        : `Enter a positive whole amount in ${getCurrencyCode()}.`,
     );
   }
 }

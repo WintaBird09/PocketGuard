@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import Database from 'better-sqlite3';
 
 import { runMigrations } from './db';
+import { addIncomeStream } from './income';
+import { getMonthPlan } from './plan';
 import {
   addSavingsGoal,
   confirmSavingsCommitment,
@@ -127,5 +129,25 @@ describe('persisted savings commitments', () => {
 
     deleteSavingsGoal(db as never, 'h1', goalId);
     expect(getSavingsPlanner(db as never, 'h1', 2026, '2026-10').goals).toHaveLength(0);
+  });
+
+  it('links only the first month of a goal to the chosen income source', () => {
+    db = new Database(':memory:');
+    runMigrations(db as never);
+    db.prepare(
+      `INSERT INTO households (id, household_id, name) VALUES ('h1', 'h1', 'Personal');`,
+    ).run();
+    const stream = addIncomeStream(db as never, 'h1', { kind: 'salary' });
+    addSavingsGoal(
+      db as never,
+      'h1',
+      { name: 'Trip', target: 200000, monthlyAmount: 100000, dueDate: '2026-11-30' },
+      '2026-10',
+      stream.id,
+    );
+    const first = getMonthPlan(db as never, 'h1', '2026-10').lines[0];
+    const second = getMonthPlan(db as never, 'h1', '2026-11').lines[0];
+    expect(first).toMatchObject({ planned: 100000, incomeStreamId: stream.id });
+    expect(second).toMatchObject({ planned: 100000, incomeStreamId: null });
   });
 });

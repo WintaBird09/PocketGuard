@@ -1,3 +1,4 @@
+import { getCurrencyCode } from './currency';
 export type InsightLine = {
   id: string;
   name: string;
@@ -49,7 +50,7 @@ export function topSpending(
     });
 }
 
-const fmt = (value: number) => `${Math.round(value).toLocaleString('en-US')} XAF`;
+const fmt = (value: number) => `${Math.round(value).toLocaleString('en-US')} ${getCurrencyCode()}`;
 const pct = (ratio: number) => `${Math.round(ratio * 100)}%`;
 
 // Plain-language pointers on where to focus, most urgent first.

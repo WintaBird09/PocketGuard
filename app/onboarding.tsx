@@ -29,9 +29,10 @@ import { DatePickerField } from '@/src/ui/DatePickerField';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 const inputClass =
-  'min-h-12 rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900';
+  'min-h-12 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-base text-slate-900 dark:text-slate-100';
 
 const suggestions: { name: string; kind: LineKind }[] = [
   { name: 'Food', kind: 'running' },
@@ -58,9 +59,9 @@ function Field({
 }) {
   return (
     <View className="mb-4">
-      <Text className="mb-1 text-sm font-semibold text-slate-700">{label}</Text>
+      <Text className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</Text>
       {children}
-      {error ? <Text className="mt-1 text-sm text-red-700">{error}</Text> : null}
+      {error ? <Text className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</Text> : null}
     </View>
   );
 }
@@ -71,10 +72,10 @@ function StepHeader({ step }: { step: 1 | 2 }) {
       {[1, 2].map((item) => (
         <View key={item} className="mr-2 flex-1">
           <View
-            className={`h-1.5 rounded-full ${item <= step ? 'bg-emerald-600' : 'bg-slate-200'}`}
+            className={`h-1.5 rounded-full ${item <= step ? 'bg-emerald-600' : 'bg-slate-200 dark:bg-slate-700'}`}
           />
           <Text
-            className={`mt-1 text-xs font-semibold ${item <= step ? 'text-emerald-700' : 'text-slate-400'}`}
+            className={`mt-1 text-xs font-semibold ${item <= step ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-400'}`}
           >
             {item === 1 ? 'About you' : 'Your budget'}
           </Text>
@@ -205,7 +206,7 @@ export default function OnboardingScreen() {
       <PageLayout title="Welcome" subtitle="Tell us a little about yourself" loading={loading}>
         <StepHeader step={1} />
         {(error ?? dbError) ? <Banner tone="error">{error ?? dbError ?? ''}</Banner> : null}
-        <View className="rounded-2xl border border-slate-200 bg-white p-5">
+        <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
           <Field label="Full name" error={shown('name')}>
             <TextInput
               accessibilityLabel="Full name"
@@ -250,7 +251,7 @@ export default function OnboardingScreen() {
             onPress={() => void saveProfile()}
           />
         </View>
-        <Text className="mt-4 text-center text-sm text-slate-500">
+        <Text className="mt-4 text-center text-sm text-slate-500 dark:text-slate-400">
           Your details are saved to your account only.
         </Text>
       </PageLayout>
@@ -266,9 +267,13 @@ export default function OnboardingScreen() {
       <StepHeader step={2} />
       {(error ?? dbError) ? <Banner tone="error">{error ?? dbError ?? ''}</Banner> : null}
 
-      <View className="mb-4 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-base font-bold text-slate-900">Expected income (XAF)</Text>
-        <Text className="mb-2 mt-1 text-sm text-slate-500">Optional. What you expect to earn.</Text>
+      <View className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+          Expected income ({getCurrencyCode()})
+        </Text>
+        <Text className="mb-2 mt-1 text-sm text-slate-500 dark:text-slate-400">
+          Optional. What you expect to earn.
+        </Text>
         <TextInput
           accessibilityLabel="Expected income"
           className={inputClass}
@@ -279,14 +284,16 @@ export default function OnboardingScreen() {
         />
       </View>
 
-      <View className="mb-4 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-base font-bold text-slate-900">Budget lines</Text>
-        <Text className="mb-3 mt-1 text-sm text-slate-500">
+      <View className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-base font-bold text-slate-900 dark:text-slate-100">Budget lines</Text>
+        <Text className="mb-3 mt-1 text-sm text-slate-500 dark:text-slate-400">
           Enter the amount you plan to spend this month on each line.
         </Text>
         {lines.map((line) => (
           <View key={line.id} className="mb-3">
-            <Text className="mb-1 text-sm font-semibold text-slate-700">{line.name}</Text>
+            <Text className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+              {line.name}
+            </Text>
             <TextInput
               accessibilityLabel={`${line.name} budget`}
               className={inputClass}
@@ -299,14 +306,20 @@ export default function OnboardingScreen() {
             />
           </View>
         ))}
-        <View className="mt-1 flex-row items-center justify-between rounded-xl bg-slate-100 px-4 py-3">
-          <Text className="text-sm font-semibold text-slate-700">Total planned</Text>
-          <Text className="text-base font-bold text-slate-900">{formatXAF(total)}</Text>
+        <View className="mt-1 flex-row items-center justify-between rounded-xl bg-slate-100 dark:bg-slate-800 px-4 py-3">
+          <Text className="text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Total planned
+          </Text>
+          <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+            {formatXAF(total)}
+          </Text>
         </View>
       </View>
 
-      <View className="mb-4 rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className="text-base font-bold text-slate-900">Add a budget line</Text>
+      <View className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+          Add a budget line
+        </Text>
         <View className="my-3 flex-row flex-wrap gap-2">
           {suggestions
             .filter(

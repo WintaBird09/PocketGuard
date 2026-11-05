@@ -171,16 +171,16 @@ export default function VoiceScreen() {
         <Link
           href="/inbox"
           accessibilityLabel="Open voice draft inbox"
-          className="rounded-xl border border-slate-200 bg-white px-3 py-3"
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3"
         >
-          <Text className="font-semibold text-slate-800">Inbox</Text>
+          <Text className="font-semibold text-slate-800 dark:text-slate-200">Inbox</Text>
         </Link>
       }
     >
       {databaseError ? <Banner tone="error">{databaseError}</Banner> : null}
       {error || speech.error ? <Banner tone="error">{error ?? speech.error}</Banner> : null}
       {message ? <Banner tone="info">{message}</Banner> : null}
-      <View className="items-center rounded-3xl bg-slate-900 px-5 pb-6 pt-4">
+      <View className="items-center rounded-3xl bg-slate-900 dark:bg-slate-800 px-5 pb-6 pt-4">
         <Text className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-300">
           {listening ? 'Listening' : stopping ? 'Finishing' : parsing ? 'Understanding' : 'Ready'}
         </Text>
@@ -206,8 +206,8 @@ export default function VoiceScreen() {
         </View>
       </View>
 
-      <View className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-        <Text className="text-sm font-bold text-slate-900">Try saying</Text>
+      <View className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+        <Text className="text-sm font-bold text-slate-900 dark:text-slate-100">Try saying</Text>
         <View className="mt-2 flex-row flex-wrap gap-2">
           {[
             'Spent 20,000 on fuel',
@@ -218,21 +218,25 @@ export default function VoiceScreen() {
               key={example}
               accessibilityRole="button"
               onPress={() => setTranscript(example)}
-              className="rounded-full bg-slate-100 px-3 py-2"
+              className="rounded-full bg-slate-100 dark:bg-slate-800 px-3 py-2"
             >
-              <Text className="text-xs font-semibold text-slate-700">“{example}”</Text>
+              <Text className="text-xs font-semibold text-slate-700 dark:text-slate-200">
+                “{example}”
+              </Text>
             </Pressable>
           ))}
         </View>
 
-        <Text className="mb-1 mt-4 text-sm font-medium text-slate-700">Edit or type instead</Text>
+        <Text className="mb-1 mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+          Edit or type instead
+        </Text>
         <TextInput
           accessibilityLabel="Voice transcript"
           multiline
           value={transcript}
           onChangeText={setTranscript}
           placeholder="Type a phrase if you prefer"
-          className="min-h-20 rounded-xl border border-slate-200 px-3 py-3 text-base"
+          className="min-h-20 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
         />
         <View className="mt-3">
           <Button
@@ -243,7 +247,7 @@ export default function VoiceScreen() {
         </View>
         <View className="mt-3 flex-row items-start">
           <Ionicons name="information-circle" size={16} color="#94a3b8" />
-          <Text className="ml-1 flex-1 text-xs text-slate-500">
+          <Text className="ml-1 flex-1 text-xs text-slate-500 dark:text-slate-400">
             Speech may work offline if English is installed on your phone. Understanding it needs
             internet and sign-in. If that fails, your note is saved in Inbox.
           </Text>
@@ -252,7 +256,7 @@ export default function VoiceScreen() {
 
       {items.length ? (
         <View className="mt-5">
-          <Text className="mb-3 text-lg font-bold text-slate-900">
+          <Text className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">
             Review {items.length === 1 ? 'this result' : `all ${items.length} results`}
           </Text>
           {items.map((item, index) => (
@@ -273,8 +277,13 @@ export default function VoiceScreen() {
         </View>
       ) : null}
       <View className="mt-2">
-        <Link href="/add-transaction" className="rounded-xl border border-slate-200 bg-white p-3">
-          <Text className="text-center font-semibold text-slate-800">Add manually instead</Text>
+        <Link
+          href="/add-transaction"
+          className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
+        >
+          <Text className="text-center font-semibold text-slate-800 dark:text-slate-200">
+            Add manually instead
+          </Text>
         </Link>
       </View>
     </PageLayout>

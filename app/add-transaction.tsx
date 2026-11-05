@@ -29,6 +29,7 @@ import {
   type SpeechRecognitionSnapshot,
 } from '@/src/voice/stt';
 import { formatXAF } from '@/src/ui/theme';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 export default function AddTransactionScreen() {
   const dateRevision = useDateOverrideRevision();
@@ -229,10 +230,10 @@ export default function AddTransactionScreen() {
   const selectedLine = lines.find((line) => line.id === selectedLineId);
   const statusColor =
     review?.result.status === 'BLOCKED'
-      ? 'text-red-700'
+      ? 'text-red-700 dark:text-red-400'
       : review?.result.status === 'WARN'
-        ? 'text-amber-700'
-        : 'text-emerald-700';
+        ? 'text-amber-700 dark:text-amber-400'
+        : 'text-emerald-700 dark:text-emerald-400';
 
   const save = async () => {
     if (!database || !householdId) {
@@ -332,11 +333,11 @@ export default function AddTransactionScreen() {
   return (
     <PageLayout title="Add transaction" subtitle="Fast capture before paying" loading={loading}>
       {error && !saving ? (
-        <Text accessibilityRole="alert" className="mb-3 text-sm text-red-700">
+        <Text accessibilityRole="alert" className="mb-3 text-sm text-red-700 dark:text-red-400">
           {error}
         </Text>
       ) : null}
-      <View className="mb-5 flex-row items-center gap-4 rounded-2xl bg-slate-900 p-4">
+      <View className="mb-5 flex-row items-center gap-4 rounded-2xl bg-slate-900 dark:bg-slate-800 p-4">
         <MicButton
           active={speech.status === 'listening'}
           busy={parsing || speech.status === 'stopping'}
@@ -360,12 +361,12 @@ export default function AddTransactionScreen() {
         </View>
       </View>
 
-      <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          Amount (XAF)
+      <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
+          Amount ({getCurrencyCode()})
         </Text>
         <TextInput
-          accessibilityLabel="Amount in XAF"
+          accessibilityLabel={`Amount in ${getCurrencyCode()}`}
           value={amountInput}
           onChangeText={(value) => {
             setAmountInput(value);
@@ -375,10 +376,12 @@ export default function AddTransactionScreen() {
           }}
           keyboardType="number-pad"
           placeholder="Enter a whole amount"
-          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-2xl font-bold text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-2xl font-bold text-slate-900 dark:text-slate-100"
         />
 
-        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Budget line</Text>
+        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+          Budget line
+        </Text>
         <BudgetLinePicker
           lines={lines}
           selectedId={selectedLineId}
@@ -391,11 +394,13 @@ export default function AddTransactionScreen() {
           }}
           onCreate={createLine}
         />
-        <Text className="mt-2 text-xs text-slate-500">
+        <Text className="mt-2 text-xs text-slate-500 dark:text-slate-400">
           {selectedLine?.hardCap ? 'Hard cap line' : 'Flexible line'}
         </Text>
 
-        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Income source</Text>
+        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+          Income source
+        </Text>
         {incomeStreams.length > 0 ? (
           <View className="flex-row flex-wrap gap-2">
             <Pressable
@@ -403,12 +408,16 @@ export default function AddTransactionScreen() {
               accessibilityState={{ selected: !selectedIncomeStreamId }}
               onPress={() => setSelectedIncomeStreamId('')}
               className={`min-h-11 justify-center rounded-full px-4 py-2 ${
-                selectedIncomeStreamId ? 'bg-slate-100' : 'bg-emerald-100'
+                selectedIncomeStreamId
+                  ? 'bg-slate-100 dark:bg-slate-800'
+                  : 'bg-emerald-100 dark:bg-emerald-900/40'
               }`}
             >
               <Text
                 className={`text-sm font-semibold ${
-                  selectedIncomeStreamId ? 'text-slate-700' : 'text-emerald-800'
+                  selectedIncomeStreamId
+                    ? 'text-slate-700 dark:text-slate-200'
+                    : 'text-emerald-800 dark:text-emerald-300'
                 }`}
               >
                 Unassigned
@@ -424,12 +433,16 @@ export default function AddTransactionScreen() {
                   accessibilityState={{ selected: active }}
                   onPress={() => setSelectedIncomeStreamId(stream.id)}
                   className={`min-h-11 justify-center rounded-full px-4 py-2 ${
-                    active ? 'bg-emerald-100' : 'bg-slate-100'
+                    active
+                      ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                      : 'bg-slate-100 dark:bg-slate-800'
                   }`}
                 >
                   <Text
                     className={`text-sm font-semibold ${
-                      active ? 'text-emerald-800' : 'text-slate-700'
+                      active
+                        ? 'text-emerald-800 dark:text-emerald-300'
+                        : 'text-slate-700 dark:text-slate-200'
                     }`}
                   >
                     {stream.name}
@@ -439,12 +452,14 @@ export default function AddTransactionScreen() {
             })}
           </View>
         ) : (
-          <Text className="text-xs text-slate-500">
+          <Text className="text-xs text-slate-500 dark:text-slate-400">
             Add an income source from More → Income to trace this expense to its funding source.
           </Text>
         )}
 
-        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Date</Text>
+        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+          Date
+        </Text>
         <TextInput
           accessibilityLabel="Transaction date"
           value={occurredOn}
@@ -455,21 +470,23 @@ export default function AddTransactionScreen() {
             setMessage(null);
           }}
           placeholder="YYYY-MM-DD"
-          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-base text-slate-900 dark:text-slate-100"
         />
 
-        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">Note</Text>
+        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+          Note
+        </Text>
         <TextInput
           accessibilityLabel="Transaction note"
           value={note}
           onChangeText={setNote}
           placeholder="Optional details"
-          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-base text-slate-900 dark:text-slate-100"
         />
       </View>
 
-      <View className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <View className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
           Spend check
         </Text>
         {review ? (
@@ -477,48 +494,58 @@ export default function AddTransactionScreen() {
             <Text className={`text-lg font-semibold ${statusColor}`}>
               {review.result.status}: {review.result.reason}
             </Text>
-            <Text className="mt-1 text-sm text-slate-600">
+            <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               {formatXAF(review.spent)} spent of {formatXAF(review.planned)} planned.
             </Text>
-            <Text className="mt-1 text-sm text-slate-600">
+            <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               Remaining after this entry: {formatXAF(review.result.remainingAfter)}
             </Text>
           </>
         ) : reviewState.error ? (
-          <Text accessibilityRole="alert" className="text-sm text-red-700">
+          <Text accessibilityRole="alert" className="text-sm text-red-700 dark:text-red-400">
             {reviewState.error}
           </Text>
         ) : (
-          <Text className="text-sm text-slate-500">
+          <Text className="text-sm text-slate-500 dark:text-slate-400">
             Enter a positive amount and valid date to review.
           </Text>
         )}
       </View>
 
       {overrideOpen && review?.result.status === 'BLOCKED' ? (
-        <View className="mt-5 rounded-2xl border border-red-300 bg-red-50 p-5">
-          <Text className="mb-2 text-sm font-bold text-red-800">Override this hard cap</Text>
+        <View className="mt-5 rounded-2xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-900/30 p-5">
+          <Text className="mb-2 text-sm font-bold text-red-800 dark:text-red-300">
+            Override this hard cap
+          </Text>
           <TextInput
             accessibilityLabel="Override reason"
             value={overrideReason}
             onChangeText={setOverrideReason}
             placeholder="Why is this needed?"
-            className="min-h-12 rounded-xl border border-red-200 bg-white px-4 py-3 text-base text-slate-900"
+            className="min-h-12 rounded-xl border border-red-200 dark:border-red-900 bg-white dark:bg-slate-900 px-4 py-3 text-base text-slate-900 dark:text-slate-100"
           />
-          <Text className="mt-2 text-xs text-red-700">
+          <Text className="mt-2 text-xs text-red-700 dark:text-red-400">
             Overrides are recorded with your reason and shown in the Overrides report.
           </Text>
         </View>
       ) : null}
-      {error ? <Text className="mt-4 text-sm font-medium text-red-700">{error}</Text> : null}
-      {message ? <Text className="mt-4 text-sm font-medium text-slate-700">{message}</Text> : null}
+      {error ? (
+        <Text className="mt-4 text-sm font-medium text-red-700 dark:text-red-400">{error}</Text>
+      ) : null}
+      {message ? (
+        <Text className="mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
+          {message}
+        </Text>
+      ) : null}
 
       <View className="mt-5 flex-row gap-3">
         <Link
           href="/can-i-spend"
-          className="min-h-12 flex-1 rounded-2xl border border-slate-200 bg-white px-4 py-3"
+          className="min-h-12 flex-1 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
         >
-          <Text className="text-center text-base font-bold text-slate-900">Can I spend?</Text>
+          <Text className="text-center text-base font-bold text-slate-900 dark:text-slate-100">
+            Can I spend?
+          </Text>
         </Link>
         <Pressable
           accessibilityRole="button"

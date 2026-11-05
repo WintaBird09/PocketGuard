@@ -24,8 +24,9 @@ Open **More → Income** to add named Salary, Business, Rental, or Other income 
 income against them. In **Budget**, assign each monthly budget allocation to a source. New expenses
 inherit the budget line's source by default, and **Add transaction** lets you choose a different
 source or leave it unassigned. The Transactions screen and CSV exports show the source when one is
-linked. Swipe left/right on the monthly summary (or use its arrows) to browse month-specific totals
-and income sources. Fixed monthly income can be added as a plan with an expected payday; it appears
+linked. Swipe left/right anywhere on the Income screen, or tap a month in the scrollable month strip, to
+browse month-specific totals and income sources. **Add income** records income and can create a new
+source in the same form. Fixed monthly income can be added as a plan with an expected payday; it appears
 in each month from its start month and stays planned until you confirm it was received. Confirmation
 adds one income transaction for that month. Use **Edit plan** to correct the scheduled amount or
 payday; edit a received income entry to correct its amount, date, or note.
@@ -33,6 +34,22 @@ payday; edit a received income entry to correct its amount, date, or note.
 Source records, allocations, transactions, and recurring plans sync through Supabase after applying
 the `supabase/migrations/20261104010000_income_streams.sql` and
 `supabase/migrations/20261104020000_recurring_income.sql` migrations to the linked project.
+
+## Currency
+
+Settings → Currency lets you pick from about 95 world currencies. The first launch detects it from the phone's region (XAF if unknown); your choice is stored on the device. Only the label changes: existing amounts are **not converted**.
+
+## Home dashboard
+
+- The header has a mic (tap to start voice entry) next to **+**.
+- Swipe the top card: Spending, Savings & goals (Week / Month / Year, default Month), Income vs spending, Net worth.
+- **Where to focus** shows compact insight cards (forecast, funding gaps, safe daily spend, unusual entries, goals, debt, emergency runway, savings rate with 50/30/20, top categories). Tap one to see the working. Debt interest cost is not computed because no interest rate is stored.
+
+## Appearance
+
+More → Settings → Appearance lets you pick **Device** (follow the phone), **Bright**, **Dark**, or **Day & night**, which switches to dark at a configurable night start time (default 19:00) and back to bright at the day start (default 06:00). The choice is stored on the device only.
+
+On the Budget plan screen, **Funded by income** shows, for each income source, the money available this month (received plus fixed income not yet confirmed), what the linked budget lines deduct from it, what has been spent, and what is left, turning red when a source is over-allocated. Lines with no source fall under *Unassigned*.
 
 ## Android personal release
 

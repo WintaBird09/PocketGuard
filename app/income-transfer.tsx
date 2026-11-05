@@ -11,6 +11,7 @@ import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 type RecordedEntry = {
   id: string;
@@ -94,7 +95,7 @@ export default function IncomeTransferScreen() {
   const saveEntry = () => {
     const parsedAmount = Number(amount);
     if (!Number.isSafeInteger(parsedAmount) || parsedAmount <= 0) {
-      setError('Enter a positive whole amount in XAF.');
+      setError(`Enter a positive whole amount in ${getCurrencyCode()}.`);
       return;
     }
     if (!database) {
@@ -139,17 +140,17 @@ export default function IncomeTransferScreen() {
       loading={loading}
     >
       {error ? (
-        <Text accessibilityRole="alert" className="mb-3 text-sm text-red-700">
+        <Text accessibilityRole="alert" className="mb-3 text-sm text-red-700 dark:text-red-400">
           {error}
         </Text>
       ) : null}
       {!loading && !error && entries.length === 0 ? (
-        <Text className="mb-3 text-sm text-slate-600">
+        <Text className="mb-3 text-sm text-slate-600 dark:text-slate-300">
           No income or transfers have been recorded for this month.
         </Text>
       ) : null}
-      <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
           Entry type
         </Text>
         <View className="flex-row gap-2">
@@ -159,10 +160,10 @@ export default function IncomeTransferScreen() {
               <Pressable
                 key={item.direction}
                 onPress={() => setDirection(item.direction)}
-                className={`min-h-12 justify-center rounded-full px-4 py-3 ${isActive ? 'bg-emerald-100' : 'bg-slate-100'}`}
+                className={`min-h-12 justify-center rounded-full px-4 py-3 ${isActive ? 'bg-emerald-100 dark:bg-emerald-900/40' : 'bg-slate-100 dark:bg-slate-800'}`}
               >
                 <Text
-                  className={`font-semibold ${isActive ? 'text-emerald-700' : 'text-slate-700'}`}
+                  className={`font-semibold ${isActive ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}
                 >
                   {item.label}
                 </Text>
@@ -172,7 +173,9 @@ export default function IncomeTransferScreen() {
         </View>
         {direction === 'income' ? (
           <View className="mt-4">
-            <Text className="mb-2 text-sm font-medium text-slate-700">Income source</Text>
+            <Text className="mb-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+              Income source
+            </Text>
             {incomeStreams.length > 0 ? (
               <View className="flex-row flex-wrap gap-2">
                 {incomeStreams.map((stream) => {
@@ -184,12 +187,16 @@ export default function IncomeTransferScreen() {
                       accessibilityState={{ selected: active }}
                       onPress={() => setSelectedIncomeStreamId(stream.id)}
                       className={`min-h-11 justify-center rounded-full px-4 py-2 ${
-                        active ? 'bg-emerald-100' : 'bg-slate-100'
+                        active
+                          ? 'bg-emerald-100 dark:bg-emerald-900/40'
+                          : 'bg-slate-100 dark:bg-slate-800'
                       }`}
                     >
                       <Text
                         className={`font-semibold ${
-                          active ? 'text-emerald-800' : 'text-slate-700'
+                          active
+                            ? 'text-emerald-800 dark:text-emerald-300'
+                            : 'text-slate-700 dark:text-slate-200'
                         }`}
                       >
                         {stream.name}
@@ -200,23 +207,27 @@ export default function IncomeTransferScreen() {
               </View>
             ) : (
               <Link href="/income" className="min-h-11 justify-center">
-                <Text className="font-semibold text-emerald-700">Add a source in Income</Text>
+                <Text className="font-semibold text-emerald-700 dark:text-emerald-400">
+                  Add a source in Income
+                </Text>
               </Link>
             )}
           </View>
         ) : null}
 
-        <Text className="mb-2 mt-5 text-sm font-medium text-slate-700">Amount (XAF)</Text>
+        <Text className="mb-2 mt-5 text-sm font-medium text-slate-700 dark:text-slate-200">
+          Amount ({getCurrencyCode()})
+        </Text>
         <TextInput
-          accessibilityLabel="Amount in XAF"
+          accessibilityLabel={`Amount in ${getCurrencyCode()}`}
           value={amount}
           onChangeText={setAmount}
           keyboardType="number-pad"
           placeholder="Enter a whole amount"
-          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-lg text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-lg text-slate-900 dark:text-slate-100"
         />
 
-        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700">
+        <Text className="mb-2 mt-4 text-sm font-medium text-slate-700 dark:text-slate-200">
           {selectedEntryType?.noteLabel}
         </Text>
         <TextInput
@@ -224,15 +235,19 @@ export default function IncomeTransferScreen() {
           value={note}
           onChangeText={setNote}
           placeholder="Optional"
-          className="min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base text-slate-900"
+          className="min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-base text-slate-900 dark:text-slate-100"
         />
 
-        <Text className="mt-3 text-xs text-slate-500">
+        <Text className="mt-3 text-xs text-slate-500 dark:text-slate-400">
           Transfers are recorded separately and do not add to a budget line&apos;s spending.
         </Text>
-        {error ? <Text className="mt-3 text-sm font-medium text-red-700">{error}</Text> : null}
+        {error ? (
+          <Text className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">{error}</Text>
+        ) : null}
         {message ? (
-          <Text className="mt-3 text-sm font-medium text-emerald-700">{message}</Text>
+          <Text className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            {message}
+          </Text>
         ) : null}
 
         <Pressable
@@ -247,25 +262,31 @@ export default function IncomeTransferScreen() {
         </Pressable>
       </View>
 
-      <View className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="mb-3 text-lg font-bold text-slate-900">This month</Text>
+      <View className="mt-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">
+          This month
+        </Text>
         {entries.length > 0 ? (
           entries.map((entry) => (
             <View
               key={entry.id}
-              className="flex-row items-center justify-between border-b border-slate-100 py-3"
+              className="flex-row items-center justify-between border-b border-slate-100 dark:border-slate-800 py-3"
             >
               <View className="mr-3 flex-1">
-                <Text className="font-semibold capitalize text-slate-900">{entry.direction}</Text>
-                <Text className="mt-1 text-xs text-slate-500">
+                <Text className="font-semibold capitalize text-slate-900 dark:text-slate-100">
+                  {entry.direction}
+                </Text>
+                <Text className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                   {entry.note || new Date(entry.occurredAt).toLocaleDateString()}
                 </Text>
               </View>
-              <Text className="font-bold text-slate-900">{formatXAF(entry.amount)}</Text>
+              <Text className="font-bold text-slate-900 dark:text-slate-100">
+                {formatXAF(entry.amount)}
+              </Text>
             </View>
           ))
         ) : (
-          <Text className="text-sm text-slate-500">
+          <Text className="text-sm text-slate-500 dark:text-slate-400">
             No income or transfers recorded this month.
           </Text>
         )}

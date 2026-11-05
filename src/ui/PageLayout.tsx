@@ -1,3 +1,4 @@
+import { useCurrency } from './CurrencyProvider';
 import type { ReactNode } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { useSegments } from 'expo-router';
@@ -11,6 +12,7 @@ type PageLayoutProps = {
   children: ReactNode;
   action?: ReactNode;
   compact?: boolean;
+  smallTitle?: boolean;
   loading?: boolean;
 };
 
@@ -20,8 +22,10 @@ export function PageLayout({
   children,
   action,
   compact = false,
+  smallTitle = false,
   loading = false,
 }: PageLayoutProps) {
+  useCurrency(); // re-render when the currency label changes
   const insets = useSafeAreaInsets();
   const segments = useSegments();
   const padding = compact ? 16 : 20;
@@ -29,7 +33,7 @@ export function PageLayout({
   const underTabs = segments[0] === '(tabs)';
 
   return (
-    <View className="flex-1 bg-slate-50">
+    <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <ScrollView
         className="flex-1"
         keyboardShouldPersistTaps="handled"
@@ -41,8 +45,19 @@ export function PageLayout({
       >
         <View className="mb-6 flex-row items-start justify-between">
           <View className="flex-1">
-            <Text className="text-3xl font-bold text-slate-900">{title}</Text>
-            {subtitle ? <Text className="mt-1 text-base text-slate-600">{subtitle}</Text> : null}
+            <Text
+              numberOfLines={1}
+              className={`${smallTitle ? 'text-xl' : 'text-3xl'} font-bold text-slate-900 dark:text-slate-100`}
+            >
+              {title}
+            </Text>
+            {subtitle ? (
+              <Text
+                className={`mt-1 ${smallTitle ? 'text-sm' : 'text-base'} text-slate-600 dark:text-slate-300`}
+              >
+                {subtitle}
+              </Text>
+            ) : null}
           </View>
           {action ? <View className="ml-3">{action}</View> : null}
         </View>
@@ -50,7 +65,10 @@ export function PageLayout({
           <SyncIndicator />
         </View>
         {loading ? (
-          <Text accessibilityRole="progressbar" className="mb-3 text-sm text-slate-600">
+          <Text
+            accessibilityRole="progressbar"
+            className="mb-3 text-sm text-slate-600 dark:text-slate-300"
+          >
             Loading your data…
           </Text>
         ) : null}

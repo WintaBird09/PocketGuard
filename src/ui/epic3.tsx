@@ -12,27 +12,29 @@ type MetricCardProps = {
 
 export function MetricCard({ label, value, tone = 'default', helper }: MetricCardProps) {
   const toneMap = {
-    default: 'border-slate-200 bg-white',
-    success: 'border-emerald-200 bg-emerald-50',
-    warning: 'border-amber-200 bg-amber-50',
-    danger: 'border-red-200 bg-red-50',
+    default: 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900',
+    success: 'border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/30',
+    warning: 'border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30',
+    danger: 'border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-900/30',
   } as const;
 
   return (
     <View className={`flex-1 rounded-2xl border p-4 ${toneMap[tone]}`}>
-      <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+      <Text className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
         {label}
       </Text>
-      <Text className="mt-2 text-xl font-bold text-slate-900">{value}</Text>
-      {helper ? <Text className="mt-1 text-xs text-slate-600">{helper}</Text> : null}
+      <Text className="mt-2 text-xl font-bold text-slate-900 dark:text-slate-100">{value}</Text>
+      {helper ? (
+        <Text className="mt-1 text-xs text-slate-600 dark:text-slate-300">{helper}</Text>
+      ) : null}
     </View>
   );
 }
 
 export function SectionCard({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <Text className="mb-4 text-lg font-bold text-slate-900">{title}</Text>
+    <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+      <Text className="mb-4 text-lg font-bold text-slate-900 dark:text-slate-100">{title}</Text>
       {children}
     </View>
   );
@@ -59,20 +61,20 @@ export function BudgetRow({
 }) {
   const statusColor =
     status === 'blocked'
-      ? 'bg-red-100 text-red-700'
+      ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400'
       : status === 'warn'
-        ? 'bg-amber-100 text-amber-700'
-        : 'bg-emerald-100 text-emerald-700';
+        ? 'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
+        : 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400';
 
   return (
-    <View className="mb-4 rounded-2xl border border-slate-200 bg-slate-50 p-3">
+    <View className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-3">
       <View className="mb-2 flex-row items-center justify-between">
-        <Text className="text-base font-semibold text-slate-900">{name}</Text>
+        <Text className="text-base font-semibold text-slate-900 dark:text-slate-100">{name}</Text>
         <View className={`rounded-full px-2 py-1 ${statusColor}`}>
           <Text className="text-[10px] font-bold uppercase tracking-[0.14em]">{status}</Text>
         </View>
       </View>
-      <View className="mb-2 h-2 overflow-hidden rounded-full bg-slate-200">
+      <View className="mb-2 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
         <View
           className={`h-full rounded-full ${
             status === 'blocked'
@@ -85,18 +87,24 @@ export function BudgetRow({
         />
       </View>
       <View className="flex-row justify-between">
-        <Text className="text-xs text-slate-500">Planned {formatXAF(planned)}</Text>
-        <Text className="text-xs font-medium text-slate-700">Spent {formatXAF(spent)}</Text>
+        <Text className="text-xs text-slate-500 dark:text-slate-400">
+          Planned {formatXAF(planned)}
+        </Text>
+        <Text className="text-xs font-medium text-slate-700 dark:text-slate-200">
+          Spent {formatXAF(spent)}
+        </Text>
       </View>
       {remaining < 0 ? (
-        <Text className="mt-1 text-xs font-semibold text-red-700">
+        <Text className="mt-1 text-xs font-semibold text-red-700 dark:text-red-400">
           Over budget by {formatXAF(-remaining)}
         </Text>
       ) : (
-        <Text className="mt-1 text-xs text-slate-500">Remaining {formatXAF(remaining)}</Text>
+        <Text className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+          Remaining {formatXAF(remaining)}
+        </Text>
       )}
       {percentUsed !== undefined && daysLeft !== undefined ? (
-        <Text className="mt-1 text-xs text-slate-600">
+        <Text className="mt-1 text-xs text-slate-600 dark:text-slate-300">
           {percentUsed}% used, {daysLeft} days left
           {projected !== null && projected !== undefined
             ? `, at this pace you finish at ${formatXAF(projected)}`

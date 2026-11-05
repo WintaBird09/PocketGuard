@@ -3,6 +3,7 @@ import type { DatabaseLike } from '../data/db';
 import { dayOfMonth, daysInMonth, effectiveNow, monthKeyForDate } from '../domain/dates';
 import { buildAlerts, type Alert } from '../domain/alerts';
 import { settings } from '../data/repos';
+import { getCurrencyCode } from '../domain/currency';
 
 const thresholdStatePrefix = 'notifications.threshold-alerts.';
 export const defaultPaceAlertMargin = 20;
@@ -246,7 +247,7 @@ export function getPersistedSavingsAndDebtReminders(
         {
           id: `savings-overdue:${commitment.id}:${today}`,
           title: `${commitment.goal_name} savings commitment overdue`,
-          body: `The planned ${Number(commitment.planned_amount).toLocaleString('en-US')} XAF savings commitment is overdue. Confirm it when saved.`,
+          body: `The planned ${Number(commitment.planned_amount).toLocaleString('en-US')} ${getCurrencyCode()} savings commitment is overdue. Confirm it when saved.`,
           kind: 'savings_due' as const,
           scheduledAt: reminderTime,
         },
@@ -262,8 +263,8 @@ export function getPersistedSavingsAndDebtReminders(
         title: `${commitment.goal_name} savings commitment`,
         body:
           daysUntilDue < 0
-            ? `The planned ${Number(commitment.planned_amount).toLocaleString('en-US')} XAF savings commitment is overdue. Confirm it when saved.`
-            : `The planned ${Number(commitment.planned_amount).toLocaleString('en-US')} XAF savings commitment is due ${offset === 0 ? 'today' : `in ${offset} days`}.`,
+            ? `The planned ${Number(commitment.planned_amount).toLocaleString('en-US')} ${getCurrencyCode()} savings commitment is overdue. Confirm it when saved.`
+            : `The planned ${Number(commitment.planned_amount).toLocaleString('en-US')} ${getCurrencyCode()} savings commitment is due ${offset === 0 ? 'today' : `in ${offset} days`}.`,
         kind: 'savings_due' as const,
         scheduledAt: localReminderTime(reminderDay, now),
       };
@@ -281,7 +282,7 @@ export function getPersistedSavingsAndDebtReminders(
           body: `A remaining debt balance of ${Math.max(
             0,
             Number(debt.original_amount) - Number(debt.paid),
-          ).toLocaleString('en-US')} XAF is overdue.`,
+          ).toLocaleString('en-US')} ${getCurrencyCode()} is overdue.`,
           kind: 'debt_due' as const,
           scheduledAt: localReminderTime(today, now),
         },
@@ -295,7 +296,7 @@ export function getPersistedSavingsAndDebtReminders(
         body: `A remaining debt balance of ${Math.max(
           0,
           Number(debt.original_amount) - Number(debt.paid),
-        ).toLocaleString('en-US')} XAF is due in ${daysBefore} days.`,
+        ).toLocaleString('en-US')} ${getCurrencyCode()} is due in ${daysBefore} days.`,
         kind: 'debt_due' as const,
         scheduledAt: localReminderTime(addDaysToKey(debt.deadline, -daysBefore), now),
       }));

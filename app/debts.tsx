@@ -18,19 +18,26 @@ import { DatePickerField } from '@/src/ui/DatePickerField';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 const statusLook = {
-  OPEN: { bar: 'bg-amber-500', pill: 'bg-amber-100', tint: '#b45309', icon: 'time', label: 'Open' },
+  OPEN: {
+    bar: 'bg-amber-500',
+    pill: 'bg-amber-100 dark:bg-amber-900/40',
+    tint: '#b45309',
+    icon: 'time',
+    label: 'Open',
+  },
   PAID: {
     bar: 'bg-emerald-500',
-    pill: 'bg-emerald-100',
+    pill: 'bg-emerald-100 dark:bg-emerald-900/40',
     tint: '#047857',
     icon: 'checkmark-circle',
     label: 'Paid',
   },
   OVERDUE: {
     bar: 'bg-red-500',
-    pill: 'bg-red-100',
+    pill: 'bg-red-100 dark:bg-red-900/40',
     tint: '#b91c1c',
     icon: 'alert-circle',
     label: 'Overdue',
@@ -206,9 +213,9 @@ export default function DebtsScreen() {
       action={
         <Link
           href="/(tabs)/more"
-          className="min-h-12 justify-center rounded-2xl border border-slate-300 px-4 py-3"
+          className="min-h-12 justify-center rounded-2xl border border-slate-300 dark:border-slate-600 px-4 py-3"
         >
-          <Text className="font-bold text-slate-900">Back</Text>
+          <Text className="font-bold text-slate-900 dark:text-slate-100">Back</Text>
         </Link>
       }
     >
@@ -238,21 +245,21 @@ export default function DebtsScreen() {
       </View>
 
       {adding ? (
-        <View className="mb-4 mt-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <View className="mb-4 mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <TextInput
             accessibilityLabel="Creditor"
             placeholder="Owed to"
             value={creditor}
             onChangeText={setCreditor}
-            className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+            className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
           />
           <TextInput
             accessibilityLabel="Original amount"
-            placeholder="Original amount (XAF)"
+            placeholder={`Original amount (${getCurrencyCode()})`}
             keyboardType="number-pad"
             value={original}
             onChangeText={setOriginal}
-            className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+            className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
           />
           <DatePickerField
             label="Deadline (optional)"
@@ -292,19 +299,23 @@ export default function DebtsScreen() {
           accessibilityRole="button"
           accessibilityLabel="Add debt"
           onPress={() => setAdding(true)}
-          className="mb-4 mt-4 min-h-14 flex-row items-center justify-center rounded-2xl bg-slate-900 px-3"
+          className="mb-4 mt-4 min-h-14 flex-row items-center justify-center rounded-2xl bg-slate-900 dark:bg-slate-800 px-3"
         >
           <Ionicons name="add-circle" size={22} color="#ffffff" />
           <Text className="ml-2 text-base font-bold text-white">Add debt</Text>
         </Pressable>
       )}
 
-      <Text className="mb-3 mt-2 text-base font-bold text-slate-900">Your debts</Text>
+      <Text className="mb-3 mt-2 text-base font-bold text-slate-900 dark:text-slate-100">
+        Your debts
+      </Text>
 
       {data && debts.length === 0 ? (
-        <View className="mb-4 items-center rounded-2xl border border-dashed border-slate-300 bg-white p-8">
+        <View className="mb-4 items-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-8">
           <Ionicons name="happy" size={44} color="#94a3b8" />
-          <Text className="mt-2 text-sm text-slate-600">No debts recorded yet.</Text>
+          <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+            No debts recorded yet.
+          </Text>
         </View>
       ) : null}
 
@@ -334,27 +345,30 @@ export default function DebtsScreen() {
               )
             }
           >
-            <View className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <View className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
               <View className={`h-1.5 ${look.bar}`} />
               <View className="p-4">
                 <View className="flex-row items-center">
                   <Avatar name={debt.creditor} size={44} />
                   <View className="ml-3 flex-1">
-                    <Text numberOfLines={1} className="text-base font-bold text-slate-900">
+                    <Text
+                      numberOfLines={1}
+                      className="text-base font-bold text-slate-900 dark:text-slate-100"
+                    >
                       {debt.creditor}
                     </Text>
-                    <Text className="text-xs text-slate-500">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400">
                       Original {formatXAF(debt.originalAmount)}
                     </Text>
                   </View>
                   <View className="items-end">
-                    <Text className="text-lg font-extrabold text-slate-900">
+                    <Text className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
                       {formatXAF(debt.balance)}
                     </Text>
-                    <Text className="text-xs text-slate-500">left</Text>
+                    <Text className="text-xs text-slate-500 dark:text-slate-400">left</Text>
                   </View>
                 </View>
-                <View className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <View className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   <View
                     className={`h-full rounded-full ${look.bar}`}
                     style={{ width: `${Math.min(100, percent)}%` }}
@@ -367,13 +381,15 @@ export default function DebtsScreen() {
                       {look.label}
                     </Text>
                   </View>
-                  <Text className="text-xs text-slate-500">
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
                     {formatXAF(debt.paid)} paid · {Math.round(percent)}%
                   </Text>
                 </View>
                 <Text
                   className={`mt-2 text-sm font-semibold ${
-                    debt.status === 'OVERDUE' ? 'text-red-600' : 'text-slate-600'
+                    debt.status === 'OVERDUE'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-slate-600 dark:text-slate-300'
                   }`}
                 >
                   {debt.deadline
@@ -393,10 +409,10 @@ export default function DebtsScreen() {
                       <TextInput
                         accessibilityLabel={`Payment amount for ${debt.creditor}`}
                         keyboardType="number-pad"
-                        placeholder="Amount in XAF"
+                        placeholder={`Amount in ${getCurrencyCode()}`}
                         value={amount}
                         onChangeText={setAmount}
-                        className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+                        className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
                       />
                       <View className="flex-row gap-3">
                         <View className="flex-1">
@@ -438,16 +454,16 @@ export default function DebtsScreen() {
                 ) : null}
 
                 {debt.payments.length > 0 ? (
-                  <View className="mt-3 border-t border-slate-200 pt-2">
-                    <Text className="mb-1 text-xs font-semibold uppercase text-slate-500">
+                  <View className="mt-3 border-t border-slate-200 dark:border-slate-700 pt-2">
+                    <Text className="mb-1 text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">
                       Payment history
                     </Text>
                     {debt.payments.map((payment) => (
                       <View key={payment.id} className="flex-row justify-between py-1">
-                        <Text className="text-sm text-slate-600">
+                        <Text className="text-sm text-slate-600 dark:text-slate-300">
                           {new Date(payment.occurredAt).toLocaleDateString('en-GB')}
                         </Text>
-                        <Text className="text-sm font-semibold text-slate-900">
+                        <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                           {formatXAF(payment.amount)}
                         </Text>
                       </View>
@@ -463,8 +479,10 @@ export default function DebtsScreen() {
       {data && data.schedule.length > 0 ? (
         <>
           <View className="mb-3 mt-4 flex-row items-center justify-between">
-            <Text className="text-base font-bold text-slate-900">Planned schedule</Text>
-            <Text className="text-xs text-slate-500">Tap a row to edit</Text>
+            <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+              Planned schedule
+            </Text>
+            <Text className="text-xs text-slate-500 dark:text-slate-400">Tap a row to edit</Text>
           </View>
           {data.schedule.map((entry, index) => {
             const tint =
@@ -474,7 +492,7 @@ export default function DebtsScreen() {
             return (
               <View
                 key={`${entryKey}-${index}`}
-                className="mb-2 rounded-2xl border border-slate-200 bg-white p-3"
+                className="mb-2 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
               >
                 <Pressable
                   accessibilityRole="button"
@@ -482,16 +500,19 @@ export default function DebtsScreen() {
                   onPress={() => setOpenEntry(expanded ? null : entryKey)}
                   className="flex-row items-center"
                 >
-                  <View className="h-11 w-11 items-center justify-center rounded-xl bg-slate-100">
-                    <Text className="text-xs font-bold text-slate-700">
+                  <View className="h-11 w-11 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800">
+                    <Text className="text-xs font-bold text-slate-700 dark:text-slate-200">
                       {monthLabel(entry.month, 'short').split(' ')[0]}
                     </Text>
                   </View>
                   <View className="ml-3 flex-1">
-                    <Text numberOfLines={1} className="text-sm font-semibold text-slate-900">
+                    <Text
+                      numberOfLines={1}
+                      className="text-sm font-semibold text-slate-900 dark:text-slate-100"
+                    >
                       {entry.creditor}
                     </Text>
-                    <Text className="text-xs text-slate-500">
+                    <Text className="text-xs text-slate-500 dark:text-slate-400">
                       {monthLabel(entry.month)} · {formatXAF(entry.planned)}
                     </Text>
                   </View>
@@ -522,7 +543,7 @@ export default function DebtsScreen() {
                   />
                 </Pressable>
                 {expanded ? (
-                  <View className="mt-3 border-t border-slate-100 pt-3">
+                  <View className="mt-3 border-t border-slate-100 dark:border-slate-800 pt-3">
                     <DatePickerField
                       label="Reschedule to (pick any day in the new month)"
                       value=""
@@ -573,7 +594,7 @@ export default function DebtsScreen() {
           })}
         </>
       ) : null}
-      <Text className="mt-3 text-center text-sm text-slate-500">
+      <Text className="mt-3 text-center text-sm text-slate-500 dark:text-slate-400">
         Balances come from recorded payments. They are never typed in.
       </Text>
     </PageLayout>

@@ -1,6 +1,7 @@
 import type { DatabaseLike } from './db';
 import { assertWholeAmount, inTransaction, requirePrepared } from './household';
 import { settings } from './repos';
+import { getCurrencyCode } from '../domain/currency';
 
 // Optional monthly cap on new lending (E4). Stored as an app setting; absent or empty means off.
 export const lendingCapKey = 'lending_cap_monthly';
@@ -59,7 +60,7 @@ export function checkLendingCap(
       cap,
       lentThisMonth: lent,
       remaining: Math.max(0, remaining),
-      reason: `This would exceed your monthly lending cap of ${cap} XAF (${Math.max(0, remaining)} XAF left for that month).`,
+      reason: `This would exceed your monthly lending cap of ${cap} ${getCurrencyCode()} (${Math.max(0, remaining)} ${getCurrencyCode()} left for that month).`,
     };
   }
   return { status: 'OK', cap, lentThisMonth: lent, remaining, reason: '' };

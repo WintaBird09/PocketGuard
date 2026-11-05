@@ -35,19 +35,23 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
-        <Text className="text-base font-medium text-slate-600">Checking your sign-in…</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-800">
+        <Text className="text-base font-medium text-slate-600 dark:text-slate-300">
+          Checking your sign-in…
+        </Text>
       </View>
     );
   }
 
   if (signedIn && localDatabaseStatus === 'failed') {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 p-6">
-        <Text className="text-center text-lg font-bold text-slate-900">
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-800 p-6">
+        <Text className="text-center text-lg font-bold text-slate-900 dark:text-slate-100">
           Pocket Guard could not open your data
         </Text>
-        <Text className="mt-2 text-center text-sm text-red-700">{localDatabaseError}</Text>
+        <Text className="mt-2 text-center text-sm text-red-700 dark:text-red-400">
+          {localDatabaseError}
+        </Text>
         <Pressable
           accessibilityRole="button"
           onPress={retryLocalDatabase}
@@ -61,8 +65,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
 
   if (signedIn && localDatabaseStatus !== 'ready') {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50">
-        <Text className="text-base font-medium text-slate-600">Preparing your household…</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-800">
+        <Text className="text-base font-medium text-slate-600 dark:text-slate-300">
+          Preparing your household…
+        </Text>
       </View>
     );
   }

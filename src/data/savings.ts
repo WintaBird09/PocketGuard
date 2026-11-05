@@ -263,6 +263,8 @@ export function addSavingsGoal(
   householdId: string,
   draft: { name: string; target: number; monthlyAmount: number; dueDate: string },
   startMonth: string,
+  // Funds only the start month; later months are linked from the Budget screen.
+  incomeStreamId: string | null = null,
 ): string {
   const name = draft.name.trim();
   if (!name) throw new Error('Enter a name for the savings goal.');
@@ -299,7 +301,14 @@ export function addSavingsGoal(
          VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
       ).run(id, householdId, goalId, lineId, month, amount, now, now);
       appendOutboxEntry(db, householdId, 'savings_commitments', id, 'create');
-      setAllocation(db, householdId, lineId, month, amount);
+      setAllocation(
+        db,
+        householdId,
+        lineId,
+        month,
+        amount,
+        month === startMonth ? incomeStreamId : undefined,
+      );
     }
     return goalId;
   });

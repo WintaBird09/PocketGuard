@@ -1,6 +1,7 @@
 import type { LoanPlan } from '../domain/loans';
 
 import { defaultInstallmentCount, type LoanInput, type LoanSummary } from './loans';
+import { getCurrencyCode } from '../domain/currency';
 
 export type LoanFormFields = {
   personName: string;
@@ -49,7 +50,7 @@ export function loanToForm(loan: LoanSummary): LoanFormFields {
 export function buildLoanInput(fields: LoanFormFields): LoanInput {
   const amountText = fields.amount.replace(/[\s,]/g, '');
   if (!/^\d+$/.test(amountText) || Number(amountText) <= 0) {
-    throw new Error('Enter the amount as a whole number of XAF.');
+    throw new Error(`Enter the amount as a whole number of ${getCurrencyCode()}.`);
   }
   const countText = fields.installmentCount.trim();
   const count = Number(countText);

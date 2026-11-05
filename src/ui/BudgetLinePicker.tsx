@@ -67,7 +67,7 @@ export function BudgetLinePicker({
         accessibilityRole="button"
         accessibilityLabel={`Budget line, ${selected?.name ?? 'none selected'}. Tap to change.`}
         onPress={() => setOpen(true)}
-        className="min-h-14 flex-row items-center rounded-xl border border-slate-300 bg-white px-3 py-2"
+        className="min-h-14 flex-row items-center rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2"
       >
         <View
           className="h-10 w-10 items-center justify-center rounded-xl"
@@ -81,13 +81,13 @@ export function BudgetLinePicker({
         </View>
         <View className="ml-3 flex-1">
           <Text
-            className={`text-base font-semibold ${selected ? 'text-slate-900' : 'text-slate-400'}`}
+            className={`text-base font-semibold ${selected ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}
             numberOfLines={1}
           >
             {selected?.name ?? 'Select a budget line'}
           </Text>
           {selected ? (
-            <Text className="text-xs text-slate-500" numberOfLines={1}>
+            <Text className="text-xs text-slate-500 dark:text-slate-400" numberOfLines={1}>
               {selected.planned > 0 ? `${formatXAF(selected.planned)} planned` : selectedLabel}
             </Text>
           ) : null}
@@ -98,19 +98,19 @@ export function BudgetLinePicker({
       <Modal transparent animationType="slide" visible={open} onRequestClose={close}>
         <View className="flex-1 justify-end bg-black/50">
           <Pressable accessibilityLabel="Close" className="flex-1" onPress={close} />
-          <View className="max-h-[80%] rounded-t-3xl bg-white px-4 pb-6 pt-3">
+          <View className="max-h-[80%] rounded-t-3xl bg-white dark:bg-slate-900 px-4 pb-6 pt-3">
             <View className="mb-3 h-1.5 w-12 self-center rounded-full bg-slate-300" />
             <View className="mb-2 flex-row items-center justify-between">
-              <Text className="text-lg font-bold text-slate-900">
+              <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
                 {adding ? 'New budget line' : 'Choose a budget line'}
               </Text>
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Close"
                 onPress={close}
-                className="h-10 w-10 items-center justify-center rounded-full bg-slate-100"
+                className="h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
               >
-                <Ionicons name="close" size={20} color="#0f172a" />
+                <Ionicons name="close" size={20} className="text-slate-900 dark:text-slate-100" />
               </Pressable>
             </View>
 
@@ -127,7 +127,7 @@ export function BudgetLinePicker({
                     setError(null);
                   }}
                   placeholder="e.g. School fees"
-                  className="min-h-12 rounded-xl border border-slate-300 bg-white px-4 py-3 text-base text-slate-900"
+                  className="min-h-12 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-4 py-3 text-base text-slate-900 dark:text-slate-100"
                 />
                 <View className="mt-3 flex-row flex-wrap gap-2">
                   {newLineKinds.map((item) => {
@@ -139,12 +139,14 @@ export function BudgetLinePicker({
                         accessibilityState={{ selected: active }}
                         onPress={() => setKind(item)}
                         className={`min-h-11 flex-row items-center rounded-full border px-4 py-2 ${
-                          active ? 'border-emerald-600 bg-emerald-600' : 'border-slate-300 bg-white'
+                          active
+                            ? 'border-emerald-600 bg-emerald-600'
+                            : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900'
                         }`}
                       >
                         <Text
                           className={`text-sm font-semibold ${
-                            active ? 'text-white' : 'text-slate-800'
+                            active ? 'text-white' : 'text-slate-800 dark:text-slate-200'
                           }`}
                         >
                           {kindLabels[item]}
@@ -154,7 +156,10 @@ export function BudgetLinePicker({
                   })}
                 </View>
                 {error ? (
-                  <Text accessibilityRole="alert" className="mt-2 text-sm text-red-700">
+                  <Text
+                    accessibilityRole="alert"
+                    className="mt-2 text-sm text-red-700 dark:text-red-400"
+                  >
                     {error}
                   </Text>
                 ) : null}
@@ -171,9 +176,11 @@ export function BudgetLinePicker({
                     setAdding(false);
                     setError(null);
                   }}
-                  className="mt-2 min-h-12 items-center justify-center rounded-2xl border border-slate-300 px-4 py-3"
+                  className="mt-2 min-h-12 items-center justify-center rounded-2xl border border-slate-300 dark:border-slate-600 px-4 py-3"
                 >
-                  <Text className="text-base font-semibold text-slate-800">Back to list</Text>
+                  <Text className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                    Back to list
+                  </Text>
                 </Pressable>
               </View>
             ) : (
@@ -190,7 +197,9 @@ export function BudgetLinePicker({
                       accessibilityLabel={`${line.name}, ${label}`}
                       onPress={() => choose(line.id)}
                       className={`mb-2 min-h-16 flex-row items-center rounded-2xl border px-3 py-2 ${
-                        active ? 'border-emerald-600 bg-emerald-50' : 'border-slate-200 bg-white'
+                        active
+                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30'
+                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
                       }`}
                     >
                       <View
@@ -200,10 +209,16 @@ export function BudgetLinePicker({
                         <Ionicons name={style.icon} size={22} color={style.tint} />
                       </View>
                       <View className="ml-3 flex-1">
-                        <Text className="text-base font-bold text-slate-900" numberOfLines={1}>
+                        <Text
+                          className="text-base font-bold text-slate-900 dark:text-slate-100"
+                          numberOfLines={1}
+                        >
                           {line.name}
                         </Text>
-                        <Text className="text-xs text-slate-500" numberOfLines={1}>
+                        <Text
+                          className="text-xs text-slate-500 dark:text-slate-400"
+                          numberOfLines={1}
+                        >
                           {label}
                           {line.planned > 0 ? ` · ${formatXAF(line.planned)} planned` : ''}
                         </Text>
@@ -221,7 +236,7 @@ export function BudgetLinePicker({
                   className="mt-1 min-h-14 flex-row items-center justify-center rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 px-4 py-3"
                 >
                   <Ionicons name="add-circle" size={24} color="#059669" />
-                  <Text className="ml-2 text-base font-bold text-emerald-700">
+                  <Text className="ml-2 text-base font-bold text-emerald-700 dark:text-emerald-400">
                     Add new budget line
                   </Text>
                 </Pressable>

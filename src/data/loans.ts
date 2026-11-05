@@ -13,6 +13,7 @@ import type { DatabaseLike } from './db';
 import { assertWholeAmount, inTransaction, newId, requirePrepared } from './household';
 import { checkLendingCap } from './lendingCap';
 import { appendOutboxEntry } from './repos';
+import { getCurrencyCode } from '../domain/currency';
 
 export const defaultInstallmentCount = 4;
 
@@ -234,7 +235,9 @@ export function updateLoan(
     requireLoan(db, householdId, loanId);
     const paid = paidTotal(db, householdId, loanId);
     if (loan.amount < paid) {
-      throw new Error(`The amount cannot be less than the ${paid} XAF already repaid.`);
+      throw new Error(
+        `The amount cannot be less than the ${paid} ${getCurrencyCode()} already repaid.`,
+      );
     }
     const cap = checkLendingCap(db, householdId, {
       amount: loan.amount,

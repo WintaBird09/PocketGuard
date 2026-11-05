@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
 import { getActiveHouseholdId } from '@/src/data/household';
 import { subscribeLocalDateOverride } from '@/src/domain/dates';
+import { useCurrency } from '@/src/ui/CurrencyProvider';
 
 export type DatabaseState = {
   db: DatabaseLike | null;
@@ -16,6 +17,7 @@ export type DatabaseState = {
 };
 
 export function useDatabase(): DatabaseState {
+  useCurrency(); // re-render when the currency label changes
   const [db, setDb] = useState<DatabaseLike | null>(null);
   const [householdId, setHouseholdId] = useState('');
   const [loading, setLoading] = useState(true);

@@ -82,33 +82,39 @@ export function DatePickerField({
 
   return (
     <View className="mb-4">
-      <Text className="mb-1 text-sm font-semibold text-slate-700">{label}</Text>
+      <Text className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}, ${value ? formatLong(value) : 'not set'}`}
         onPress={openPicker}
-        className={`min-h-12 flex-row items-center rounded-xl border bg-white px-4 py-3 ${
-          error ? 'border-red-400' : 'border-slate-300'
+        className={`min-h-12 flex-row items-center rounded-xl border bg-white dark:bg-slate-900 px-4 py-3 ${
+          error ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'
         }`}
       >
         <Ionicons name="calendar" size={20} color="#059669" />
-        <Text className={`ml-3 flex-1 text-base ${value ? 'text-slate-900' : 'text-slate-400'}`}>
+        <Text
+          className={`ml-3 flex-1 text-base ${value ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}
+        >
           {value ? formatLong(value) : 'Tap to pick a date'}
         </Text>
         <Ionicons name="chevron-down" size={18} color="#94a3b8" />
       </Pressable>
-      {error ? <Text className="mt-1 text-sm text-red-700">{error}</Text> : null}
+      {error ? <Text className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</Text> : null}
 
       <Modal transparent animationType="fade" visible={open} onRequestClose={() => setOpen(false)}>
         <View className="flex-1 items-center justify-center bg-black/50 p-5">
-          <View className="w-full max-w-sm rounded-3xl bg-white p-4">
+          <View className="w-full max-w-sm rounded-3xl bg-white dark:bg-slate-900 p-4">
             <View className="mb-3 flex-row items-center justify-between">
               <Pressable
                 accessibilityLabel="Previous month"
                 onPress={() => shiftMonth(-1)}
-                className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
               >
-                <Ionicons name="chevron-back" size={20} color="#0f172a" />
+                <Ionicons
+                  name="chevron-back"
+                  size={20}
+                  className="text-slate-900 dark:text-slate-100"
+                />
               </Pressable>
               <Pressable
                 accessibilityRole="button"
@@ -116,22 +122,26 @@ export function DatePickerField({
                 onPress={() => setChoosingYear((current) => !current)}
                 className="flex-row items-center rounded-full px-3 py-2"
               >
-                <Text className="text-base font-bold text-slate-900">
+                <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
                   {monthNames[month - 1]} {year}
                 </Text>
                 <Ionicons
                   name={choosingYear ? 'chevron-up' : 'chevron-down'}
                   size={16}
-                  color="#0f172a"
+                  className="text-slate-900 dark:text-slate-100"
                   style={{ marginLeft: 6 }}
                 />
               </Pressable>
               <Pressable
                 accessibilityLabel="Next month"
                 onPress={() => shiftMonth(1)}
-                className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
               >
-                <Ionicons name="chevron-forward" size={20} color="#0f172a" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={20}
+                  className="text-slate-900 dark:text-slate-100"
+                />
               </Pressable>
             </View>
 
@@ -150,12 +160,12 @@ export function DatePickerField({
                     >
                       <View
                         className={`items-center rounded-xl py-3 ${
-                          item === year ? 'bg-emerald-600' : 'bg-slate-100'
+                          item === year ? 'bg-emerald-600' : 'bg-slate-100 dark:bg-slate-800'
                         }`}
                       >
                         <Text
                           className={`text-sm font-semibold ${
-                            item === year ? 'text-white' : 'text-slate-800'
+                            item === year ? 'text-white' : 'text-slate-800 dark:text-slate-200'
                           }`}
                         >
                           {item}
@@ -204,7 +214,9 @@ export function DatePickerField({
                             >
                               <Text
                                 className={`text-sm ${
-                                  active ? 'font-bold text-white' : 'text-slate-900'
+                                  active
+                                    ? 'font-bold text-white'
+                                    : 'text-slate-900 dark:text-slate-100'
                                 }`}
                               >
                                 {day}
@@ -222,9 +234,11 @@ export function DatePickerField({
             <Pressable
               accessibilityRole="button"
               onPress={() => setOpen(false)}
-              className="mt-3 items-center rounded-2xl border border-slate-300 py-3"
+              className="mt-3 items-center rounded-2xl border border-slate-300 dark:border-slate-600 py-3"
             >
-              <Text className="text-base font-semibold text-slate-800">Cancel</Text>
+              <Text className="text-base font-semibold text-slate-800 dark:text-slate-200">
+                Cancel
+              </Text>
             </Pressable>
           </View>
         </View>

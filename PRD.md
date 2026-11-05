@@ -143,11 +143,20 @@ else OK
 
 ### 7.5 Dashboard
 
-- FR-19. Home shows, in a calm hierarchy with one theme colour per feature (**spending = indigo, savings = green, debt = amber, attention = red**): a spending hero (spent vs planned, days left, a month-pace marker and a pace sentence, income and cash flow), a compact voice strip, a Savings & goals card (total saved vs target and the top goals, tap to open Savings), a Debt row (only when debt remains, opens Debts), Where your money goes, Where to focus, and a Needs attention list (lines over plan or ≥80% used; a green note when all are on plan). Per-line progress bars live on the Budget plan screen.
-- FR-19b. **Spending analytics:** the top spending lines this month (savings excluded) with share of spending and change versus last month, and up to four plain-language priorities, most urgent first: a line over budget, a line projected to overspend, one line taking ≥30% of spending, a line up ≥25% on last month, savings behind plan. Pure logic in `src/domain/spendingInsights.ts`.
-- FR-19c. The Home header shows a greeting with the month and the user's profile picture, which opens the profile, plus a quick-add button.
+- FR-19. Home has a compact header (small greeting, a **mic** that starts voice entry directly, a **+** that opens the Add menu, and the profile picture) and a **swipeable card carousel** with paging dots: Spending (indigo: spent vs planned, days left, month-pace marker, income and cash flow), Savings & goals (green, with a **Week | Month | Year** switch defaulting to the current month; week is the month prorated to seven days), Income vs spending, and Net worth (savings + money owed to you − debts). Below are **Where to focus** insight cards and a Needs attention list (lines over plan or ≥80% used; a green note when all are on plan). The former "Just say it" strip was removed.
+- FR-19b. **Finance insights** (pure logic in `src/domain/financeInsights.ts`, facts gathered by `src/data/homeFacts.ts`): savings rate with the 50/30/20 check, month-end spending forecast, top categories and change vs last month, income-source dependency and funding gaps, emergency-fund runway, debt payoff progress, daily safe-to-spend, unusual or duplicate spending, and goal progress (on track or behind). Cards are compact, ordered by urgency, and each opens a detail sheet showing the working and a "Take action" link. Debt interest cost is not computed because no interest rate is stored. Earlier line-level analytics remain in `src/domain/spendingInsights.ts`.
+- FR-19c. The **+** button opens an Add menu (`src/ui/AddMenu.tsx`): Transaction, Savings, Budget line, Income; Budget and Income open their add form directly (`?add=1`).
+- FR-19d. **Currency** (display only): Settings → Currency lists about 95 world currencies (`src/domain/currency.ts`); the first launch is detected from the phone's region (XAF fallback) and the choice is stored per device. Amounts are not converted.
+- FR-19e. **Appearance:** Settings → Appearance offers Device, Bright, Dark, or a Day & night schedule (`src/ui/themePreference.ts`, `ThemeProvider`); all screens have dark variants.
 - FR-20. Each line shows "**X% used, N days left, at this pace you finish at Y**".
 - FR-21. Status banner mirrors the workbook logic: ON TRACK / BEHIND for the savings goal, using _actual confirmed_ savings versus the plan.
+
+### 7.5b Income and funding
+
+- FR-19f. **Income screen** (More → Income): sources (Salary, Business, Rental, Other) with full add / edit / delete; a month strip with **swipe** between months showing that month's total and per-source amounts; one unified "Add income" form that creates a source when none exists; optional **fixed monthly income** that is planned each month until it is **confirmed as received**; received entries can be edited.
+- FR-19g. **Budget ↔ income:** each budget line can be funded by an income source (`allocations.income_stream_id`), and expenses keep their source. The Budget plan shows a "Funded by income" card (received + expected, budgeted, spent, left per source) and a "Funded by X" tag per line (`src/data/funding.ts`).
+- FR-19h. **Add budget form** (`src/ui/BudgetLineForm.tsx`): month, amount and an income-source dropdown with a live "balance left" projection; an amber **Save anyway** confirmation when a source would be over-allocated; **Auto-assign** spreads unassigned lines across sources. Choosing **Savings** shows target amount, target date, a "This month only" or "Goal with target" choice and an editable monthly amount; the chosen source applies to the first month only.
+- FR-19i. **Inbox** (`app/inbox.tsx`) has a summary card, filters, an empty state and item cards; discard needs a second tap; classifying lists lines with what is left on each.
 
 ### 7.6 Alerts (all local notifications, work offline)
 
@@ -251,7 +260,7 @@ directly accessible to app clients.
 
 ## 9. Data model (SQLite mirrors Postgres)
 
-All tables: `id uuid pk (client-generated)`, `household_id uuid`, `created_at`, `updated_at`, `deleted_at null`, `device_id`. Amounts are `integer` XAF. Dates are ISO strings in UTC, month keys are `YYYY-MM`.
+All tables: `id uuid pk (client-generated)`, `household_id uuid`, `created_at`, `updated_at`, `deleted_at null`, `device_id`. Amounts are `integer` whole units of the chosen display currency (default XAF). Dates are ISO strings in UTC, month keys are `YYYY-MM`.
 
 - `households(id, name, month_start_day default 1, currency default 'XAF')`
 - `household_members(id, household_id, user_id, role)` — one row in MVP
@@ -308,7 +317,8 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 
 ## 11. Screens (MVP)
 
-1. **Home / Dashboard** — greeting header with profile avatar and quick add, spending hero (indigo), voice strip, Savings & goals (green), Debt (amber), Where your money goes, Where to focus, Needs attention, `Can I spend?` and `Add manually`.
+1. **Home / Dashboard** — compact header (mic, +, avatar), swipeable carousel (Spending, Savings & goals, Income vs spending, Net worth), Where to focus insight cards, Needs attention, `Can I spend?` and `Add manually`.
+1b. **Income** (More tab) — sources, swipe month strip, fixed income, confirm received.
 2. **Add transaction** — voice fill, amount, budget-line dropdown, note, date, save; override flow when blocked.
 3. **Voice entry** — mic with listening animation, live transcript, example phrases, confirm card(s).
 4. **Inbox** — pending voice drafts and unclassified items.
@@ -318,9 +328,9 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 8. **Debts** — balances, add at top, swipe to delete, reschedulable schedule, payment history, status.
 9. **Loans** (Epic 10) — visual list with cap progress, add/edit loan, lending cap, detail with repayments and write-off, per-person summary.
 10a. **Profile** — photo, personal details, email change, invite, password, sign-out.
-10. **Settings** — account/profile, sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
+10. **Settings** — account/profile, Appearance (bright / dark / schedule), Currency, sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
 
-UX principles: one-handed use; large numbers; amounts always `120,000 XAF`; light and dark themes; no tables on phone; the most-used action (add) is always reachable in one tap.
+UX principles: one-handed use; large numbers; amounts always `120,000 CODE` (the chosen currency code); light and dark themes; no tables on phone; the most-used action (add) is always reachable in one tap.
 
 ## 12. Non-functional requirements
 

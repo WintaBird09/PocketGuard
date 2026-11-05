@@ -5,6 +5,7 @@ import type { DatabaseLike } from './db';
 import { assertWholeAmount, inTransaction, newId, requirePrepared } from './household';
 import { setAllocation } from './plan';
 import { appendOutboxEntry, transactions } from './repos';
+import { getCurrencyCode } from '../domain/currency';
 
 export type DebtPayment = {
   id: string;
@@ -189,7 +190,9 @@ export function recordDebtPayment(
     if (!debt) throw new Error('Debt was not found.');
     if (debt.balance <= 0) throw new Error('This debt is already fully paid.');
     if (draft.amount > debt.balance) {
-      throw new Error(`Payment exceeds the remaining balance of ${debt.balance} XAF.`);
+      throw new Error(
+        `Payment exceeds the remaining balance of ${debt.balance} ${getCurrencyCode()}.`,
+      );
     }
     const lineId = findDebtLineId(db, householdId, debt.creditor);
     return transactions.add(db, householdId, {

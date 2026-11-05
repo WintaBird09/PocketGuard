@@ -8,7 +8,7 @@ import { Banner, Button } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 
 const inputClass =
-  'mt-3 min-h-12 rounded-xl border border-slate-200 bg-white px-4 py-3 text-base text-slate-900';
+  'mt-3 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-base text-slate-900 dark:text-slate-100';
 
 export default function LoginScreen() {
   const { signInWithPassword, sendMagicLink } = useAuth();
@@ -70,7 +70,7 @@ export default function LoginScreen() {
           void run(() => signInWithPassword(trimmedEmail, password), 'Unable to sign in.')
         }
       />
-      <Text className="my-3 text-center text-sm text-slate-500">or</Text>
+      <Text className="my-3 text-center text-sm text-slate-500 dark:text-slate-400">or</Text>
       <Button
         label="Email me a sign-in link"
         variant="outline"
@@ -83,9 +83,9 @@ export default function LoginScreen() {
         }
       />
 
-      <Text className="mt-6 text-center text-sm text-slate-600">
+      <Text className="mt-6 text-center text-sm text-slate-600 dark:text-slate-300">
         New to Pocket Guard?{' '}
-        <Link href="/signup" className="font-bold text-slate-900">
+        <Link href="/signup" className="font-bold text-slate-900 dark:text-slate-100">
           Create an account
         </Link>
       </Text>

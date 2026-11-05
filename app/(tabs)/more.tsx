@@ -120,14 +120,16 @@ export default function MoreScreen() {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Open your profile"
-          className="mb-6 flex-row items-center rounded-2xl border border-slate-200 bg-white p-4 active:bg-slate-50"
+          className="mb-6 flex-row items-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 active:bg-slate-50"
         >
           <View className="h-14 w-14 items-center justify-center rounded-full bg-emerald-600">
             <Text className="text-lg font-bold text-white">{getInitials(profileLabel)}</Text>
           </View>
           <View className="ml-4 flex-1 pr-2">
-            <Text className="text-base font-bold text-slate-900">{profileLabel}</Text>
-            <Text className="mt-1 text-sm text-slate-500" numberOfLines={1}>
+            <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+              {profileLabel}
+            </Text>
+            <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400" numberOfLines={1}>
               {session?.user.email ?? 'View and edit your profile'}
             </Text>
           </View>
@@ -143,7 +145,7 @@ export default function MoreScreen() {
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${item.title}, ${item.detail}`}
-              className="flex-row items-center rounded-2xl border border-slate-200 bg-white px-4 py-4 active:bg-slate-50"
+              className="flex-row items-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-4 active:bg-slate-50"
             >
               <View
                 className="h-12 w-12 items-center justify-center rounded-xl"
@@ -152,8 +154,10 @@ export default function MoreScreen() {
                 <Ionicons name={item.icon} size={24} color={item.tint} />
               </View>
               <View className="ml-4 flex-1 pr-2">
-                <Text className="text-base font-bold text-slate-900">{item.title}</Text>
-                <Text className="mt-1 text-sm text-slate-500" numberOfLines={1}>
+                <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {item.title}
+                </Text>
+                <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400" numberOfLines={1}>
                   {item.detail}
                 </Text>
               </View>

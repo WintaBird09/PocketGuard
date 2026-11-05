@@ -7,6 +7,7 @@ import { Banner, Button } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 export default function LendingCapScreen() {
   const router = useRouter();
@@ -43,20 +44,22 @@ export default function LendingCapScreen() {
       subtitle="Limit how much you lend out in a month."
     >
       {failure ? <Banner tone="error">{failure}</Banner> : null}
-      <View className="rounded-2xl border border-slate-200 bg-white p-4">
-        <Text className="text-base font-bold text-slate-900">Monthly lending cap</Text>
-        <Text className="mt-1 text-sm text-slate-600">
+      <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+        <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+          Monthly lending cap
+        </Text>
+        <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
           {cap === null
             ? 'Off. Turn it on to stop new loans above a monthly total.'
             : `On: ${formatXAF(cap)} per month. Loans above it are blocked.`}
         </Text>
         <TextInput
           accessibilityLabel="Lending cap"
-          placeholder="Cap in XAF"
+          placeholder={`Cap in ${getCurrencyCode()}`}
           keyboardType="number-pad"
           value={input}
           onChangeText={setInput}
-          className="mt-3 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+          className="mt-3 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
         />
         <View className="mt-3 flex-row gap-3">
           <View className="flex-1">
@@ -65,7 +68,7 @@ export default function LendingCapScreen() {
               onPress={() => {
                 const value = Number(input.replace(/[\s,]/g, ''));
                 if (!Number.isInteger(value) || value <= 0) {
-                  setError('Enter the cap as a whole number of XAF.');
+                  setError(`Enter the cap as a whole number of ${getCurrencyCode()}.`);
                   return;
                 }
                 save(value);

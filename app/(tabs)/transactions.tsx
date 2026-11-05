@@ -222,7 +222,7 @@ export default function TransactionsScreen() {
         <Text className="ml-2 text-base font-bold text-white">Add transaction</Text>
       </Pressable>
 
-      <View className="mb-4 flex-row rounded-2xl bg-slate-200 p-1">
+      <View className="mb-4 flex-row rounded-2xl bg-slate-200 dark:bg-slate-700 p-1">
         {modes.map((item) => {
           const active = mode === item.key;
           return (
@@ -238,10 +238,12 @@ export default function TransactionsScreen() {
                 } else changeView(item.key, mode === 'custom' ? range.to : anchor);
               }}
               className={`min-h-10 flex-1 items-center justify-center rounded-xl ${
-                active ? 'bg-white' : ''
+                active ? 'bg-white dark:bg-slate-900' : ''
               }`}
             >
-              <Text className={`text-sm font-bold ${active ? 'text-slate-900' : 'text-slate-500'}`}>
+              <Text
+                className={`text-sm font-bold ${active ? 'text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}
+              >
                 {item.label}
               </Text>
             </Pressable>
@@ -250,7 +252,7 @@ export default function TransactionsScreen() {
       </View>
 
       {mode === 'custom' ? (
-        <View className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
+        <View className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
           <DatePickerField
             label="From"
             value={custom.from}
@@ -273,21 +275,25 @@ export default function TransactionsScreen() {
           />
         </View>
       ) : (
-        <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-2">
+        <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2">
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Previous period"
             onPress={() => step(-1)}
-            className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+            className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
           >
-            <Ionicons name="chevron-back" size={20} color="#0f172a" />
+            <Ionicons
+              name="chevron-back"
+              size={20}
+              className="text-slate-900 dark:text-slate-100"
+            />
           </Pressable>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Jump to today"
             onPress={() => changeView(mode, today)}
           >
-            <Text className="text-base font-bold text-slate-900">
+            <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
               {rangeLabel(mode, range, today)}
             </Text>
           </Pressable>
@@ -295,41 +301,49 @@ export default function TransactionsScreen() {
             accessibilityRole="button"
             accessibilityLabel="Next period"
             onPress={() => step(1)}
-            className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+            className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
           >
-            <Ionicons name="chevron-forward" size={20} color="#0f172a" />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              className="text-slate-900 dark:text-slate-100"
+            />
           </Pressable>
         </View>
       )}
 
       <View className="mb-5 flex-row gap-3">
-        <View className="flex-1 rounded-2xl bg-red-50 p-3">
-          <Text className="text-xs font-semibold text-red-700">Spent</Text>
+        <View className="flex-1 rounded-2xl bg-red-50 dark:bg-red-900/30 p-3">
+          <Text className="text-xs font-semibold text-red-700 dark:text-red-400">Spent</Text>
           <Text
             numberOfLines={1}
             adjustsFontSizeToFit
-            className="mt-1 text-base font-extrabold text-red-800"
+            className="mt-1 text-base font-extrabold text-red-800 dark:text-red-300"
           >
             {formatXAF(totals.spent)}
           </Text>
         </View>
-        <View className="flex-1 rounded-2xl bg-emerald-50 p-3">
-          <Text className="text-xs font-semibold text-emerald-700">Income</Text>
+        <View className="flex-1 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 p-3">
+          <Text className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+            Income
+          </Text>
           <Text
             numberOfLines={1}
             adjustsFontSizeToFit
-            className="mt-1 text-base font-extrabold text-emerald-800"
+            className="mt-1 text-base font-extrabold text-emerald-800 dark:text-emerald-300"
           >
             {formatXAF(totals.income)}
           </Text>
         </View>
-        <View className="flex-1 rounded-2xl bg-slate-100 p-3">
-          <Text className="text-xs font-semibold text-slate-600">Entries</Text>
-          <Text className="mt-1 text-base font-extrabold text-slate-900">{totals.count}</Text>
+        <View className="flex-1 rounded-2xl bg-slate-100 dark:bg-slate-800 p-3">
+          <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">Entries</Text>
+          <Text className="mt-1 text-base font-extrabold text-slate-900 dark:text-slate-100">
+            {totals.count}
+          </Text>
         </View>
       </View>
 
-      <Text className="mb-3 text-lg font-bold text-slate-900">History</Text>
+      <Text className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">History</Text>
 
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {error ? <Banner tone="error">{error}</Banner> : null}
@@ -354,44 +368,48 @@ export default function TransactionsScreen() {
       </ScrollView>
 
       {deleted ? (
-        <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-red-300 bg-red-50 p-3">
-          <Text className="flex-1 font-bold text-red-800">Deleted: {deleted.label}</Text>
+        <View className="mb-4 flex-row items-center justify-between rounded-2xl border border-red-300 dark:border-red-800 bg-red-50 dark:bg-red-900/30 p-3">
+          <Text className="flex-1 font-bold text-red-800 dark:text-red-300">
+            Deleted: {deleted.label}
+          </Text>
           <Button label="Undo" variant="outline" onPress={undo} />
         </View>
       ) : null}
 
       {data && groups.length === 0 ? (
-        <Text className="text-sm text-slate-600">
+        <Text className="text-sm text-slate-600 dark:text-slate-300">
           No transactions in this period{filter === 'all' ? '.' : ' for this filter.'}
         </Text>
       ) : null}
 
       {groups.map(([day, items]) => (
         <View key={day} className="mb-3">
-          <Text className="mb-2 text-slate-500">{dayHeading(items[0]!.occurredAt)}</Text>
+          <Text className="mb-2 text-slate-500 dark:text-slate-400">
+            {dayHeading(items[0]!.occurredAt)}
+          </Text>
           {items.map((item) => {
             const editing = editingId === item.id;
             const isTransfer = item.direction === 'transfer';
             return (
               <View
                 key={item.id}
-                className={`mb-2 rounded-2xl border bg-white p-3 ${
+                className={`mb-2 rounded-2xl border bg-white dark:bg-slate-900 p-3 ${
                   item.overrideReason
-                    ? 'border-red-300'
+                    ? 'border-red-300 dark:border-red-800'
                     : isTransfer
-                      ? 'border-dashed border-slate-300'
-                      : 'border-slate-200'
+                      ? 'border-dashed border-slate-300 dark:border-slate-600'
+                      : 'border-slate-200 dark:border-slate-700'
                 }`}
               >
                 <Text
                   accessibilityRole="button"
                   onPress={() => (editing ? setEditingId(null) : startEdit(item))}
-                  className="text-base text-slate-900"
+                  className="text-base text-slate-900 dark:text-slate-100"
                 >
                   {item.note || item.lineName || (isTransfer ? 'Transfer' : 'Income')}
                 </Text>
                 <View className="mt-1 flex-row items-center justify-between">
-                  <Text className="text-sm text-slate-500">
+                  <Text className="text-sm text-slate-500 dark:text-slate-400">
                     {isTransfer
                       ? 'Transfer · not counted as spending'
                       : `${item.lineName ?? (item.direction === 'income' ? 'Income' : 'No line')} · ${
@@ -400,7 +418,9 @@ export default function TransactionsScreen() {
                   </Text>
                   <Text
                     className={`text-base font-bold ${
-                      item.direction === 'expense' ? 'text-slate-900' : 'text-emerald-700'
+                      item.direction === 'expense'
+                        ? 'text-slate-900 dark:text-slate-100'
+                        : 'text-emerald-700 dark:text-emerald-400'
                     }`}
                   >
                     {item.direction === 'expense' ? '-' : ''}
@@ -408,16 +428,18 @@ export default function TransactionsScreen() {
                   </Text>
                 </View>
                 {item.incomeStreamName ? (
-                  <Text className="mt-1 text-xs font-medium text-emerald-700">
+                  <Text className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                     Funded by {item.incomeStreamName}
                   </Text>
                 ) : null}
                 {balances?.get(item.id) ? (
                   <Text
                     className={`mt-1 text-sm font-semibold ${
-                      { green: 'text-emerald-600', orange: 'text-orange-500', red: 'text-red-600' }[
-                        balances!.get(item.id)!.tone
-                      ]
+                      {
+                        green: 'text-emerald-600 dark:text-emerald-400',
+                        orange: 'text-orange-500',
+                        red: 'text-red-600 dark:text-red-400',
+                      }[balances!.get(item.id)!.tone]
                     }`}
                   >
                     {balances!.get(item.id)!.left >= 0
@@ -427,33 +449,33 @@ export default function TransactionsScreen() {
                   </Text>
                 ) : null}
                 {item.overrideReason ? (
-                  <Text className="mt-1 text-xs text-red-700">
+                  <Text className="mt-1 text-xs text-red-700 dark:text-red-400">
                     Override reason: {item.overrideReason}
                   </Text>
                 ) : null}
 
                 {editing ? (
-                  <View className="mt-3 border-t border-slate-200 pt-3">
+                  <View className="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
                     <TextInput
                       accessibilityLabel="Edit amount"
                       keyboardType="number-pad"
                       value={amount}
                       onChangeText={setAmount}
-                      className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
                     />
                     <TextInput
                       accessibilityLabel="Edit note"
                       value={note}
                       onChangeText={setNote}
                       placeholder="Note"
-                      className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
                     />
                     <TextInput
                       accessibilityLabel="Edit date"
                       value={date}
                       onChangeText={setDate}
                       placeholder="YYYY-MM-DD"
-                      className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
                     />
                     {item.direction === 'expense' ? (
                       <View className="mb-2 flex-row flex-wrap gap-2">
@@ -482,7 +504,9 @@ export default function TransactionsScreen() {
           })}
         </View>
       ))}
-      <Text className="mt-2 text-center text-xs text-slate-500">Tap a row to edit or delete.</Text>
+      <Text className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
+        Tap a row to edit or delete.
+      </Text>
     </PageLayout>
   );
 }

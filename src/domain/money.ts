@@ -1,7 +1,4 @@
-export function formatXAF(amount: number): string {
-  const safe = Number.isFinite(amount) ? Math.trunc(amount) : 0;
-  return `${safe.toLocaleString('en-US')} XAF`;
-}
+export { formatMoney as formatXAF } from './currency';
 
 export function parseAmountInput(input: string): number | null {
   if (typeof input !== 'string') {

@@ -3,6 +3,7 @@ import { dayOfMonth, daysInMonth, monthKeyForDate } from '../domain/dates';
 
 import type { DatabaseLike } from './db';
 import { transactions, type TransactionDirection } from './repos';
+import { getCurrencyCode } from '../domain/currency';
 
 type TransactionEntryDatabase = DatabaseLike & {
   prepare: (sql: string) => {
@@ -91,7 +92,7 @@ export function getExpenseReview(
   draft: Pick<ExpenseDraft, 'lineId' | 'amount' | 'occurredOn'>,
 ): ExpenseReview {
   if (!Number.isSafeInteger(draft.amount) || draft.amount <= 0) {
-    throw new Error('Enter a positive whole amount in XAF.');
+    throw new Error(`Enter a positive whole amount in ${getCurrencyCode()}.`);
   }
 
   const { date, month } = monthForDate(draft.occurredOn);

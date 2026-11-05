@@ -19,6 +19,7 @@ import { Banner, Button } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 // Destructive actions need a second tap; Alert.alert is not available on web.
 type Confirming = 'writeoff' | 'delete' | `payment:${string}` | null;
@@ -65,7 +66,7 @@ export default function LoanDetailScreen() {
     if (!db || !loan) return;
     const text = amount.replace(/[\s,]/g, '');
     if (!/^\d+$/.test(text) || Number(text) <= 0) {
-      setError('Enter the repayment as a whole number of XAF.');
+      setError(`Enter the repayment as a whole number of ${getCurrencyCode()}.`);
       return;
     }
     run(() => {
@@ -100,31 +101,37 @@ export default function LoanDetailScreen() {
 
       {loan ? (
         <>
-          <View className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+          <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
             <View className="flex-row items-center justify-between">
-              <Text className="text-3xl font-bold text-slate-900">{formatXAF(loan.balance)}</Text>
+              <Text className="text-3xl font-bold text-slate-900 dark:text-slate-100">
+                {formatXAF(loan.balance)}
+              </Text>
               <Text
                 className={`rounded-full border px-2 py-0.5 text-xs font-bold ${loanBadgeStyle[loan.status]}`}
               >
                 {loanStatusLabel[loan.status]}
               </Text>
             </View>
-            <Text className="mt-1 text-sm text-slate-600">
+            <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
               left of {formatXAF(loan.amount)} lent on {loan.lentOn}
             </Text>
-            <View className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200">
+            <View className="mt-3 h-2 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
               <View
                 className="h-full rounded-full bg-emerald-500"
                 style={{ width: `${loan.percentPaid}%` }}
               />
             </View>
-            <Text className="mt-2 text-sm text-slate-600">
+            <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               {formatXAF(loan.paid)} repaid · {loanDueText(loan)}
             </Text>
             {loan.personPhone ? (
-              <Text className="mt-1 text-sm text-slate-600">{loan.personPhone}</Text>
+              <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+                {loan.personPhone}
+              </Text>
             ) : null}
-            {loan.note ? <Text className="mt-1 text-sm text-slate-600">{loan.note}</Text> : null}
+            {loan.note ? (
+              <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">{loan.note}</Text>
+            ) : null}
           </View>
 
           <View className="mt-3 gap-2">
@@ -139,30 +146,34 @@ export default function LoanDetailScreen() {
           </View>
 
           {loan.balance > 0 && loan.status !== 'WRITTEN_OFF' ? (
-            <View className="mt-4 rounded-2xl border border-slate-300 bg-white p-4">
-              <Text className="mb-2 text-base font-bold text-slate-900">Record a repayment</Text>
+            <View className="mt-4 rounded-2xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-4">
+              <Text className="mb-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                Record a repayment
+              </Text>
               <TextInput
                 accessibilityLabel="Repayment amount"
                 placeholder={`Up to ${formatXAF(loan.balance)}`}
                 keyboardType="number-pad"
                 value={amount}
                 onChangeText={setAmount}
-                className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+                className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
               />
               <TextInput
                 accessibilityLabel="Repayment note"
                 placeholder="Note (optional)"
                 value={note}
                 onChangeText={setNote}
-                className="mb-2 min-h-12 rounded-xl border border-slate-200 px-3 py-3 text-base"
+                className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
               />
               <Button label="Save repayment" onPress={recordRepayment} />
             </View>
           ) : null}
 
           {installmentRows.length > 0 ? (
-            <View className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-              <Text className="mb-2 text-base font-bold text-slate-900">Installments</Text>
+            <View className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <Text className="mb-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                Installments
+              </Text>
               {installmentRows.map((item, index) => {
                 const done = item.done;
                 const late = !done && item.dueOn < localDateString();
@@ -171,12 +182,16 @@ export default function LoanDetailScreen() {
                     key={`${item.dueOn}-${index}`}
                     className="flex-row items-center justify-between py-1"
                   >
-                    <Text className="text-sm text-slate-700">
+                    <Text className="text-sm text-slate-700 dark:text-slate-200">
                       {index + 1}. {item.dueOn}
                     </Text>
                     <Text
                       className={`text-sm font-semibold ${
-                        done ? 'text-emerald-700' : late ? 'text-red-700' : 'text-slate-700'
+                        done
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : late
+                            ? 'text-red-700 dark:text-red-400'
+                            : 'text-slate-700 dark:text-slate-200'
                       }`}
                     >
                       {formatXAF(item.amount)} · {done ? 'Paid' : late ? 'Late' : 'Upcoming'}
@@ -187,26 +202,31 @@ export default function LoanDetailScreen() {
             </View>
           ) : null}
 
-          <View className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-            <Text className="mb-2 text-base font-bold text-slate-900">Repayment history</Text>
+          <View className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+            <Text className="mb-2 text-base font-bold text-slate-900 dark:text-slate-100">
+              Repayment history
+            </Text>
             {loan.payments.length === 0 ? (
-              <Text className="text-sm text-slate-600">No repayments yet.</Text>
+              <Text className="text-sm text-slate-600 dark:text-slate-300">No repayments yet.</Text>
             ) : null}
             {loan.payments.map((payment) => (
-              <View key={payment.id} className="border-t border-slate-100 py-2">
+              <View
+                key={payment.id}
+                className="border-t border-slate-100 dark:border-slate-800 py-2"
+              >
                 <View className="flex-row items-center justify-between">
-                  <Text className="text-sm text-slate-700">
+                  <Text className="text-sm text-slate-700 dark:text-slate-200">
                     {localDateString(new Date(payment.paidAt))}
                     {payment.note ? ` · ${payment.note}` : ''}
                   </Text>
-                  <Text className="text-sm font-semibold text-slate-900">
+                  <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                     {formatXAF(payment.amount)}
                   </Text>
                 </View>
                 <View className="mt-1 items-end">
                   <Text
                     accessibilityRole="button"
-                    className="text-xs font-semibold text-red-700"
+                    className="text-xs font-semibold text-red-700 dark:text-red-400"
                     onPress={() => {
                       if (confirming === `payment:${payment.id}` && db) {
                         run(
@@ -228,11 +248,11 @@ export default function LoanDetailScreen() {
           </View>
 
           {person && person.loanCount > 1 ? (
-            <View className="mt-4 rounded-2xl border border-slate-200 bg-white p-4">
-              <Text className="text-base font-bold text-slate-900">
+            <View className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+              <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
                 All loans to {person.personName}
               </Text>
-              <Text className="mt-1 text-sm text-slate-600">
+              <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                 {person.loanCount} loans · {formatXAF(person.totalLent)} lent ·{' '}
                 {formatXAF(person.totalRepaid)} repaid · {formatXAF(person.outstanding)} outstanding
                 {person.writtenOff > 0 ? ` · ${formatXAF(person.writtenOff)} written off` : ''}

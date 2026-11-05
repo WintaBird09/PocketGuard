@@ -5,6 +5,7 @@ import { effectiveNow, monthKeyForDate } from '../domain/dates';
 import type { Alert } from '../domain/alerts';
 
 import { getNextNotificationTime, parseDailySummaryTime } from './scheduler';
+import { getCurrencyCode } from '../domain/currency';
 
 export const dailySummarySettingKey = 'daily_summary_time';
 export const defaultDailySummaryTime = '20:00';
@@ -76,7 +77,7 @@ function localDayRange(now: Date, zone: string): { start: string; end: string; d
 }
 
 function formatAmount(amount: number): string {
-  return `${Math.trunc(amount).toLocaleString('en-US')} XAF`;
+  return `${Math.trunc(amount).toLocaleString('en-US')} ${getCurrencyCode()}`;
 }
 
 function requirePreparedDatabase(db: DatabaseLike) {

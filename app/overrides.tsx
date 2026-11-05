@@ -29,19 +29,28 @@ export default function OverridesScreen() {
     >
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {loaded.data && loaded.data.length === 0 ? (
-        <Text className="text-sm text-slate-600">No overrides recorded.</Text>
+        <Text className="text-sm text-slate-600 dark:text-slate-300">No overrides recorded.</Text>
       ) : null}
       {(loaded.data ?? []).map((item) => (
-        <View key={item.id} className="mb-3 rounded-2xl border border-red-300 bg-white p-4">
+        <View
+          key={item.id}
+          className="mb-3 rounded-2xl border border-red-300 dark:border-red-800 bg-white dark:bg-slate-900 p-4"
+        >
           <View className="flex-row justify-between">
-            <Text className="text-base font-bold text-slate-900">{item.lineName ?? 'No line'}</Text>
-            <Text className="text-base font-bold text-slate-900">-{formatXAF(item.amount)}</Text>
+            <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+              {item.lineName ?? 'No line'}
+            </Text>
+            <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+              -{formatXAF(item.amount)}
+            </Text>
           </View>
-          <Text className="mt-1 text-sm text-slate-500">
+          <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {new Date(item.occurredAt).toLocaleDateString('en-GB')}
             {item.note ? ` · ${item.note}` : ''}
           </Text>
-          <Text className="mt-2 text-sm text-red-700">Reason: {item.overrideReason}</Text>
+          <Text className="mt-2 text-sm text-red-700 dark:text-red-400">
+            Reason: {item.overrideReason}
+          </Text>
         </View>
       ))}
     </PageLayout>

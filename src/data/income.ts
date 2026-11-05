@@ -204,6 +204,83 @@ export function updateRecurringIncomePlan(
   });
 }
 
+export function updateIncomeStream(
+  db: DatabaseLike,
+  householdId: string,
+  streamId: string,
+  changes: { name: string; kind: IncomeKind },
+): void {
+  if (!incomeKinds.includes(changes.kind)) throw new Error('Choose a valid income type.');
+  const name = changes.name.trim() || defaultNames[changes.kind];
+  if (name.length > 80) throw new Error('Income source names must be 80 characters or fewer.');
+
+  inTransaction(db, () => {
+    const prepare = requirePrepared(db);
+    const existing = prepare(
+      'SELECT 1 FROM income_streams WHERE id = ? AND household_id = ? AND deleted_at IS NULL;',
+    ).get(streamId, householdId);
+    if (!existing) throw new Error('Income source was not found.');
+    const duplicate = prepare(
+      `SELECT 1 FROM income_streams
+        WHERE household_id = ? AND deleted_at IS NULL AND lower(name) = lower(?) AND id != ?;`,
+    ).get(householdId, name, streamId);
+    if (duplicate) throw new Error('An income source with this name already exists.');
+
+    prepare(
+      `UPDATE income_streams SET name = ?, kind = ?, updated_at = ?
+        WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+    ).run(name, changes.kind, new Date().toISOString(), streamId, householdId);
+    appendOutboxEntry(db, householdId, 'income_streams', streamId, 'upsert');
+  });
+}
+
+export function removeRecurringIncomePlan(
+  db: DatabaseLike,
+  householdId: string,
+  streamId: string,
+): void {
+  inTransaction(db, () => {
+    const result = requirePrepared(db)(
+      `UPDATE income_streams
+          SET recurring_amount = NULL, recurring_day = NULL, recurring_start_month = NULL,
+              updated_at = ?
+        WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+    ).run(new Date().toISOString(), streamId, householdId) as { changes?: number };
+    if (result.changes === 0) throw new Error('Income source was not found.');
+    appendOutboxEntry(db, householdId, 'income_streams', streamId, 'upsert');
+  });
+}
+
+export function deleteIncomeStream(db: DatabaseLike, householdId: string, streamId: string): void {
+  inTransaction(db, () => {
+    const prepare = requirePrepared(db);
+    const usedByTransactions = prepare(
+      `SELECT 1 FROM transactions
+        WHERE household_id = ? AND income_stream_id = ? AND deleted_at IS NULL LIMIT 1;`,
+    ).get(householdId, streamId);
+    if (usedByTransactions) {
+      throw new Error(
+        'This source has income or expenses linked to it. Delete or reassign those first.',
+      );
+    }
+    const usedByBudgets = prepare(
+      `SELECT 1 FROM allocations
+        WHERE household_id = ? AND income_stream_id = ? AND deleted_at IS NULL LIMIT 1;`,
+    ).get(householdId, streamId);
+    if (usedByBudgets) {
+      throw new Error('This source is used by a budget allocation. Unlink it there first.');
+    }
+
+    const now = new Date().toISOString();
+    const result = prepare(
+      `UPDATE income_streams SET deleted_at = ?, updated_at = ?
+        WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+    ).run(now, now, streamId, householdId) as { changes?: number };
+    if (result.changes === 0) throw new Error('Income source was not found.');
+    appendOutboxEntry(db, householdId, 'income_streams', streamId, 'delete');
+  });
+}
+
 export function getIncomeMonth(db: DatabaseLike, householdId: string, month: string): IncomeMonth {
   assertMonthKey(month);
   const prepare = requirePrepared(db);

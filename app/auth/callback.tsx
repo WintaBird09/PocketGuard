@@ -56,8 +56,14 @@ export default function AuthCallbackScreen() {
 
   return (
     <PageLayout title="Sign-in link" subtitle="Completing your Supabase sign-in">
-      <View className="rounded-2xl border border-slate-200 bg-white p-5">
-        <Text className={visibleError ? 'text-sm text-red-700' : 'text-sm text-slate-700'}>
+      <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5">
+        <Text
+          className={
+            visibleError
+              ? 'text-sm text-red-700 dark:text-red-400'
+              : 'text-sm text-slate-700 dark:text-slate-200'
+          }
+        >
           {visibleError ?? status}
         </Text>
         {visibleError ? (

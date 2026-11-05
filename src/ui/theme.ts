@@ -59,7 +59,4 @@ export function getTheme(mode: AppThemeName): AppTheme {
   };
 }
 
-export function formatXAF(value: number): string {
-  const formatter = new Intl.NumberFormat('en-US');
-  return `${formatter.format(value)} XAF`;
-}
+export { formatMoney as formatXAF } from '../domain/currency';

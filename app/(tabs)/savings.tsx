@@ -26,7 +26,7 @@ const pct = (part: number, whole: number) =>
 
 function ProgressBar({ value }: { value: number }) {
   return (
-    <View className="h-2.5 overflow-hidden rounded-full bg-slate-200">
+    <View className="h-2.5 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
       <View className="h-full rounded-full bg-emerald-500" style={{ width: `${value}%` }} />
     </View>
   );
@@ -181,7 +181,7 @@ export default function SavingsScreen() {
             </View>
           </View>
 
-          <View className="mt-5 flex-row rounded-2xl bg-slate-200 p-1">
+          <View className="mt-5 flex-row rounded-2xl bg-slate-200 dark:bg-slate-700 p-1">
             {(['monthly', 'annual'] as const).map((key) => (
               <Pressable
                 key={key}
@@ -189,11 +189,11 @@ export default function SavingsScreen() {
                 accessibilityState={{ selected: view === key }}
                 onPress={() => setView(key)}
                 className={`min-h-10 flex-1 items-center justify-center rounded-xl ${
-                  view === key ? 'bg-white' : ''
+                  view === key ? 'bg-white dark:bg-slate-900' : ''
                 }`}
               >
                 <Text
-                  className={`text-sm font-bold ${view === key ? 'text-slate-900' : 'text-slate-500'}`}
+                  className={`text-sm font-bold ${view === key ? 'text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'}`}
                 >
                   {key === 'monthly' ? 'Monthly' : 'Annual'}
                 </Text>
@@ -203,30 +203,42 @@ export default function SavingsScreen() {
 
           {view === 'monthly' ? (
             <View className="mt-4">
-              <View className="mb-3 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-2">
+              <View className="mb-3 flex-row items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2">
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Previous month"
                   onPress={() => setSelectedMonth(previousMonth(month))}
-                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
                 >
-                  <Ionicons name="chevron-back" size={20} color="#0f172a" />
+                  <Ionicons
+                    name="chevron-back"
+                    size={20}
+                    className="text-slate-900 dark:text-slate-100"
+                  />
                 </Pressable>
-                <Text className="text-base font-bold text-slate-900">{monthLabel(month)}</Text>
+                <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {monthLabel(month)}
+                </Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Next month"
                   onPress={() => setSelectedMonth(nextMonth(month))}
-                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
                 >
-                  <Ionicons name="chevron-forward" size={20} color="#0f172a" />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    className="text-slate-900 dark:text-slate-100"
+                  />
                 </Pressable>
               </View>
 
-              <View className="mb-3 rounded-2xl border border-slate-200 bg-white p-4">
+              <View className="mb-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
                 <View className="flex-row justify-between">
-                  <Text className="text-sm text-slate-600">Saved this month</Text>
-                  <Text className="text-sm font-bold text-slate-900">
+                  <Text className="text-sm text-slate-600 dark:text-slate-300">
+                    Saved this month
+                  </Text>
+                  <Text className="text-sm font-bold text-slate-900 dark:text-slate-100">
                     {formatXAF(monthSaved)} / {formatXAF(monthPlanned)}
                   </Text>
                 </View>
@@ -236,23 +248,25 @@ export default function SavingsScreen() {
               </View>
 
               {monthItems.length === 0 ? (
-                <Text className="text-sm text-slate-600">
+                <Text className="text-sm text-slate-600 dark:text-slate-300">
                   No savings are planned for {monthLabel(month)}.
                 </Text>
               ) : (
                 monthItems.map(({ goal, commitment }) => (
                   <View
                     key={commitment.id}
-                    className="mb-3 rounded-2xl border border-slate-200 bg-white p-4"
+                    className="mb-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4"
                   >
                     <View className="flex-row items-center justify-between">
-                      <Text className="flex-1 text-base font-bold text-slate-900">{goal.name}</Text>
-                      <Text className="text-sm font-bold text-slate-700">
+                      <Text className="flex-1 text-base font-bold text-slate-900 dark:text-slate-100">
+                        {goal.name}
+                      </Text>
+                      <Text className="text-sm font-bold text-slate-700 dark:text-slate-200">
                         {formatXAF(commitment.plannedAmount)}
                       </Text>
                     </View>
                     {commitment.savedAt ? (
-                      <Text className="mt-2 text-sm font-semibold text-emerald-700">
+                      <Text className="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-400">
                         ✓ Saved {formatXAF(commitment.savedAmount ?? 0)}
                       </Text>
                     ) : (
@@ -264,7 +278,7 @@ export default function SavingsScreen() {
                           onChangeText={(value) =>
                             setAmounts((current) => ({ ...current, [commitment.id]: value }))
                           }
-                          className="min-h-12 min-w-28 rounded-xl border border-slate-200 px-3 py-3 text-base font-semibold text-slate-900"
+                          className="min-h-12 min-w-28 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base font-semibold text-slate-900 dark:text-slate-100"
                         />
                         <Pressable
                           accessibilityRole="button"
@@ -281,47 +295,61 @@ export default function SavingsScreen() {
             </View>
           ) : (
             <View className="mt-4">
-              <View className="mb-3 flex-row items-center justify-between rounded-2xl border border-slate-200 bg-white p-2">
+              <View className="mb-3 flex-row items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-2">
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Previous year"
                   onPress={() => setYear(activeYear - 1)}
-                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
                 >
-                  <Ionicons name="chevron-back" size={20} color="#0f172a" />
+                  <Ionicons
+                    name="chevron-back"
+                    size={20}
+                    className="text-slate-900 dark:text-slate-100"
+                  />
                 </Pressable>
-                <Text className="text-base font-bold text-slate-900">{activeYear}</Text>
+                <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  {activeYear}
+                </Text>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Next year"
                   onPress={() => setYear(activeYear + 1)}
-                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100"
+                  className="h-11 w-11 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
                 >
-                  <Ionicons name="chevron-forward" size={20} color="#0f172a" />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={20}
+                    className="text-slate-900 dark:text-slate-100"
+                  />
                 </Pressable>
               </View>
 
               <View className="mb-3 flex-row gap-3">
-                <View className="flex-1 rounded-2xl bg-slate-100 p-3">
-                  <Text className="text-xs font-semibold text-slate-600">Planned</Text>
-                  <Text className="mt-1 text-base font-extrabold text-slate-900">
+                <View className="flex-1 rounded-2xl bg-slate-100 dark:bg-slate-800 p-3">
+                  <Text className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                    Planned
+                  </Text>
+                  <Text className="mt-1 text-base font-extrabold text-slate-900 dark:text-slate-100">
                     {formatXAF(planner.yearPlanned)}
                   </Text>
                 </View>
-                <View className="flex-1 rounded-2xl bg-emerald-50 p-3">
-                  <Text className="text-xs font-semibold text-emerald-700">Saved</Text>
-                  <Text className="mt-1 text-base font-extrabold text-emerald-800">
+                <View className="flex-1 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 p-3">
+                  <Text className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">
+                    Saved
+                  </Text>
+                  <Text className="mt-1 text-base font-extrabold text-emerald-800 dark:text-emerald-300">
                     {formatXAF(planner.yearSaved)}
                   </Text>
                 </View>
               </View>
 
-              <View className="rounded-2xl border border-slate-200 bg-white p-4">
+              <View className="rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
                 <View className="h-36 flex-row items-end justify-between gap-1">
                   {planner.months.map((item) => (
                     <View key={item.month} className="flex-1 items-center justify-end">
                       <View
-                        className="w-full justify-end overflow-hidden rounded-t-md bg-slate-200"
+                        className="w-full justify-end overflow-hidden rounded-t-md bg-slate-200 dark:bg-slate-700"
                         style={{ height: Math.max(4, (item.planned / maxBar) * 120) }}
                       >
                         <View
@@ -336,18 +364,18 @@ export default function SavingsScreen() {
                   {planner.months.map((item) => (
                     <Text
                       key={item.month}
-                      className="flex-1 text-center text-[10px] text-slate-500"
+                      className="flex-1 text-center text-[10px] text-slate-500 dark:text-slate-400"
                     >
                       {monthLabel(item.month, 'short').slice(0, 3)}
                     </Text>
                   ))}
                 </View>
-                <Text className="mt-3 text-xs text-slate-500">
+                <Text className="mt-3 text-xs text-slate-500 dark:text-slate-400">
                   Grey is planned, green is already saved.
                 </Text>
               </View>
 
-              <View className="mt-3 rounded-2xl border border-slate-200 bg-white">
+              <View className="mt-3 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
                 {planner.months.map((item, index) => (
                   <Pressable
                     key={item.month}
@@ -357,15 +385,15 @@ export default function SavingsScreen() {
                       setView('monthly');
                     }}
                     className={`flex-row items-center justify-between px-4 py-3 ${
-                      index > 0 ? 'border-t border-slate-100' : ''
+                      index > 0 ? 'border-t border-slate-100 dark:border-slate-800' : ''
                     }`}
                   >
                     <Text
-                      className={`text-sm ${item.month === currentMonth ? 'font-bold text-emerald-700' : 'text-slate-700'}`}
+                      className={`text-sm ${item.month === currentMonth ? 'font-bold text-emerald-700 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}
                     >
                       {monthLabel(item.month)}
                     </Text>
-                    <Text className="text-sm font-semibold text-slate-900">
+                    <Text className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                       {formatXAF(item.saved)} / {formatXAF(item.planned)}
                     </Text>
                   </Pressable>
@@ -375,16 +403,18 @@ export default function SavingsScreen() {
           )}
 
           <View className="mb-3 mt-6 flex-row items-end justify-between">
-            <Text className="text-lg font-bold text-slate-900">Your goals</Text>
-            <Text className="text-xs font-semibold text-slate-500">
+            <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">Your goals</Text>
+            <Text className="text-xs font-semibold text-slate-500 dark:text-slate-400">
               {planner.goals.length} {planner.goals.length === 1 ? 'goal' : 'goals'}
             </Text>
           </View>
           {planner.goals.length === 0 ? (
-            <View className="items-center rounded-3xl border border-dashed border-slate-300 bg-white p-6">
+            <View className="items-center rounded-3xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-6">
               <Ionicons name="flag-outline" size={32} color="#059669" />
-              <Text className="mt-2 text-base font-bold text-slate-900">No goals yet</Text>
-              <Text className="mt-1 text-center text-sm text-slate-600">
+              <Text className="mt-2 text-base font-bold text-slate-900 dark:text-slate-100">
+                No goals yet
+              </Text>
+              <Text className="mt-1 text-center text-sm text-slate-600 dark:text-slate-300">
                 Tap “Add new savings” to set a target, a date and a monthly amount.
               </Text>
             </View>
@@ -397,14 +427,18 @@ export default function SavingsScreen() {
               const status = done
                 ? {
                     label: 'Goal reached',
-                    pill: 'bg-emerald-100 text-emerald-800',
+                    pill: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300',
                     bar: 'bg-emerald-500',
                   }
                 : behind
-                  ? { label: 'Behind', pill: 'bg-red-100 text-red-800', bar: 'bg-red-500' }
+                  ? {
+                      label: 'Behind',
+                      pill: 'bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300',
+                      bar: 'bg-red-500',
+                    }
                   : {
                       label: 'On track',
-                      pill: 'bg-emerald-100 text-emerald-800',
+                      pill: 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300',
                       bar: 'bg-emerald-500',
                     };
               const next = goal.commitments.find((c) => !c.savedAt && c.month >= currentMonth);
@@ -415,7 +449,7 @@ export default function SavingsScreen() {
               return (
                 <View
                   key={goal.id}
-                  className="mb-4 overflow-hidden rounded-3xl border border-slate-200 bg-white"
+                  className="mb-4 overflow-hidden rounded-3xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
                 >
                   <View className={`h-1.5 ${status.bar}`} />
                   <View className="p-4">
@@ -431,10 +465,15 @@ export default function SavingsScreen() {
                         />
                       </View>
                       <View className="flex-1">
-                        <Text numberOfLines={1} className="text-base font-bold text-slate-900">
+                        <Text
+                          numberOfLines={1}
+                          className="text-base font-bold text-slate-900 dark:text-slate-100"
+                        >
                           {goal.name}
                         </Text>
-                        <Text className="text-xs text-slate-500">By {goal.dueDate}</Text>
+                        <Text className="text-xs text-slate-500 dark:text-slate-400">
+                          By {goal.dueDate}
+                        </Text>
                       </View>
                       <View className={`rounded-full px-2.5 py-1 ${status.pill.split(' ')[0]}`}>
                         <Text className={`text-xs font-bold ${status.pill.split(' ')[1]}`}>
@@ -444,43 +483,45 @@ export default function SavingsScreen() {
                     </View>
 
                     <View className="mt-4 flex-row items-end justify-between">
-                      <Text className="text-2xl font-extrabold text-slate-900">
+                      <Text className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                         {formatXAF(goal.saved)}
                       </Text>
-                      <Text className="text-sm font-semibold text-slate-500">
+                      <Text className="text-sm font-semibold text-slate-500 dark:text-slate-400">
                         {progress}% of {formatXAF(goal.target)}
                       </Text>
                     </View>
-                    <View className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+                    <View className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                       <View
                         className={`h-full rounded-full ${status.bar}`}
                         style={{ width: `${progress}%` }}
                       />
                     </View>
-                    <Text className="mt-2 text-xs text-slate-500">
+                    <Text className="mt-2 text-xs text-slate-500 dark:text-slate-400">
                       {done ? 'Fully funded 🎉' : `${formatXAF(remaining)} still to save`}
                     </Text>
 
                     <View className="mt-4 flex-row gap-2">
-                      <View className="flex-1 rounded-2xl bg-slate-50 p-3">
-                        <Text className="text-[11px] font-semibold text-slate-500">PER MONTH</Text>
-                        <Text className="mt-0.5 text-sm font-bold text-slate-900">
+                      <View className="flex-1 rounded-2xl bg-slate-50 dark:bg-slate-800 p-3">
+                        <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                          PER MONTH
+                        </Text>
+                        <Text className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">
                           {formatXAF(goal.monthlyAmount)}
                         </Text>
                       </View>
-                      <View className="flex-1 rounded-2xl bg-slate-50 p-3">
-                        <Text className="text-[11px] font-semibold text-slate-500">
+                      <View className="flex-1 rounded-2xl bg-slate-50 dark:bg-slate-800 p-3">
+                        <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                           IN {activeYear}
                         </Text>
-                        <Text className="mt-0.5 text-sm font-bold text-slate-900">
+                        <Text className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">
                           {formatXAF(yearOfGoal)}
                         </Text>
                       </View>
-                      <View className="flex-1 rounded-2xl bg-slate-50 p-3">
-                        <Text className="text-[11px] font-semibold text-slate-500">
+                      <View className="flex-1 rounded-2xl bg-slate-50 dark:bg-slate-800 p-3">
+                        <Text className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
                           MONTHS LEFT
                         </Text>
-                        <Text className="mt-0.5 text-sm font-bold text-slate-900">
+                        <Text className="mt-0.5 text-sm font-bold text-slate-900 dark:text-slate-100">
                           {monthsLeft(goal, currentMonth)}
                         </Text>
                       </View>
@@ -493,16 +534,16 @@ export default function SavingsScreen() {
                           setSelectedMonth(next.month);
                           setView('monthly');
                         }}
-                        className="mt-3 flex-row items-center justify-between rounded-2xl bg-emerald-50 px-3 py-2.5"
+                        className="mt-3 flex-row items-center justify-between rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 px-3 py-2.5"
                       >
-                        <Text className="text-sm font-semibold text-emerald-800">
+                        <Text className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">
                           Next: {formatXAF(next.plannedAmount)} in {monthLabel(next.month, 'short')}
                         </Text>
                         <Ionicons name="chevron-forward" size={16} color="#047857" />
                       </Pressable>
                     ) : null}
                     {behind ? (
-                      <Text className="mt-2 text-xs font-semibold text-red-700">
+                      <Text className="mt-2 text-xs font-semibold text-red-700 dark:text-red-400">
                         Not yet confirmed:{' '}
                         {goal.overdueMonths.map((m) => monthLabel(m, 'short')).join(', ')}
                       </Text>
@@ -516,7 +557,9 @@ export default function SavingsScreen() {
                       hitSlop={8}
                     >
                       <Ionicons name="trash-outline" size={16} color="#b91c1c" />
-                      <Text className="text-xs font-semibold text-red-700">Delete goal</Text>
+                      <Text className="text-xs font-semibold text-red-700 dark:text-red-400">
+                        Delete goal
+                      </Text>
                     </Pressable>
                   </View>
                 </View>

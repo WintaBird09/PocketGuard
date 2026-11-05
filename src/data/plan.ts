@@ -231,11 +231,24 @@ export function copyForward(
 export function addBudgetLine(
   db: DatabaseLike,
   householdId: string,
-  draft: { name: string; kind: LineKind; hardCap?: boolean },
+  draft: {
+    name: string;
+    kind: LineKind;
+    hardCap?: boolean;
+    month?: string;
+    amount?: number;
+    incomeStreamId?: string | null;
+  },
 ): string {
   const name = draft.name.trim();
   if (!name) throw new Error('Enter a name for the budget line.');
   if (!lineKinds.includes(draft.kind)) throw new Error('Choose a valid line type.');
+  const amount = draft.amount ?? 0;
+  assertWholeAmount(amount, true);
+  if (draft.month) assertMonthKey(draft.month);
+  if ((amount > 0 || draft.incomeStreamId) && !draft.month) {
+    throw new Error('Choose a month for the planned amount.');
+  }
   return inTransaction(db, () => {
     const prepare = requirePrepared(db);
     const duplicate = prepare(
@@ -264,6 +277,9 @@ export function addBudgetLine(
       now,
     );
     appendOutboxEntry(db, householdId, 'budget_lines', id, 'create');
+    if (draft.month && (amount > 0 || draft.incomeStreamId)) {
+      writeAllocation(db, householdId, id, draft.month, amount, draft.incomeStreamId ?? null);
+    }
     return id;
   });
 }

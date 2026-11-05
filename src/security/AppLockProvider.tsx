@@ -107,24 +107,28 @@ export function AppLockProvider({ children }: { children: ReactNode }) {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 p-6">
-        <Text className="text-base text-slate-700">Checking app lock…</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-800 p-6">
+        <Text className="text-base text-slate-700 dark:text-slate-200">Checking app lock…</Text>
       </View>
     );
   }
   if (error && !enabled) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 p-6">
-        <Text className="text-xl font-bold text-slate-900">App security unavailable</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-800 p-6">
+        <Text className="text-xl font-bold text-slate-900 dark:text-slate-100">
+          App security unavailable
+        </Text>
         <Banner tone="error">{error}</Banner>
       </View>
     );
   }
   if (locked) {
     return (
-      <View className="flex-1 items-center justify-center bg-slate-50 p-6">
-        <Text className="mb-2 text-2xl font-bold text-slate-900">Pocket Guard is locked</Text>
-        <Text className="mb-5 text-center text-base text-slate-600">
+      <View className="flex-1 items-center justify-center bg-slate-50 dark:bg-slate-800 p-6">
+        <Text className="mb-2 text-2xl font-bold text-slate-900 dark:text-slate-100">
+          Pocket Guard is locked
+        </Text>
+        <Text className="mb-5 text-center text-base text-slate-600 dark:text-slate-300">
           Unlock with your device biometrics or passcode to continue.
         </Text>
         {error ? <Banner tone="error">{error}</Banner> : null}

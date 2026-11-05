@@ -10,6 +10,7 @@ import { DatePickerField } from '@/src/ui/DatePickerField';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
+import { getCurrencyCode } from '@/src/domain/currency';
 
 function monthsBetween(startMonth: string, dueDate: string): number {
   if (!dueDate) return 0;
@@ -54,7 +55,8 @@ export default function SavingsFormScreen() {
   };
 
   const failure = dbError ?? error;
-  const input = 'min-h-12 rounded-xl border border-slate-200 bg-white px-3 py-3 text-base';
+  const input =
+    'min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-base';
 
   return (
     <PageLayout
@@ -63,9 +65,9 @@ export default function SavingsFormScreen() {
       subtitle="Set a target, a date and a monthly commitment."
     >
       {failure ? <Banner tone="error">{failure}</Banner> : null}
-      <View className="gap-4 rounded-2xl border border-slate-200 bg-white p-4">
+      <View className="gap-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
         <View>
-          <Text className="mb-1 text-sm font-semibold text-slate-700">
+          <Text className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
             What are you saving for?
           </Text>
           <TextInput
@@ -77,7 +79,9 @@ export default function SavingsFormScreen() {
           />
         </View>
         <View>
-          <Text className="mb-1 text-sm font-semibold text-slate-700">Target amount (XAF)</Text>
+          <Text className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Target amount ({getCurrencyCode()})
+          </Text>
           <TextInput
             accessibilityLabel="Target amount"
             keyboardType="number-pad"
@@ -96,8 +100,8 @@ export default function SavingsFormScreen() {
           startOnToday
         />
         <View>
-          <Text className="mb-1 text-sm font-semibold text-slate-700">
-            Monthly commitment (XAF)
+          <Text className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">
+            Monthly commitment ({getCurrencyCode()})
           </Text>
           <TextInput
             accessibilityLabel="Monthly commitment"
@@ -108,7 +112,7 @@ export default function SavingsFormScreen() {
             className={input}
           />
           {months > 0 && monthlyValue > 0 ? (
-            <Text className="mt-2 text-sm text-slate-600">
+            <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               {formatXAF(monthlyValue)} a month for {months} month{months === 1 ? '' : 's'} ·{' '}
               {formatXAF(monthlyValue * 12)} a year
               {monthlyValue * months < targetValue ? ' · this will fall short of the target' : ''}
@@ -120,7 +124,7 @@ export default function SavingsFormScreen() {
         <Button label="Save goal" onPress={save} disabled={!db} />
         <Button label="Cancel" variant="outline" onPress={() => router.back()} />
       </View>
-      <Text className="mt-4 text-xs text-slate-500">
+      <Text className="mt-4 text-xs text-slate-500 dark:text-slate-400">
         A savings line is added to your budget for each month.
       </Text>
     </PageLayout>

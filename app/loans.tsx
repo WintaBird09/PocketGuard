@@ -112,17 +112,19 @@ export default function LoansScreen() {
         accessibilityRole="button"
         accessibilityLabel="Monthly lending cap"
         onPress={() => router.push('/lending-cap')}
-        className="mt-4 rounded-2xl border border-slate-200 bg-white p-4"
+        className="mt-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4"
       >
         <View className="flex-row items-center justify-between">
           <View className="flex-row items-center">
-            <Ionicons name="speedometer" size={18} color="#0f172a" />
-            <Text className="ml-2 text-sm font-bold text-slate-900">Monthly lending cap</Text>
+            <Ionicons name="speedometer" size={18} className="text-slate-900 dark:text-slate-100" />
+            <Text className="ml-2 text-sm font-bold text-slate-900 dark:text-slate-100">
+              Monthly lending cap
+            </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#94a3b8" />
         </View>
         {loaded.cap === null ? (
-          <Text className="mt-2 text-sm text-slate-600">
+          <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
             No cap set. Tap to limit how much you lend each month.
           </Text>
         ) : (
@@ -131,17 +133,17 @@ export default function LoansScreen() {
               <Text className="text-2xl font-extrabold" style={{ color: capTint }}>
                 {capPercent}%
               </Text>
-              <Text className="text-sm text-slate-600">
+              <Text className="text-sm text-slate-600 dark:text-slate-300">
                 {formatXAF(loaded.lentThisMonth)} of {formatXAF(loaded.cap)}
               </Text>
             </View>
-            <View className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+            <View className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
               <View
                 className="h-full rounded-full"
                 style={{ width: `${Math.min(100, capPercent)}%`, backgroundColor: capTint }}
               />
             </View>
-            <Text className="mt-2 text-xs text-slate-500">
+            <Text className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               {loaded.lentThisMonth > loaded.cap
                 ? `${formatXAF(loaded.lentThisMonth - loaded.cap)} over this month's cap`
                 : `${formatXAF(loaded.cap - loaded.lentThisMonth)} left to lend this month`}
@@ -161,27 +163,29 @@ export default function LoansScreen() {
 
       {people.length > 0 ? (
         <View className="mt-6">
-          <Text className="mb-3 text-base font-bold text-slate-900">People</Text>
+          <Text className="mb-3 text-base font-bold text-slate-900 dark:text-slate-100">
+            People
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View className="flex-row gap-3 pr-2">
               {people.map((person) => (
                 <View
                   key={person.key}
-                  className="w-40 rounded-2xl border border-slate-200 bg-white p-3"
+                  className="w-40 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-3"
                 >
                   <View className="flex-row items-center">
                     <Avatar name={person.personName} size={36} />
                     <Text
                       numberOfLines={1}
-                      className="ml-2 flex-1 text-sm font-bold text-slate-900"
+                      className="ml-2 flex-1 text-sm font-bold text-slate-900 dark:text-slate-100"
                     >
                       {person.personName}
                     </Text>
                   </View>
-                  <Text className="mt-3 text-lg font-extrabold text-slate-900">
+                  <Text className="mt-3 text-lg font-extrabold text-slate-900 dark:text-slate-100">
                     {formatXAF(person.outstanding)}
                   </Text>
-                  <Text className="text-xs text-slate-500">
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
                     {person.loanCount} {person.loanCount === 1 ? 'loan' : 'loans'}
                     {person.overdueCount > 0 ? ` · ${person.overdueCount} overdue` : ''}
                   </Text>
@@ -192,7 +196,9 @@ export default function LoansScreen() {
         </View>
       ) : null}
 
-      <Text className="mb-3 mt-6 text-base font-bold text-slate-900">Loans</Text>
+      <Text className="mb-3 mt-6 text-base font-bold text-slate-900 dark:text-slate-100">
+        Loans
+      </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         <View className="flex-row gap-2">
           {loanFilters.map((item) => {
@@ -204,11 +210,13 @@ export default function LoansScreen() {
                 accessibilityState={{ selected: active }}
                 onPress={() => setFilter(item.key)}
                 className={`min-h-10 flex-row items-center rounded-full px-4 ${
-                  active ? 'bg-slate-900' : 'border border-slate-200 bg-white'
+                  active
+                    ? 'bg-slate-900 dark:bg-slate-800'
+                    : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
                 }`}
               >
                 <Text
-                  className={`text-sm font-semibold ${active ? 'text-white' : 'text-slate-700'}`}
+                  className={`text-sm font-semibold ${active ? 'text-white' : 'text-slate-700 dark:text-slate-200'}`}
                 >
                   {item.label} {counts[item.key]}
                 </Text>
@@ -220,9 +228,9 @@ export default function LoansScreen() {
 
       <View className="mt-4 gap-3">
         {loaded.loans && visible.length === 0 ? (
-          <View className="items-center rounded-2xl border border-dashed border-slate-300 bg-white p-8">
+          <View className="items-center rounded-2xl border border-dashed border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 p-8">
             <Ionicons name="people-circle" size={44} color="#94a3b8" />
-            <Text className="mt-2 text-sm text-slate-600">
+            <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
               {loaded.loans.length === 0 ? 'No loans recorded yet.' : 'No loans match this filter.'}
             </Text>
           </View>
@@ -235,26 +243,33 @@ export default function LoansScreen() {
               accessibilityRole="button"
               accessibilityLabel={`Open loan to ${loan.personName}`}
               onPress={() => router.push({ pathname: '/loan', params: { id: loan.id } })}
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white"
+              className="overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900"
             >
               <View className={`h-1.5 ${look.bar}`} />
               <View className="p-4">
                 <View className="flex-row items-center">
                   <Avatar name={loan.personName} size={44} />
                   <View className="ml-3 flex-1">
-                    <Text numberOfLines={1} className="text-base font-bold text-slate-900">
+                    <Text
+                      numberOfLines={1}
+                      className="text-base font-bold text-slate-900 dark:text-slate-100"
+                    >
                       {loan.personName}
                     </Text>
-                    <Text className="text-xs text-slate-500">Lent {loan.lentOn}</Text>
+                    <Text className="text-xs text-slate-500 dark:text-slate-400">
+                      Lent {loan.lentOn}
+                    </Text>
                   </View>
                   <View className="items-end">
-                    <Text className="text-lg font-extrabold text-slate-900">
+                    <Text className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
                       {formatXAF(loan.balance)}
                     </Text>
-                    <Text className="text-xs text-slate-500">of {formatXAF(loan.amount)}</Text>
+                    <Text className="text-xs text-slate-500 dark:text-slate-400">
+                      of {formatXAF(loan.amount)}
+                    </Text>
                   </View>
                 </View>
-                <View className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100">
+                <View className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
                   <View
                     className={`h-full rounded-full ${look.bar}`}
                     style={{ width: `${loan.percentPaid}%` }}
@@ -267,11 +282,15 @@ export default function LoansScreen() {
                       {loanStatusLabel[loan.status]}
                     </Text>
                   </View>
-                  <Text className="text-xs text-slate-500">{loan.percentPaid}% repaid</Text>
+                  <Text className="text-xs text-slate-500 dark:text-slate-400">
+                    {loan.percentPaid}% repaid
+                  </Text>
                 </View>
                 <Text
                   className={`mt-2 text-sm font-semibold ${
-                    loan.status === 'OVERDUE' ? 'text-red-600' : 'text-slate-600'
+                    loan.status === 'OVERDUE'
+                      ? 'text-red-600 dark:text-red-400'
+                      : 'text-slate-600 dark:text-slate-300'
                   }`}
                 >
                   {loanDueText(loan)}
@@ -289,16 +308,36 @@ const statusLook: Record<
   LoanStatus,
   { bar: string; pill: string; tint: string; icon: keyof typeof Ionicons.glyphMap }
 > = {
-  PENDING: { bar: 'bg-slate-400', pill: 'bg-slate-100', tint: '#475569', icon: 'time' },
-  PARTIAL: { bar: 'bg-amber-500', pill: 'bg-amber-100', tint: '#b45309', icon: 'hourglass' },
-  OVERDUE: { bar: 'bg-red-500', pill: 'bg-red-100', tint: '#b91c1c', icon: 'alert-circle' },
+  PENDING: {
+    bar: 'bg-slate-400',
+    pill: 'bg-slate-100 dark:bg-slate-800',
+    tint: '#475569',
+    icon: 'time',
+  },
+  PARTIAL: {
+    bar: 'bg-amber-500',
+    pill: 'bg-amber-100 dark:bg-amber-900/40',
+    tint: '#b45309',
+    icon: 'hourglass',
+  },
+  OVERDUE: {
+    bar: 'bg-red-500',
+    pill: 'bg-red-100 dark:bg-red-900/40',
+    tint: '#b91c1c',
+    icon: 'alert-circle',
+  },
   COMPLETE: {
     bar: 'bg-emerald-500',
-    pill: 'bg-emerald-100',
+    pill: 'bg-emerald-100 dark:bg-emerald-900/40',
     tint: '#047857',
     icon: 'checkmark-circle',
   },
-  WRITTEN_OFF: { bar: 'bg-slate-300', pill: 'bg-slate-100', tint: '#64748b', icon: 'close-circle' },
+  WRITTEN_OFF: {
+    bar: 'bg-slate-300',
+    pill: 'bg-slate-100 dark:bg-slate-800',
+    tint: '#64748b',
+    icon: 'close-circle',
+  },
 };
 
 const avatarColors = ['#059669', '#2563eb', '#7c3aed', '#db2777', '#ea580c', '#0891b2', '#ca8a04'];
@@ -367,11 +406,15 @@ function ActionTile({
       accessibilityLabel={label}
       onPress={onPress}
       className={`min-h-14 flex-1 flex-row items-center justify-center rounded-2xl px-3 ${
-        primary ? 'bg-slate-900' : 'border border-slate-200 bg-white'
+        primary
+          ? 'bg-slate-900 dark:bg-slate-800'
+          : 'border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
       }`}
     >
       <Ionicons name={icon} size={22} color={primary ? '#ffffff' : '#0f172a'} />
-      <Text className={`ml-2 text-base font-bold ${primary ? 'text-white' : 'text-slate-900'}`}>
+      <Text
+        className={`ml-2 text-base font-bold ${primary ? 'text-white' : 'text-slate-900 dark:text-slate-100'}`}
+      >
         {label}
       </Text>
     </Pressable>

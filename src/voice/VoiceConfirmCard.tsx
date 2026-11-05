@@ -12,6 +12,7 @@ import { formatXAF } from '../ui/theme';
 
 import { completeVoiceDraft } from './drafts';
 import type { ParseExpenseItem } from './contract';
+import { getCurrencyCode } from '../domain/currency';
 
 export type SavingsCommitmentOption = {
   id: string;
@@ -111,7 +112,7 @@ export function VoiceConfirmCard({
       return;
     }
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setError('Enter a positive whole amount in XAF.');
+      setError(`Enter a positive whole amount in ${getCurrencyCode()}.`);
       return;
     }
     let submission: ReturnType<typeof submitExpense>;
@@ -149,7 +150,7 @@ export function VoiceConfirmCard({
   const saveIncome = () => {
     setError(null);
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setError('Enter a positive whole amount in XAF.');
+      setError(`Enter a positive whole amount in ${getCurrencyCode()}.`);
       return;
     }
     let occurredAt: string;
@@ -182,7 +183,7 @@ export function VoiceConfirmCard({
       return;
     }
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setError('Enter a positive whole amount in XAF.');
+      setError(`Enter a positive whole amount in ${getCurrencyCode()}.`);
       return;
     }
     try {
@@ -200,7 +201,7 @@ export function VoiceConfirmCard({
       return;
     }
     if (!Number.isSafeInteger(amount) || amount <= 0) {
-      setError('Enter a positive whole amount in XAF.');
+      setError(`Enter a positive whole amount in ${getCurrencyCode()}.`);
       return;
     }
     try {
@@ -232,9 +233,9 @@ export function VoiceConfirmCard({
   }[item.intent];
 
   return (
-    <View className="mb-4 rounded-2xl border border-slate-200 bg-white p-4">
-      <Text className="text-base font-bold text-slate-900">{intentLabel}</Text>
-      <Text className="mt-1 text-sm text-slate-500" numberOfLines={3}>
+    <View className="mb-4 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
+      <Text className="text-base font-bold text-slate-900 dark:text-slate-100">{intentLabel}</Text>
+      <Text className="mt-1 text-sm text-slate-500 dark:text-slate-400" numberOfLines={3}>
         “{rawText}”
       </Text>
       {item.confidence < 0.65 ? (
@@ -255,9 +256,11 @@ export function VoiceConfirmCard({
         </Banner>
       ) : null}
 
-      <Text className="mb-1 mt-3 text-sm font-medium text-slate-700">Amount (XAF)</Text>
+      <Text className="mb-1 mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+        Amount ({getCurrencyCode()})
+      </Text>
       <TextInput
-        accessibilityLabel="Voice amount in XAF"
+        accessibilityLabel={`Voice amount in ${getCurrencyCode()}`}
         keyboardType="number-pad"
         value={amountInput}
         editable={!saved}
@@ -266,10 +269,10 @@ export function VoiceConfirmCard({
           setWarningConfirmed(false);
           setError(null);
         }}
-        className="rounded-xl border border-slate-200 px-3 py-3 text-base"
+        className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
       />
 
-      <Text className="mb-1 mt-3 text-sm font-medium text-slate-700">Date</Text>
+      <Text className="mb-1 mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">Date</Text>
       <TextInput
         accessibilityLabel="Voice transaction date"
         value={date}
@@ -280,12 +283,14 @@ export function VoiceConfirmCard({
           setError(null);
         }}
         placeholder="YYYY-MM-DD"
-        className="rounded-xl border border-slate-200 px-3 py-3 text-base"
+        className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
       />
 
       {item.intent === 'log_expense' || item.intent === 'check_spend' ? (
         <>
-          <Text className="mb-2 mt-3 text-sm font-medium text-slate-700">Budget line</Text>
+          <Text className="mb-2 mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+            Budget line
+          </Text>
           <View className="flex-row flex-wrap gap-2">
             {lines.map((line) => (
               <Chip
@@ -301,7 +306,7 @@ export function VoiceConfirmCard({
             ))}
           </View>
           {selectedLine ? (
-            <Text className="mt-2 text-xs text-slate-500">
+            <Text className="mt-2 text-xs text-slate-500 dark:text-slate-400">
               {selectedLine.hardCap ? 'Hard cap' : 'Flexible'} · planned{' '}
               {formatXAF(selectedLine.planned)}
             </Text>
@@ -311,7 +316,9 @@ export function VoiceConfirmCard({
 
       {item.intent === 'confirm_saving' ? (
         <>
-          <Text className="mb-2 mt-3 text-sm font-medium text-slate-700">Savings commitment</Text>
+          <Text className="mb-2 mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+            Savings commitment
+          </Text>
           <View className="flex-row flex-wrap gap-2">
             {commitments.map((commitment) => (
               <Chip
@@ -324,7 +331,7 @@ export function VoiceConfirmCard({
             ))}
           </View>
           {commitments.length === 0 ? (
-            <Text className="mt-1 text-sm text-amber-700">
+            <Text className="mt-1 text-sm text-amber-700 dark:text-amber-400">
               No unconfirmed savings commitment is available.
             </Text>
           ) : null}
@@ -333,13 +340,15 @@ export function VoiceConfirmCard({
 
       {item.intent !== 'confirm_saving' ? (
         <>
-          <Text className="mb-1 mt-3 text-sm font-medium text-slate-700">Note</Text>
+          <Text className="mb-1 mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+            Note
+          </Text>
           <TextInput
             accessibilityLabel="Voice entry note"
             value={note}
             onChangeText={setNote}
             editable={!saved}
-            className="rounded-xl border border-slate-200 px-3 py-3 text-base"
+            className="rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
           />
         </>
       ) : null}
@@ -354,8 +363,11 @@ export function VoiceConfirmCard({
             onPress={saveExpense}
           />
           {review?.result.status === 'BLOCKED' ? (
-            <Link href="/add-transaction" className="mt-3 rounded-xl border border-red-200 p-3">
-              <Text className="text-center font-semibold text-red-700">
+            <Link
+              href="/add-transaction"
+              className="mt-3 rounded-xl border border-red-200 dark:border-red-900 p-3"
+            >
+              <Text className="text-center font-semibold text-red-700 dark:text-red-400">
                 Review override options
               </Text>
             </Link>

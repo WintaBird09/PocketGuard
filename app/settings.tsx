@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, Text, TextInput, View } from 'react-native';
 import { Link, useRouter } from 'expo-router';
 
+import { CurrencySettings } from '@/src/ui/CurrencySettings';
+import { AppearanceSettings } from '@/src/ui/AppearanceSettings';
+
 import {
   buildAllocationsCsv,
   buildBudgetLinesCsv,
@@ -331,20 +334,27 @@ export default function SettingsScreen() {
       <Pressable
         accessibilityRole="button"
         onPress={() => router.push('/profile')}
-        className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
+        className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm"
       >
-        <Text className="text-lg font-bold text-slate-900">Profile and account</Text>
-        <Text className="mt-2 text-sm text-slate-600">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          Profile and account
+        </Text>
+        <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Edit your name, change your password, or sign out.
         </Text>
         {syncSnapshot.error ? (
-          <Text className="mt-2 text-xs text-red-700">Sync: {syncSnapshot.error}</Text>
+          <Text className="mt-2 text-xs text-red-700 dark:text-red-400">
+            Sync: {syncSnapshot.error}
+          </Text>
         ) : null}
       </Pressable>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="text-lg font-bold text-slate-900">Notifications</Text>
-        <Text className="mt-2 text-sm text-slate-600">
+      <AppearanceSettings />
+      <CurrencySettings />
+
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">Notifications</Text>
+        <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Permission: {permission === 'checking' ? 'Checking…' : permission}
         </Text>
         {permission !== 'granted' ? (
@@ -359,19 +369,25 @@ export default function SettingsScreen() {
         <Pressable
           accessibilityRole="button"
           onPress={sendTestNotification}
-          className="mt-3 min-h-12 rounded-xl border border-slate-200 px-4 py-3"
+          className="mt-3 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3"
         >
-          <Text className="text-center font-bold text-slate-900">Send test notification</Text>
+          <Text className="text-center font-bold text-slate-900 dark:text-slate-100">
+            Send test notification
+          </Text>
         </Pressable>
         {notificationMessage ? (
-          <Text className="mt-3 text-sm font-medium text-emerald-700">{notificationMessage}</Text>
+          <Text className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            {notificationMessage}
+          </Text>
         ) : null}
         {notificationError ? (
-          <Text className="mt-3 text-sm font-medium text-red-700">{notificationError}</Text>
+          <Text className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">
+            {notificationError}
+          </Text>
         ) : null}
         {Platform.OS === 'android' ? (
           <>
-            <Text className="mt-4 text-sm text-slate-600">
+            <Text className="mt-4 text-sm text-slate-600 dark:text-slate-300">
               Exact-time delivery: {exactAlarmPermission}
             </Text>
             {exactAlarmPermission !== 'granted' ? (
@@ -379,23 +395,27 @@ export default function SettingsScreen() {
                 accessibilityRole="button"
                 disabled={exactAlarmPermission === 'checking'}
                 onPress={enableExactAlarmDelivery}
-                className="mt-3 min-h-12 rounded-xl border border-slate-200 px-4 py-3"
+                className="mt-3 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3"
               >
-                <Text className="text-center font-bold text-slate-900">
+                <Text className="text-center font-bold text-slate-900 dark:text-slate-100">
                   Allow exact-time reminders
                 </Text>
               </Pressable>
             ) : null}
             {exactAlarmMessage ? (
-              <Text className="mt-3 text-sm font-medium text-emerald-700">{exactAlarmMessage}</Text>
+              <Text className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+                {exactAlarmMessage}
+              </Text>
             ) : null}
           </>
         ) : null}
       </View>
 
-      <View className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-        <Text className="text-lg font-bold text-amber-900">Keep reminders reliable</Text>
-        <Text className="mt-2 text-sm text-amber-800">
+      <View className="mb-5 rounded-2xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/30 p-5">
+        <Text className="text-lg font-bold text-amber-900 dark:text-amber-200">
+          Keep reminders reliable
+        </Text>
+        <Text className="mt-2 text-sm text-amber-800 dark:text-amber-300">
           {Platform.OS === 'android'
             ? 'Some Android devices pause reminders to save battery. In app settings, allow background activity or set battery usage to Unrestricted if those options are available.'
             : 'Keep notifications enabled so scheduled reminders can reach you.'}
@@ -404,23 +424,23 @@ export default function SettingsScreen() {
           accessibilityRole="button"
           disabled={openingSettings}
           onPress={openDeviceSettings}
-          className="mt-4 min-h-12 rounded-xl border border-amber-300 px-4 py-3"
+          className="mt-4 min-h-12 rounded-xl border border-amber-300 dark:border-amber-700 px-4 py-3"
         >
-          <Text className="text-center font-bold text-amber-900">
+          <Text className="text-center font-bold text-amber-900 dark:text-amber-200">
             {openingSettings ? 'Opening settings…' : 'Open app settings'}
           </Text>
         </Pressable>
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="text-lg font-bold text-slate-900">Daily summary</Text>
-        <Text className="mt-2 text-sm text-slate-600">
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">Daily summary</Text>
+        <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Choose when your daily spending and budget update arrives (local time).
         </Text>
         <View className="mt-4 flex-row items-center gap-3">
           <TextInput
             accessibilityLabel="Daily summary time"
-            className="min-h-12 min-w-28 rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-900"
+            className="min-h-12 min-w-28 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-base font-semibold text-slate-900 dark:text-slate-100"
             editable={!loadingDailySummaryTime && !savingDailySummaryTime}
             keyboardType="numbers-and-punctuation"
             maxLength={5}
@@ -444,36 +464,42 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
         {summaryMessage ? (
-          <Text className="mt-3 text-sm font-medium text-emerald-700">{summaryMessage}</Text>
+          <Text className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            {summaryMessage}
+          </Text>
         ) : null}
         {summaryError ? (
-          <Text className="mt-3 text-sm font-medium text-red-700">{summaryError}</Text>
+          <Text className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">
+            {summaryError}
+          </Text>
         ) : null}
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="text-lg font-bold text-slate-900">Alert preferences</Text>
-        <Text className="mt-2 text-sm text-slate-600">
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          Alert preferences
+        </Text>
+        <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Pace alerts compare line usage to elapsed month progress. Savings reminders use days
           before each monthly commitment is due; overdue commitments remind daily.
         </Text>
-        <Text className="mt-4 text-sm font-semibold text-slate-700">
+        <Text className="mt-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
           Pace margin (percentage points)
         </Text>
         <TextInput
           accessibilityLabel="Pace alert margin"
-          className="mt-2 min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-900"
+          className="mt-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-base font-semibold text-slate-900 dark:text-slate-100"
           keyboardType="number-pad"
           maxLength={3}
           onChangeText={setPaceMargin}
           value={paceMargin}
         />
-        <Text className="mt-4 text-sm font-semibold text-slate-700">
+        <Text className="mt-4 text-sm font-semibold text-slate-700 dark:text-slate-200">
           Savings reminder days before due
         </Text>
         <TextInput
           accessibilityLabel="Savings reminder days"
-          className="mt-2 min-h-12 rounded-xl border border-slate-200 px-4 py-3 text-base font-semibold text-slate-900"
+          className="mt-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3 text-base font-semibold text-slate-900 dark:text-slate-100"
           keyboardType="numbers-and-punctuation"
           onChangeText={setSavingsReminderDays}
           placeholder="7, 2, 0"
@@ -487,15 +513,21 @@ export default function SettingsScreen() {
           <Text className="text-center font-bold text-white">Save alert preferences</Text>
         </Pressable>
         {alertSettingsMessage ? (
-          <Text className="mt-3 text-sm font-medium text-emerald-700">{alertSettingsMessage}</Text>
+          <Text className="mt-3 text-sm font-medium text-emerald-700 dark:text-emerald-400">
+            {alertSettingsMessage}
+          </Text>
         ) : null}
         {alertSettingsError ? (
-          <Text className="mt-3 text-sm font-medium text-red-700">{alertSettingsError}</Text>
+          <Text className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">
+            {alertSettingsError}
+          </Text>
         ) : null}
       </View>
 
-      <View className="mb-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <Text className="text-lg font-bold text-slate-900">Security and data</Text>
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
+          Security and data
+        </Text>
         {Platform.OS !== 'web' ? (
           <>
             <Pressable
@@ -503,23 +535,27 @@ export default function SettingsScreen() {
               accessibilityState={{ checked: appLock.enabled, disabled: appLock.loading }}
               disabled={appLock.loading}
               onPress={() => void toggleAppLock()}
-              className="mt-3 min-h-12 flex-row items-center justify-between rounded-xl border border-slate-200 px-4 py-3"
+              className="mt-3 min-h-12 flex-row items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3"
             >
               <View className="flex-1 pr-3">
-                <Text className="text-base font-bold text-slate-900">App lock</Text>
-                <Text className="mt-1 text-sm text-slate-600">
+                <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  App lock
+                </Text>
+                <Text className="mt-1 text-sm text-slate-600 dark:text-slate-300">
                   Require device biometrics or passcode when opening or returning to the app.
                 </Text>
               </View>
-              <Text className="font-bold text-slate-900">
+              <Text className="font-bold text-slate-900 dark:text-slate-100">
                 {appLock.loading ? 'Checking…' : appLock.enabled ? 'On' : 'Off'}
               </Text>
             </Pressable>
             {appLockError ? (
-              <Text className="mt-2 text-sm font-medium text-red-700">{appLockError}</Text>
+              <Text className="mt-2 text-sm font-medium text-red-700 dark:text-red-400">
+                {appLockError}
+              </Text>
             ) : null}
             {__DEV__ ? (
-              <View className="mt-4 rounded-2xl border border-violet-200 bg-violet-50 p-5">
+              <View className="mt-4 rounded-2xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/30 p-5">
                 <Text className="text-lg font-bold text-violet-950">Developer date simulation</Text>
                 <Text className="mt-2 text-sm text-violet-900">
                   Simulates today for budgets, spend checks, debt and loan status, and reminder
@@ -529,7 +565,7 @@ export default function SettingsScreen() {
                 </Text>
                 <TextInput
                   accessibilityLabel="Simulated date"
-                  className="mt-3 min-h-12 rounded-xl border border-violet-200 bg-white px-4 py-3 text-base"
+                  className="mt-3 min-h-12 rounded-xl border border-violet-200 dark:border-violet-800 bg-white dark:bg-slate-900 px-4 py-3 text-base"
                   value={simulatedDate}
                   onChangeText={(value) => {
                     setSimulatedDate(value);
@@ -561,21 +597,25 @@ export default function SettingsScreen() {
                   </Text>
                 ) : null}
                 {timeTravelError ? (
-                  <Text className="mt-3 text-sm font-medium text-red-700">{timeTravelError}</Text>
+                  <Text className="mt-3 text-sm font-medium text-red-700 dark:text-red-400">
+                    {timeTravelError}
+                  </Text>
                 ) : null}
               </View>
             ) : null}
           </>
         ) : (
-          <Text className="mt-2 text-sm text-slate-600">
+          <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
             App lock requires biometrics or a device passcode and is available in the mobile app.
           </Text>
         )}
         <Link
           href="/overrides"
-          className="mt-3 min-h-12 justify-center rounded-xl border border-slate-200 px-4 py-3"
+          className="mt-3 min-h-12 justify-center rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3"
         >
-          <Text className="text-center font-bold text-slate-900">Overrides report</Text>
+          <Text className="text-center font-bold text-slate-900 dark:text-slate-100">
+            Overrides report
+          </Text>
         </Link>
         {(
           [
@@ -589,28 +629,32 @@ export default function SettingsScreen() {
             key={dataset}
             accessibilityRole="button"
             onPress={() => void exportData(dataset)}
-            className="mt-3 min-h-12 rounded-xl border border-slate-200 px-4 py-3"
+            className="mt-3 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3"
           >
-            <Text className="text-center font-bold text-slate-900">Export {label} (CSV)</Text>
+            <Text className="text-center font-bold text-slate-900 dark:text-slate-100">
+              Export {label} (CSV)
+            </Text>
           </Pressable>
         ))}
         <Pressable
           accessibilityRole="button"
           onPress={reloadPlan}
-          className="mt-3 min-h-12 rounded-xl border border-slate-200 px-4 py-3"
+          className="mt-3 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-3"
         >
-          <Text className="text-center font-bold text-slate-900">
+          <Text className="text-center font-bold text-slate-900 dark:text-slate-100">
             {confirmReload ? 'Tap again to confirm' : 'Reload Sep–Dec 2026 plan'}
           </Text>
         </Pressable>
         {confirmReload ? (
-          <Text className="mt-2 text-xs text-slate-600">
+          <Text className="mt-2 text-xs text-slate-600 dark:text-slate-300">
             This only adds missing lines, amounts and debts. Anything you edited or already recorded
             is kept.
           </Text>
         ) : null}
         {dataMessage ? (
-          <Text className="mt-3 text-sm font-medium text-slate-700">{dataMessage}</Text>
+          <Text className="mt-3 text-sm font-medium text-slate-700 dark:text-slate-200">
+            {dataMessage}
+          </Text>
         ) : null}
       </View>
     </PageLayout>
