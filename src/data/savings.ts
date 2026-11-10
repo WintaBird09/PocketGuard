@@ -256,8 +256,8 @@ export function getSavingsPlanner(
   };
 }
 
-// Creates a goal, its savings budget line and one commitment (and allocation) per month
-// from `startMonth` to the due month. The last month only takes what is still missing.
+// Creates a goal and plans monthly commitments through the due month. A zero monthly amount
+// creates the goal without recording savings or planned contributions.
 export function addSavingsGoal(
   db: DatabaseLike,
   householdId: string,
@@ -269,7 +269,7 @@ export function addSavingsGoal(
   const name = draft.name.trim();
   if (!name) throw new Error('Enter a name for the savings goal.');
   assertWholeAmount(draft.target);
-  assertWholeAmount(draft.monthlyAmount);
+  assertWholeAmount(draft.monthlyAmount, true);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(draft.dueDate)) throw new Error('Choose a target date.');
   const dueMonth = draft.dueDate.slice(0, 7);
   if (dueMonth < startMonth) throw new Error('The target date must be this month or later.');

@@ -131,6 +131,30 @@ describe('persisted savings commitments', () => {
     expect(getSavingsPlanner(db as never, 'h1', 2026, '2026-10').goals).toHaveLength(0);
   });
 
+  it('creates a goal with zero saved and no planned contributions', () => {
+    db = new Database(':memory:');
+    runMigrations(db as never);
+    db.prepare(
+      `INSERT INTO households (id, household_id, name) VALUES ('h1', 'h1', 'Personal');`,
+    ).run();
+
+    addSavingsGoal(
+      db as never,
+      'h1',
+      { name: 'Emergency fund', target: 500000, monthlyAmount: 0, dueDate: '2026-12-31' },
+      '2026-10',
+    );
+
+    expect(getSavingsPlanner(db as never, 'h1', 2026, '2026-10').goals[0]).toMatchObject({
+      name: 'Emergency fund',
+      target: 500000,
+      saved: 0,
+      planned: 0,
+      commitments: [],
+    });
+    expect(db.prepare('SELECT COUNT(*) AS n FROM allocations;').get()).toMatchObject({ n: 0 });
+  });
+
   it('links only the first month of a goal to the chosen income source', () => {
     db = new Database(':memory:');
     runMigrations(db as never);

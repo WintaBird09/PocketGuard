@@ -34,6 +34,7 @@ function appendOutbox(
 }
 
 export const onboardingCompleteKey = 'onboarding_complete';
+export const onboardingStartedKey = 'onboarding_started';
 
 function insertIfMissing(
   db: BootstrapDatabase,
@@ -49,10 +50,24 @@ function insertIfMissing(
 }
 
 // Adds the PRD Sep-Dec 2026 plan. Existing rows (including user edits) are never overwritten.
-export function loadSeedPlan(db: BootstrapDatabase, householdId: string): void {
+export function loadSeedPlan(
+  db: BootstrapDatabase,
+  householdId: string,
+  incomeStreamId: string | null = null,
+  completeOnboarding = true,
+): void {
   const plan = loadPlanSep2026();
   db.transaction(() => {
     const timestamp = new Date().toISOString();
+    if (incomeStreamId) {
+      const stream = db
+        .prepare(
+          `SELECT id FROM income_streams
+           WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+        )
+        .get(incomeStreamId, householdId);
+      if (!stream) throw new Error('Income source was not found.');
+    }
 
     for (const line of plan.lines) {
       insertIfMissing(
@@ -85,14 +100,15 @@ export function loadSeedPlan(db: BootstrapDatabase, householdId: string): void {
         'allocations',
         id,
         `INSERT OR IGNORE INTO allocations
-          (id, household_id, line_id, month, planned_amount, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?);`,
+          (id, household_id, line_id, month, planned_amount, income_stream_id, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
         [
           id,
           householdId,
           allocation.line_id,
           allocation.month,
           allocation.planned_amount,
+          incomeStreamId,
           timestamp,
           timestamp,
         ],
@@ -176,7 +192,7 @@ export function loadSeedPlan(db: BootstrapDatabase, householdId: string): void {
       )
       .get(householdId);
     if (!hasIncome) settings.set(db, householdId, 'planned_income', SEED_MONTHLY_INCOME);
-    markOnboardingComplete(db, householdId);
+    if (completeOnboarding) markOnboardingComplete(db, householdId);
   })();
 }
 
@@ -187,6 +203,15 @@ function markOnboardingComplete(db: BootstrapDatabase, householdId: string): voi
     )
     .get(householdId, onboardingCompleteKey);
   if (!done) settings.set(db, householdId, onboardingCompleteKey, 'true');
+  if (settings.get(db, householdId, onboardingStartedKey) === 'true') {
+    settings.set(db, householdId, onboardingStartedKey, 'false');
+  }
+}
+
+export function beginOnboarding(db: DatabaseLike, householdId: string): void {
+  if (settings.get(db, householdId, onboardingStartedKey) !== 'true') {
+    settings.set(db, householdId, onboardingStartedKey, 'true');
+  }
 }
 
 export function completeOnboardingWithoutPlan(db: BootstrapDatabase, householdId: string): void {
@@ -205,6 +230,7 @@ export function needsOnboarding(db: DatabaseLike, householdId: string): boolean 
     )
     .get(householdId, onboardingCompleteKey);
   if (done) return false;
+  if (settings.get(db, householdId, onboardingStartedKey) === 'true') return true;
   const lines = db
     .prepare(
       `SELECT COUNT(*) AS total FROM budget_lines WHERE household_id = ? AND deleted_at IS NULL;`,

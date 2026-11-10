@@ -1,9 +1,49 @@
 import Database from 'better-sqlite3';
 import { describe, expect, it } from 'vitest';
 
-import { initializeLocalApp } from './bootstrap';
+import {
+  beginOnboarding,
+  completeOnboardingWithoutPlan,
+  initializeLocalApp,
+  loadSeedPlan,
+  needsOnboarding,
+} from './bootstrap';
+import { addIncomeStream } from './income';
 
 describe('first-run bootstrap flow', () => {
+  it('links seed-plan allocations to the income source selected during onboarding', () => {
+    const db = new Database(':memory:');
+    const { householdId } = initializeLocalApp(db as never, { loadPlan: false });
+    const stream = addIncomeStream(db as never, householdId, { kind: 'salary' });
+
+    loadSeedPlan(db as never, householdId, stream.id);
+
+    const allocations = db
+      .prepare(
+        'SELECT income_stream_id FROM allocations WHERE household_id = ? AND deleted_at IS NULL;',
+      )
+      .all(householdId) as { income_stream_id: string | null }[];
+    expect(allocations.length).toBeGreaterThan(0);
+    expect(allocations.every((allocation) => allocation.income_stream_id === stream.id)).toBe(true);
+    db.close();
+  });
+
+  it('keeps onboarding active while the sample plan is loaded, then completes it explicitly', () => {
+    const db = new Database(':memory:');
+    const { householdId } = initializeLocalApp(db as never, { loadPlan: false });
+    const stream = addIncomeStream(db as never, householdId, { kind: 'salary' });
+
+    beginOnboarding(db as never, householdId);
+    loadSeedPlan(db as never, householdId, stream.id, false);
+
+    expect(needsOnboarding(db as never, householdId)).toBe(true);
+
+    completeOnboardingWithoutPlan(db as never, householdId);
+
+    expect(needsOnboarding(db as never, householdId)).toBe(false);
+    db.close();
+  });
+
   it('persists the household and complete seed plan once, then opens Home on later launches', () => {
     const db = new Database(':memory:');
 

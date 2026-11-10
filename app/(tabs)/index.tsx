@@ -5,7 +5,7 @@ import { Platform, Pressable, Text, View } from 'react-native';
 
 import { useAuth } from '@/src/auth/AuthProvider';
 import { getDisplayLabel } from '@/src/auth/profile';
-import { needsOnboarding } from '@/src/data/bootstrap';
+import { beginOnboarding, needsOnboarding } from '@/src/data/bootstrap';
 import { getHomeDashboardSnapshot } from '@/src/data/dashboard';
 import { openAppDatabase, type DatabaseLike } from '@/src/data/db';
 import { previousMonth } from '@/src/data/plan';
@@ -90,6 +90,7 @@ export default function HomeScreen() {
           }
           const householdId = household.id;
           if (needsOnboarding(database, householdId)) {
+            beginOnboarding(database, householdId);
             if (active) setOnboarding(true);
             return;
           }

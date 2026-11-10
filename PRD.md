@@ -88,9 +88,9 @@ Notes for agents: use the latest stable Expo SDK at scaffold time and follow cur
 
 ### 7.1 Onboarding and seed data
 
-- FR-1. First launch: sign in or sign up (email+password or magic link via Supabase) — required before any use — then onboarding creates the household and offers **"Load my Sep–Dec 2026 plan"** (seed in §10).
+- FR-1. First launch: sign in or sign up (email+password or magic link via Supabase) — required before any use — then new-account onboarding guides the owner through income streams, savings goals, budget allocations, debts and loans. Require at least one income stream and one savings goal; assign each budget line to an income stream. Recurring income details are optional, and savings goals begin with zero saved until contributions are recorded. Debt repayment amounts may be left unset and planned later; when entered during setup, the monthly amount becomes a current-month debt budget allocation funded by an income stream. Existing loans can be recorded with borrower, amount lent, lending date and repayment plan; phone and note are optional. Offer **"Load my Sep–Dec 2026 plan"** (seed in §10) during budget setup without skipping remaining onboarding stages.
 - FR-2. All seed values are editable in the app afterwards.
-- FR-3. Sign-in is required before using the app; once signed in the app works offline, and sync runs when network is available. Each account's local data is isolated in its own database; no account can read another's data locally or on the server (RLS). Profile editing and sign-out are under More → Profile (see §7.11).
+- FR-3. Sign-in is required before using the app; once signed in the app works offline, and sync runs when network is available. Each account's local data is isolated in its own database; no account can read another's data locally or on the server (RLS). Onboarding applies only to accounts that need setup; existing/default account data is preserved. Profile editing and sign-out are under More → Profile (see §7.11).
 
 ### 7.2 Budget lines and monthly plan
 
@@ -318,7 +318,7 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 ## 11. Screens (MVP)
 
 1. **Home / Dashboard** — compact header (mic, +, avatar), swipeable carousel (Spending, Savings & goals, Income vs spending, Net worth), Where to focus insight cards, Needs attention, `Can I spend?` and `Add manually`.
-1b. **Income** (More tab) — sources, swipe month strip, fixed income, confirm received.
+   1b. **Income** (More tab) — sources, swipe month strip, fixed income, confirm received.
 2. **Add transaction** — voice fill, amount, budget-line dropdown, note, date, save; override flow when blocked.
 3. **Voice entry** — mic with listening animation, live transcript, example phrases, confirm card(s).
 4. **Inbox** — pending voice drafts and unclassified items.
@@ -327,7 +327,7 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 7. **Savings** — add new savings, monthly and annual views, goal cards, "I have saved", gap analysis.
 8. **Debts** — balances, add at top, swipe to delete, reschedulable schedule, payment history, status.
 9. **Loans** (Epic 10) — visual list with cap progress, add/edit loan, lending cap, detail with repayments and write-off, per-person summary.
-10a. **Profile** — photo, personal details, email change, invite, password, sign-out.
+   10a. **Profile** — photo, personal details, email change, invite, password, sign-out.
 10. **Settings** — account/profile, Appearance (bright / dark / schedule), Currency, sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
 
 UX principles: one-handed use; large numbers; amounts always `120,000 CODE` (the chosen currency code); light and dark themes; no tables on phone; the most-used action (add) is always reachable in one tap.
