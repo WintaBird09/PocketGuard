@@ -34,6 +34,7 @@ export function DatePickerField({
   minimumDate = new Date(1900, 0, 1),
   startYear = 1990,
   startOnToday = false,
+  containerClassName = 'mb-4',
 }: {
   label: string;
   value: string;
@@ -43,6 +44,7 @@ export function DatePickerField({
   minimumDate?: Date;
   startYear?: number;
   startOnToday?: boolean;
+  containerClassName?: string;
 }) {
   const selected = parseDateKey(value);
   const [open, setOpen] = useState(false);
@@ -81,23 +83,36 @@ export function DatePickerField({
   };
 
   return (
-    <View className="mb-4">
+    <View className={containerClassName}>
       <Text className="mb-1 text-sm font-semibold text-slate-700 dark:text-slate-200">{label}</Text>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}, ${value ? formatLong(value) : 'not set'}`}
+        accessibilityHint="Opens the calendar to choose a date"
         onPress={openPicker}
-        className={`min-h-12 flex-row items-center rounded-xl border bg-white dark:bg-slate-900 px-4 py-3 ${
-          error ? 'border-red-400' : 'border-slate-300 dark:border-slate-600'
+        hitSlop={4}
+        className={`min-h-[68px] flex-row items-center rounded-2xl border-2 bg-white px-4 py-3 dark:bg-slate-900 ${
+          error
+            ? 'border-red-400'
+            : 'border-slate-200 active:border-emerald-500 dark:border-slate-700 dark:active:border-emerald-700'
         }`}
       >
-        <Ionicons name="calendar" size={20} color="#059669" />
-        <Text
-          className={`ml-3 flex-1 text-base ${value ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}
-        >
-          {value ? formatLong(value) : 'Tap to pick a date'}
-        </Text>
-        <Ionicons name="chevron-down" size={18} color="#94a3b8" />
+        <View className="h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 dark:bg-emerald-950/50">
+          <Ionicons name="calendar" size={19} color="#059669" />
+        </View>
+        <View className="ml-3 flex-1">
+          <Text
+            className={`text-sm font-bold ${value ? 'text-slate-900 dark:text-slate-100' : 'text-slate-400'}`}
+          >
+            {value ? formatLong(value) : 'Choose a date'}
+          </Text>
+          <Text className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+            Tap to open calendar
+          </Text>
+        </View>
+        <View className="h-8 w-8 items-center justify-center rounded-full bg-slate-50 dark:bg-slate-800">
+          <Ionicons name="chevron-forward" size={16} color="#64748b" />
+        </View>
       </Pressable>
       {error ? <Text className="mt-1 text-sm text-red-700 dark:text-red-400">{error}</Text> : null}
 
@@ -120,7 +135,7 @@ export function DatePickerField({
                 accessibilityRole="button"
                 accessibilityLabel="Choose year"
                 onPress={() => setChoosingYear((current) => !current)}
-                className="flex-row items-center rounded-full px-3 py-2"
+                className="min-h-11 flex-row items-center rounded-full px-3 py-2"
               >
                 <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
                   {monthNames[month - 1]} {year}

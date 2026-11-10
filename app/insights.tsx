@@ -607,19 +607,26 @@ export default function InsightsScreen() {
             </View>
             {showRangeEditor ? (
               <>
-                <View className="flex-row gap-2">
+                <View className="gap-1">
                   <DatePickerField
-                    label="From"
+                    label="Start date"
                     value={draftRange.start}
-                    onChange={(start) => setDraftRange((current) => ({ ...current, start }))}
+                    containerClassName="mb-3"
+                    onChange={(start) =>
+                      setDraftRange((current) => ({
+                        start,
+                        end: current.end < start ? start : current.end,
+                      }))
+                    }
                     minimumDate={dateAtNoon('1900-01-01')}
                     maximumDate={dateAtNoon(today)}
                     startYear={new Date().getFullYear()}
                     startOnToday
                   />
                   <DatePickerField
-                    label="To"
+                    label="End date"
                     value={draftRange.end}
+                    containerClassName="mb-3"
                     onChange={(end) => setDraftRange((current) => ({ ...current, end }))}
                     minimumDate={dateAtNoon(draftRange.start)}
                     maximumDate={dateAtNoon(today)}

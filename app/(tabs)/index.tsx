@@ -292,6 +292,7 @@ export default function HomeScreen() {
           },
         ]}
       />
+      <HomeRecentPreview activity={recentActivity} onOpen={() => router.push('/transactions')} />
 
       {insightData ? (
         <InsightCards
@@ -320,7 +321,6 @@ export default function HomeScreen() {
       {incomeMonth ? (
         <HomeIncomePreview income={incomeMonth} onOpen={() => router.push('/income')} />
       ) : null}
-      <HomeRecentPreview activity={recentActivity} onOpen={() => router.push('/transactions')} />
     </PageLayout>
   );
 }
