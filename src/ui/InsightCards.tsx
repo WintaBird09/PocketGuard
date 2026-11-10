@@ -31,20 +31,49 @@ const toneStyles = {
   },
 } as const;
 
-export function InsightCards({ insights }: { insights: FinanceInsight[] }) {
+export function InsightCards({
+  insights,
+  showAll: controlledShowAll,
+  onShowAllChange,
+}: {
+  insights: FinanceInsight[];
+  showAll?: boolean;
+  onShowAllChange?: (showAll: boolean) => void;
+}) {
   const router = useRouter();
   const [selected, setSelected] = useState<FinanceInsight | null>(null);
-  const [showAll, setShowAll] = useState(false);
+  const [internalShowAll, setInternalShowAll] = useState(false);
+  const showAll = controlledShowAll ?? internalShowAll;
   if (insights.length === 0) return null;
-  const visible = showAll ? insights : insights.slice(0, 4);
+  const visible = showAll ? insights : insights.slice(0, 1);
+  const setShowAll = (next: boolean) => {
+    setInternalShowAll(next);
+    onShowAllChange?.(next);
+  };
 
   return (
-    <View className="mb-4">
+    <View className="mb-5 rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
       <View className="mb-2 flex-row items-center gap-2">
-        <Ionicons name="bulb" size={18} className="text-amber-600 dark:text-amber-400" />
-        <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
-          Where to focus
+        <Ionicons
+          name="sparkles-outline"
+          size={18}
+          className="text-emerald-800 dark:text-emerald-300"
+        />
+        <Text className="flex-1 text-base font-bold text-slate-900 dark:text-slate-100">
+          Insights for you
         </Text>
+        {insights.length > 1 ? (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setShowAll(!showAll)}
+            hitSlop={8}
+            className="min-h-10 justify-center"
+          >
+            <Text className="text-sm font-bold text-emerald-800 dark:text-emerald-300">
+              {showAll ? 'Show less' : 'See all'}
+            </Text>
+          </Pressable>
+        ) : null}
       </View>
       <View className="gap-2">
         {visible.map((insight) => {
@@ -55,38 +84,37 @@ export function InsightCards({ insights }: { insights: FinanceInsight[] }) {
               accessibilityRole="button"
               accessibilityLabel={`${insight.title}. Tap for the working.`}
               onPress={() => setSelected(insight)}
-              className="flex-row items-center gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900"
+              className={`overflow-hidden rounded-3xl border p-4 ${
+                insight.tone === 'danger' || insight.tone === 'warning'
+                  ? 'border-emerald-100 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/50'
+                  : 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800'
+              }`}
             >
-              <View className={`h-10 w-10 items-center justify-center rounded-xl ${style.chip}`}>
-                <Ionicons name={insight.icon as IconName} size={20} className={style.icon} />
+              <Text className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
+                {insight.tone === 'danger' || insight.tone === 'warning'
+                  ? 'Needs attention'
+                  : 'A useful insight'}
+              </Text>
+              <View className="mt-2 flex-row items-start gap-3">
+                <View className="flex-1">
+                  <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+                    {insight.title}
+                  </Text>
+                  <Text className="mt-1 text-sm leading-5 text-slate-700 dark:text-slate-300">
+                    {insight.summary}
+                  </Text>
+                  <Text className="mt-2 text-xs font-semibold text-emerald-800 dark:text-emerald-300">
+                    Tap to see the working
+                  </Text>
+                </View>
+                <View className={`h-9 w-9 items-center justify-center rounded-full ${style.chip}`}>
+                  <Ionicons name={insight.icon as IconName} size={18} className={style.icon} />
+                </View>
               </View>
-              <View className="flex-1">
-                <Text className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  {insight.title}
-                </Text>
-                <Text
-                  numberOfLines={2}
-                  className="mt-0.5 text-xs text-slate-500 dark:text-slate-400"
-                >
-                  {insight.summary}
-                </Text>
-              </View>
-              <Ionicons name="chevron-forward" size={16} className="text-slate-400" />
             </Pressable>
           );
         })}
       </View>
-      {insights.length > 4 ? (
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => setShowAll((value) => !value)}
-          className="mt-2 min-h-10 items-center justify-center"
-        >
-          <Text className="text-sm font-bold text-indigo-600 dark:text-indigo-300">
-            {showAll ? 'Show fewer' : `Show all ${insights.length} insights`}
-          </Text>
-        </Pressable>
-      ) : null}
 
       <Modal
         visible={selected !== null}

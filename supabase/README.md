@@ -33,3 +33,22 @@ npx vitest run src/voice/parseHandler.live.test.ts
 
 The live check requires a deployment and an authenticated test session; it is intentionally skipped
 when those variables are absent.
+
+## Insights guidance deployment
+
+Cloud guidance uses a separate per-user quota of 20 requests per UTC day. Apply
+`migrations/20261104030000_insights_advice_usage.sql` before deploying the function. The app sends
+the user's question and summarized financial figures; raw transactions, transaction notes, and
+account identifiers are not sent. Offline or when this endpoint is unavailable, the app uses its
+on-device guidance instead.
+
+Set the Anthropic credentials as server-side function secrets and deploy:
+
+```sh
+supabase secrets set ANTHROPIC_API_KEY=<Anthropic API key> ANTHROPIC_MODEL=<model name>
+supabase functions deploy insights-advice
+```
+
+The function validates the signed-in user, consumes the dedicated quota through the authenticated
+RPC, validates summarized request and model-response schemas, and calls Anthropic with a 10-second
+timeout. Never place the Anthropic API key in app configuration or an `EXPO_PUBLIC_*` variable.

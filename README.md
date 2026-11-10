@@ -45,11 +45,35 @@ Settings → Currency lets you pick from about 95 world currencies. The first la
 - Swipe the top card: Spending, Savings & goals (Week / Month / Year, default Month), Income vs spending, Net worth.
 - **Where to focus** shows compact insight cards (forecast, funding gaps, safe daily spend, unusual entries, goals, debt, emergency runway, savings rate with 50/30/20, top categories). Tap one to see the working. Debt interest cost is not computed because no interest rate is stored.
 
+## Insights and guidance
+
+Open **More → Insights for you** for calendar Week, Month, 3 months, 6 months, and Year views, or
+choose **Custom** to select a start and end date. Custom ranges compare against the same number of
+days immediately before the selected range. The screen compares income and spending with the
+matching elapsed portion of the previous period, breaks down spending by budget line and income by
+source, and projects ongoing period-end income and spending after at least three elapsed days.
+Completed custom ranges show actuals instead of projections. Budget figures are prorated for
+partial months; six-month periods follow the calendar half-year (January–June or July–December).
+Savings goals, debt, and loans are also summarized using current balances.
+
+The question box uses cloud AI guidance when online and falls back to on-device, rule-based guidance
+when offline or when the cloud service is unavailable. For a cloud answer, the question and a
+summary of the selected period (totals, projections, budget-line and income-source names, and
+current balances) are sent to the Supabase Edge Function and Anthropic. Raw transactions, notes,
+and account identifiers are not sent. Cloud guidance is limited to 20 requests per signed-in user
+per UTC day. Projections are pace estimates, not guarantees, and guidance is not professional
+financial or business advice.
+
+To enable cloud guidance, apply
+`supabase/migrations/20261104030000_insights_advice_usage.sql`, set the server-side Anthropic
+secrets as described in [`supabase/README.md`](./supabase/README.md), and deploy the
+`insights-advice` Edge Function. Until then, the app continues to provide on-device guidance.
+
 ## Appearance
 
 More → Settings → Appearance lets you pick **Device** (follow the phone), **Bright**, **Dark**, or **Day & night**, which switches to dark at a configurable night start time (default 19:00) and back to bright at the day start (default 06:00). The choice is stored on the device only.
 
-On the Budget plan screen, **Funded by income** shows, for each income source, the money available this month (received plus fixed income not yet confirmed), what the linked budget lines deduct from it, what has been spent, and what is left, turning red when a source is over-allocated. Lines with no source fall under *Unassigned*.
+On the Budget plan screen, **Funded by income** shows, for each income source, the money available this month (received plus fixed income not yet confirmed), what the linked budget lines deduct from it, what has been spent, and what is left, turning red when a source is over-allocated. Lines with no source fall under _Unassigned_.
 
 ## Android personal release
 

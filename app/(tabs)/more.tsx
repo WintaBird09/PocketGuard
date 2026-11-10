@@ -19,7 +19,14 @@ type MoreItem = {
   title: string;
   detail: string;
   href:
-    '/income' | '/income-transfer' | '/inbox' | '/debts' | '/loans' | '/overrides' | '/settings';
+    | '/income'
+    | '/income-transfer'
+    | '/inbox'
+    | '/debts'
+    | '/loans'
+    | '/overrides'
+    | '/settings'
+    | '/insights';
   icon: keyof typeof Ionicons.glyphMap;
   tint: string;
   bg: string;
@@ -56,6 +63,14 @@ export default function MoreScreen() {
 
   const data = loaded.data;
   const items: readonly MoreItem[] = [
+    {
+      title: 'Insights for you',
+      detail: 'Trends, projections and personal guidance',
+      href: '/insights',
+      icon: 'sparkles',
+      tint: '#0f766e',
+      bg: '#ccfbf1',
+    },
     {
       title: 'Income & transfers',
       detail: 'Record salary and transfers',

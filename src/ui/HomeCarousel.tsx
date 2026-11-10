@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
+import type { ScrollViewInstance } from 'react-native';
 import type { LayoutChangeEvent, NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 
 import type { HomeDashboardSnapshot } from '../data/dashboard';
@@ -49,6 +50,8 @@ export function HomeCarousel({ dashboard, savings, month, owedToYou, expectedInc
   const [width, setWidth] = useState(0);
   const [page, setPage] = useState(0);
   const [period, setPeriod] = useState<GoalPeriod>('month');
+  const carouselRef = useRef<ScrollViewInstance>(null);
+  const currentPageRef = useRef(0);
   const summary = dashboard.summary;
 
   const spentRatio = dashboard.totalPlanned > 0 ? summary.spent / dashboard.totalPlanned : 0;
@@ -68,18 +71,36 @@ export function HomeCarousel({ dashboard, savings, month, owedToYou, expectedInc
 
   const onLayout = (event: LayoutChangeEvent) => setWidth(event.nativeEvent.layout.width);
   const onEnd = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    if (width > 0) setPage(Math.round(event.nativeEvent.contentOffset.x / width));
+    if (width > 0) {
+      const nextPage = Math.round(event.nativeEvent.contentOffset.x / width);
+      currentPageRef.current = nextPage;
+      setPage(nextPage);
+    }
   };
 
+  useEffect(() => {
+    if (width <= 0) return;
+
+    const interval = setInterval(() => {
+      const nextPage = (currentPageRef.current + 1) % pageCount;
+      currentPageRef.current = nextPage;
+      setPage(nextPage);
+      carouselRef.current?.scrollTo({ x: nextPage * width, animated: true });
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [pageCount, width]);
+
   return (
-    <View className="mb-4" onLayout={onLayout}>
+    <View className="mb-6" onLayout={onLayout}>
       {width > 0 ? (
         <ScrollView
+          ref={carouselRef}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={onEnd}
-          accessibilityLabel="Dashboard slides. Swipe left or right."
+          accessibilityLabel="Dashboard slides. Swipe left or right, or wait for the next slide."
         >
           <Slide width={width} color="bg-indigo-600">
             <View className="flex-row items-center justify-between">

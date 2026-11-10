@@ -1,6 +1,6 @@
 import { useCurrency } from './CurrencyProvider';
 import type { ReactNode } from 'react';
-import { ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { useSegments } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,6 +14,7 @@ type PageLayoutProps = {
   compact?: boolean;
   smallTitle?: boolean;
   loading?: boolean;
+  keyboardAware?: boolean;
 };
 
 export function PageLayout({
@@ -24,6 +25,7 @@ export function PageLayout({
   compact = false,
   smallTitle = false,
   loading = false,
+  keyboardAware = false,
 }: PageLayoutProps) {
   useCurrency(); // re-render when the currency label changes
   const insets = useSafeAreaInsets();
@@ -32,11 +34,12 @@ export function PageLayout({
   // The tab bar already reserves the bottom inset, so only stack screens add it.
   const underTabs = segments[0] === '(tabs)';
 
-  return (
+  const content = (
     <View className="flex-1 bg-slate-50 dark:bg-slate-950">
       <ScrollView
         className="flex-1"
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
         contentContainerStyle={{
           paddingHorizontal: padding + Math.max(insets.left, insets.right),
           paddingTop: padding + insets.top,
@@ -75,5 +78,16 @@ export function PageLayout({
         {children}
       </ScrollView>
     </View>
+  );
+
+  if (!keyboardAware) return content;
+
+  return (
+    <KeyboardAvoidingView
+      className="flex-1"
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      {content}
+    </KeyboardAvoidingView>
   );
 }

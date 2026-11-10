@@ -12,6 +12,10 @@ import { previousMonth } from '@/src/data/plan';
 import { getFinanceFacts } from '@/src/data/homeFacts';
 import { totalOwedToYou } from '@/src/data/loans';
 import { getSavingsPlanner, type SavingsPlanner } from '@/src/data/savings';
+import { getIncomeMonth } from '@/src/data/income';
+import { listActivity } from '@/src/data/activity';
+import type { ActivityItem } from '@/src/data/activity';
+import type { IncomeMonth } from '@/src/data/income';
 import { effectiveNow, monthKeyForDate } from '@/src/domain/dates';
 import { buildFinanceInsights } from '@/src/domain/financeInsights';
 import type { FinanceFacts } from '@/src/domain/financeInsights';
@@ -25,7 +29,12 @@ import {
 import { AddMenu } from '@/src/ui/AddMenu';
 import { PageLayout } from '@/src/ui/PageLayout';
 import { ProfileAvatarButton } from '@/src/ui/ProfileAvatarButton';
-import { formatXAF } from '@/src/ui/theme';
+import {
+  HomeBudgetPreview,
+  HomeIncomePreview,
+  HomeQuickActions,
+  HomeRecentPreview,
+} from '@/src/ui/HomeSections';
 
 function currentMonthKey(): string {
   return monthKeyForDate(effectiveNow(), 'Africa/Douala');
@@ -52,6 +61,9 @@ export default function HomeScreen() {
     owedToYou: number;
     facts: FinanceFacts | null;
   }>({ previous: [], savings: null, owedToYou: 0, facts: null });
+  const [incomeMonth, setIncomeMonth] = useState<IncomeMonth | null>(null);
+  const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
+  const [showAllInsights, setShowAllInsights] = useState(false);
   const [batteryOnboarding, setBatteryOnboarding] = useState<{
     database: DatabaseLike;
     householdId: string;
@@ -76,32 +88,33 @@ export default function HomeScreen() {
           if (!household || typeof household.id !== 'string') {
             throw new Error('The local household has not been initialized.');
           }
-          if (needsOnboarding(database, household.id)) {
+          const householdId = household.id;
+          if (needsOnboarding(database, householdId)) {
             if (active) setOnboarding(true);
             return;
           }
-          const snapshot = getHomeDashboardSnapshot(database, household.id, currentMonthKey());
+          const month = currentMonthKey();
+          const snapshot = getHomeDashboardSnapshot(database, householdId, month);
+          const monthlyIncome = getIncomeMonth(database, householdId, month);
+          const recentMonths = [month, previousMonth(month), previousMonth(previousMonth(month))];
+          const activity = recentMonths
+            .flatMap((activityMonth) =>
+              listActivity(database, householdId, { month: activityMonth }),
+            )
+            .sort((a, b) => b.occurredAt.localeCompare(a.occurredAt))
+            .slice(0, 5);
           let previous: ReturnType<typeof getHomeDashboardSnapshot>['lines'] = [];
           let savings: SavingsPlanner | null = null;
           let owedToYou = 0;
           let facts: FinanceFacts | null = null;
           try {
-            previous = getHomeDashboardSnapshot(
-              database,
-              household.id,
-              previousMonth(currentMonthKey()),
-            ).lines;
-            savings = getSavingsPlanner(
-              database,
-              household.id,
-              Number(currentMonthKey().slice(0, 4)),
-              currentMonthKey(),
-            );
-            owedToYou = totalOwedToYou(database, household.id);
+            previous = getHomeDashboardSnapshot(database, householdId, previousMonth(month)).lines;
+            savings = getSavingsPlanner(database, householdId, Number(month.slice(0, 4)), month);
+            owedToYou = totalOwedToYou(database, householdId);
             facts = getFinanceFacts(
               database,
-              household.id,
-              currentMonthKey(),
+              householdId,
+              month,
               snapshot,
               previous,
               savings,
@@ -112,10 +125,12 @@ export default function HomeScreen() {
           }
           if (active && requestRevision === retry) {
             setExtras({ previous, savings, owedToYou, facts });
+            setIncomeMonth(monthlyIncome);
+            setRecentActivity(activity);
             setDashboard(snapshot);
             setBatteryOnboarding(
-              shouldShowBatteryOptimizationOnboarding(database, household.id, Platform.OS)
-                ? { database, householdId: household.id }
+              shouldShowBatteryOptimizationOnboarding(database, householdId, Platform.OS)
+                ? { database, householdId }
                 : null,
             );
             setOnboarding(false);
@@ -167,11 +182,7 @@ export default function HomeScreen() {
     );
   }
 
-  const budgetLines = dashboard.lines;
   const summary = dashboard.summary;
-  const attention = budgetLines
-    .filter((line) => line.kind !== 'savings' && (line.remaining < 0 || line.percentUsed >= 80))
-    .sort((a, b) => a.remaining - b.remaining);
 
   const dismissBatteryOnboarding = () => {
     if (!batteryOnboarding) return;
@@ -256,71 +267,60 @@ export default function HomeScreen() {
         owedToYou={extras.owedToYou}
         expectedIncome={extras.facts?.expectedIncome ?? 0}
       />
+      <HomeQuickActions
+        actions={[
+          {
+            label: 'Expense',
+            icon: 'arrow-up-outline',
+            onPress: () => router.push('/add-transaction'),
+          },
+          {
+            label: 'Income',
+            icon: 'arrow-down-outline',
+            onPress: () => router.push('/income'),
+          },
+          {
+            label: 'Voice',
+            icon: 'mic-outline',
+            onPress: () => router.push({ pathname: '/voice', params: { autostart: '1' } }),
+          },
+          {
+            label: 'Insights',
+            icon: 'sparkles-outline',
+            emphasized: true,
+            onPress: () => setShowAllInsights(true),
+          },
+        ]}
+      />
 
-      {insightData ? <InsightCards insights={insightData.insights} /> : null}
+      {insightData ? (
+        <InsightCards
+          insights={insightData.insights}
+          showAll={showAllInsights}
+          onShowAllChange={setShowAllInsights}
+        />
+      ) : null}
 
-      {attention.length > 0 ? (
-        <View className="mb-4 rounded-3xl border border-red-100 bg-red-50 dark:bg-red-900/30 p-5">
-          <View className="flex-row items-center justify-between">
-            <Text className="text-base font-bold text-red-900 dark:text-red-200">
-              Needs attention
-            </Text>
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => router.push('/budget')}
-              hitSlop={8}
-            >
-              <Text className="text-sm font-bold text-red-700 dark:text-red-400">Budget plan</Text>
-            </Pressable>
-          </View>
-          {attention.slice(0, 3).map((line) => (
-            <View key={line.id} className="mt-3 flex-row items-center justify-between">
-              <Text
-                numberOfLines={1}
-                className="flex-1 text-sm font-semibold text-slate-900 dark:text-slate-100"
-              >
-                {line.name}
-              </Text>
-              <Text className="text-sm font-bold text-red-700 dark:text-red-400">
-                {line.remaining < 0
-                  ? `${formatXAF(-line.remaining)} over`
-                  : `${Math.round(line.percentUsed)}% used`}
-              </Text>
-            </View>
-          ))}
-          {attention.length > 3 ? (
-            <Text className="mt-3 text-xs text-red-700 dark:text-red-400">
-              +{attention.length - 3} more lines
-            </Text>
-          ) : null}
-        </View>
-      ) : (
-        <View className="mb-4 flex-row items-center gap-3 rounded-2xl bg-emerald-50 dark:bg-emerald-900/30 p-4">
-          <Ionicons name="checkmark-circle" size={22} color="#059669" />
-          <Text className="flex-1 text-sm font-semibold text-emerald-800 dark:text-emerald-300">
-            Every budget line is on plan.
-          </Text>
-        </View>
-      )}
-
-      <View className="flex-row gap-3">
+      <View className="mb-5 rounded-3xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/40">
         <Pressable
           accessibilityRole="button"
           onPress={() => router.push('/can-i-spend')}
-          className="min-h-12 flex-1 items-center justify-center rounded-2xl bg-slate-900 dark:bg-slate-800 px-4 py-3"
+          className="min-h-12 flex-row items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 dark:bg-slate-900"
         >
-          <Text className="text-base font-bold text-white">Can I spend?</Text>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push('/add-transaction')}
-          className="min-h-12 flex-1 items-center justify-center rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3"
-        >
-          <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
-            Add manually
+          <Ionicons name="sparkles-outline" size={18} color="#0f766e" />
+          <Text className="font-semibold text-slate-900 dark:text-slate-100">
+            Ask about a money or business decision
           </Text>
         </Pressable>
+        <Text className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
+          Based on your own records. Not financial advice.
+        </Text>
       </View>
+      <HomeBudgetPreview dashboard={dashboard} onOpen={() => router.push('/budget')} />
+      {incomeMonth ? (
+        <HomeIncomePreview income={incomeMonth} onOpen={() => router.push('/income')} />
+      ) : null}
+      <HomeRecentPreview activity={recentActivity} onOpen={() => router.push('/transactions')} />
     </PageLayout>
   );
 }
