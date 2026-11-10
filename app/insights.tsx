@@ -422,6 +422,132 @@ function GuidancePanel({
   );
 }
 
+function WiderFinancialPicture({ snapshot }: { snapshot: InsightsSnapshot }) {
+  const { saved, savingsTarget, debtRemaining, loansOutstanding } = snapshot.position;
+  const trackedAssets = saved + loansOutstanding;
+  const netPosition = trackedAssets - debtRemaining;
+  const totalTracked = trackedAssets + debtRemaining;
+  const assetShare = totalTracked > 0 ? (trackedAssets / totalTracked) * 100 : 0;
+  const savingsProgress =
+    savingsTarget > 0 ? Math.min(100, Math.round((saved / savingsTarget) * 100)) : 0;
+  const savingsGap = Math.max(0, savingsTarget - saved);
+
+  return (
+    <View className="mb-5 overflow-hidden rounded-3xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900">
+      <View className="bg-slate-950 p-5 dark:bg-slate-800">
+        <View className="flex-row items-center gap-3">
+          <View className="h-10 w-10 items-center justify-center rounded-2xl bg-white/10">
+            <Ionicons name="stats-chart-outline" size={20} color="#6ee7b7" />
+          </View>
+          <View className="flex-1">
+            <Text className="text-xs font-bold uppercase tracking-wide text-slate-300">
+              Your wider financial picture
+            </Text>
+            <Text className="mt-1 text-[11px] text-slate-400">
+              Tracked savings, debts, and loans
+            </Text>
+          </View>
+        </View>
+
+        <Text className="mb-1 mt-5 text-xs font-semibold text-slate-300">Tracked net position</Text>
+        <Text
+          accessibilityLabel={`Tracked net position ${formatXAF(netPosition)}`}
+          className={`text-3xl font-extrabold ${netPosition < 0 ? 'text-rose-300' : 'text-white'}`}
+        >
+          {formatXAF(netPosition)}
+        </Text>
+        <Text className="mt-1 text-xs leading-5 text-slate-300">
+          Savings + money owed to you − debt remaining
+        </Text>
+
+        <View
+          accessibilityRole="progressbar"
+          accessibilityLabel="Tracked assets compared with debt"
+          accessibilityValue={{ min: 0, max: 100, now: Math.round(assetShare) }}
+          className="mt-4 h-3 flex-row overflow-hidden rounded-full bg-rose-400"
+        >
+          {totalTracked > 0 ? (
+            <View className="h-full bg-emerald-400" style={{ width: `${assetShare}%` }} />
+          ) : null}
+        </View>
+        <View className="mt-2 flex-row justify-between gap-3">
+          <Text className="flex-1 text-xs font-semibold text-emerald-200">
+            Tracked assets {formatXAF(trackedAssets)}
+          </Text>
+          <Text className="flex-1 text-right text-xs font-semibold text-rose-200">
+            Debt {formatXAF(debtRemaining)}
+          </Text>
+        </View>
+      </View>
+
+      <View className="gap-3 p-4">
+        <View className="rounded-2xl border border-emerald-100 bg-emerald-50 p-4 dark:border-emerald-900 dark:bg-emerald-950/30">
+          <View className="flex-row items-start justify-between gap-3">
+            <View className="flex-1">
+              <Text className="text-sm font-bold text-emerald-950 dark:text-emerald-100">
+                Savings progress
+              </Text>
+              <Text className="mt-1 text-xs text-emerald-800 dark:text-emerald-300">
+                {formatXAF(saved)} saved of {formatXAF(savingsTarget)} goal targets
+              </Text>
+            </View>
+            <Text className="text-sm font-extrabold text-emerald-800 dark:text-emerald-200">
+              {savingsProgress}%
+            </Text>
+          </View>
+          <View
+            accessibilityRole="progressbar"
+            accessibilityLabel="Savings progress toward goal targets"
+            accessibilityValue={{ min: 0, max: 100, now: savingsProgress }}
+            className="mt-3 h-2.5 overflow-hidden rounded-full bg-emerald-200 dark:bg-emerald-900"
+          >
+            <View
+              className="h-full rounded-full bg-emerald-600 dark:bg-emerald-400"
+              style={{ width: `${savingsProgress}%` }}
+            />
+          </View>
+          <Text className="mt-2 text-xs text-emerald-800 dark:text-emerald-300">
+            {savingsTarget > 0
+              ? savingsGap > 0
+                ? `${formatXAF(savingsGap)} left to reach your targets`
+                : 'Your recorded savings have reached your targets'
+              : 'Add a savings goal to track progress here'}
+          </Text>
+        </View>
+
+        <View className="flex-row gap-3">
+          <View className="min-h-[104px] flex-1 rounded-2xl border border-amber-100 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-900/60">
+              <Ionicons name="arrow-up-outline" size={17} color="#b45309" />
+            </View>
+            <Text className="mt-2 text-xs font-semibold text-amber-900 dark:text-amber-200">
+              Debt remaining
+            </Text>
+            <Text className="mt-1 text-base font-extrabold text-slate-900 dark:text-slate-100">
+              {formatXAF(debtRemaining)}
+            </Text>
+          </View>
+          <View className="min-h-[104px] flex-1 rounded-2xl border border-sky-100 bg-sky-50 p-3 dark:border-sky-900 dark:bg-sky-950/30">
+            <View className="h-8 w-8 items-center justify-center rounded-xl bg-sky-100 dark:bg-sky-900/60">
+              <Ionicons name="arrow-down-outline" size={17} color="#0369a1" />
+            </View>
+            <Text className="mt-2 text-xs font-semibold text-sky-900 dark:text-sky-200">
+              Owed to you
+            </Text>
+            <Text className="mt-1 text-base font-extrabold text-slate-900 dark:text-slate-100">
+              {formatXAF(loansOutstanding)}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <Text className="px-4 pb-4 text-xs leading-5 text-slate-500 dark:text-slate-400">
+        Current totals across active goals, debts, and loans—not limited to the selected period. Net
+        position includes only these tracked amounts.
+      </Text>
+    </View>
+  );
+}
+
 export default function InsightsScreen() {
   const { db, householdId, loading, error: databaseError, tick } = useDatabase();
   const [period, setPeriod] = useState<InsightPeriod>('month');
@@ -773,33 +899,7 @@ export default function InsightsScreen() {
             )}
           </View>
 
-          <View className="mb-5 rounded-3xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-            <Text className="mb-3 text-base font-bold text-slate-900 dark:text-slate-100">
-              Your wider financial picture
-            </Text>
-            <View className="flex-row flex-wrap gap-2">
-              {[
-                { label: 'Saved', value: snapshot.position.saved },
-                { label: 'Goal targets', value: snapshot.position.savingsTarget },
-                { label: 'Debt remaining', value: snapshot.position.debtRemaining },
-                { label: 'Owed to you', value: snapshot.position.loansOutstanding },
-              ].map((item) => (
-                <View
-                  key={item.label}
-                  className="min-h-[76px] w-[48%] flex-1 rounded-2xl bg-slate-50 p-3 dark:bg-slate-800"
-                >
-                  <Text className="text-xs text-slate-500 dark:text-slate-400">{item.label}</Text>
-                  <Text className="mt-1 text-sm font-bold text-slate-900 dark:text-slate-100">
-                    {formatXAF(item.value)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-            <Text className="mt-3 text-xs text-slate-500 dark:text-slate-400">
-              Savings goals and current debt/loan balances are current totals, not limited to this
-              period.
-            </Text>
-          </View>
+          <WiderFinancialPicture snapshot={snapshot} />
 
           {loaded.insights.length > 0 ? (
             <View className="mb-1">
