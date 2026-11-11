@@ -12,6 +12,8 @@ export type DebtPayment = {
   amount: number;
   occurredAt: string;
   note: string;
+  incomeStreamId: string | null;
+  incomeStreamName: string | null;
 };
 
 export type DebtStatus = 'OPEN' | 'PAID' | 'OVERDUE';
@@ -23,6 +25,7 @@ export type DebtSummary = {
   paid: number;
   balance: number;
   deadline: string | null;
+  incomeStreamId: string | null;
   daysLeft: number | null;
   status: DebtStatus;
   payments: DebtPayment[];
@@ -65,14 +68,17 @@ export function listDebts(
   const prepare = requirePrepared(db);
   const today = localDate(asOf);
   const debtRows = prepare(
-    `SELECT id, creditor, original_amount, deadline FROM debts
+    `SELECT id, creditor, original_amount, deadline, income_stream_id FROM debts
       WHERE household_id = ? AND deleted_at IS NULL ORDER BY created_at, creditor;`,
   ).all(householdId);
   const paymentRows = prepare(
-    `SELECT id, debt_id, amount, occurred_at, note FROM transactions
-      WHERE household_id = ? AND debt_id IS NOT NULL AND direction = 'expense'
-        AND status = 'confirmed' AND deleted_at IS NULL
-      ORDER BY occurred_at DESC, created_at DESC;`,
+    `SELECT t.id, t.debt_id, t.amount, t.occurred_at, t.note, t.income_stream_id,
+        s.name AS income_stream_name
+       FROM transactions t
+       LEFT JOIN income_streams s ON s.id = t.income_stream_id AND s.household_id = t.household_id
+      WHERE t.household_id = ? AND t.debt_id IS NOT NULL AND t.direction = 'expense'
+        AND t.status = 'confirmed' AND t.deleted_at IS NULL
+      ORDER BY t.occurred_at DESC, t.created_at DESC;`,
   ).all(householdId);
 
   return debtRows.map((row) => {
@@ -84,6 +90,10 @@ export function listDebts(
         amount: Number(payment.amount),
         occurredAt: String(payment.occurred_at),
         note: payment.note === null ? '' : String(payment.note),
+        incomeStreamId:
+          typeof payment.income_stream_id === 'string' ? payment.income_stream_id : null,
+        incomeStreamName:
+          typeof payment.income_stream_name === 'string' ? payment.income_stream_name : null,
       }));
     const paid = payments.reduce((sum, payment) => sum + payment.amount, 0);
     const originalAmount = Number(row.original_amount);
@@ -96,6 +106,8 @@ export function listDebts(
       paid,
       balance,
       deadline,
+      incomeStreamId:
+        typeof row.income_stream_id === 'string' ? String(row.income_stream_id) : null,
       daysLeft: deadline ? dayDifference(today, deadline) : null,
       status: deriveDebtStatus(balance, deadline, today),
       payments,
@@ -158,22 +170,37 @@ export function getDebtSchedule(
 export function addDebt(
   db: DatabaseLike,
   householdId: string,
-  draft: { creditor: string; originalAmount: number; deadline?: string | null },
+  draft: {
+    creditor: string;
+    originalAmount: number;
+    deadline?: string | null;
+    incomeStreamId?: string | null;
+  },
 ): string {
   const creditor = draft.creditor.trim();
   if (!creditor) throw new Error('Enter who the debt is owed to.');
   assertWholeAmount(draft.originalAmount);
   const deadline = draft.deadline?.trim() || null;
+  const incomeStreamId = draft.incomeStreamId?.trim() || null;
   if (deadline && (!/^\d{4}-\d{2}-\d{2}$/.test(deadline) || Number.isNaN(Date.parse(deadline)))) {
     throw new Error('Enter the deadline as YYYY-MM-DD.');
+  }
+  if (
+    incomeStreamId &&
+    !requirePrepared(db)(
+      `SELECT id FROM income_streams WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+    ).get(incomeStreamId, householdId)
+  ) {
+    throw new Error('Income source was not found.');
   }
   return inTransaction(db, () => {
     const id = newId();
     const now = new Date().toISOString();
     requirePrepared(db)(
-      `INSERT INTO debts (id, household_id, creditor, original_amount, deadline, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?);`,
-    ).run(id, householdId, creditor, draft.originalAmount, deadline, now, now);
+      `INSERT INTO debts (
+        id, household_id, creditor, original_amount, deadline, income_stream_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+    ).run(id, householdId, creditor, draft.originalAmount, deadline, incomeStreamId, now, now);
     appendOutboxEntry(db, householdId, 'debts', id, 'create');
     return id;
   });
@@ -182,7 +209,14 @@ export function addDebt(
 export function recordDebtPayment(
   db: DatabaseLike,
   householdId: string,
-  draft: { debtId: string; amount: number; note?: string; paidAt?: Date },
+  draft: {
+    debtId: string;
+    amount: number;
+    note?: string;
+    paidAt?: Date;
+    incomeStreamId?: string | null;
+    source?: string;
+  },
 ): string {
   assertWholeAmount(draft.amount);
   return inTransaction(db, () => {
@@ -201,8 +235,9 @@ export function recordDebtPayment(
       direction: 'expense',
       line_id: lineId,
       debt_id: debt.id,
+      income_stream_id: draft.incomeStreamId ?? debt.incomeStreamId,
       note: draft.note?.trim() || `Payment to ${debt.creditor}`,
-      source: 'manual',
+      source: draft.source ?? 'manual',
     }).id;
   });
 }

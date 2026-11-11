@@ -1,0 +1,9 @@
+com.nkabeh.momosms.pocket-guard-momo-sms-pngs-0 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/build/generated/res/pngs/debug
+com.nkabeh.momosms.pocket-guard-momo-sms-updated_navigation_xml-1 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/build/generated/updated_navigation_xml/debug
+com.nkabeh.momosms.pocket-guard-momo-sms-mergeDebugResources-2 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/build/intermediates/incremental/debug/mergeDebugResources/merged.dir
+com.nkabeh.momosms.pocket-guard-momo-sms-mergeDebugResources-3 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/build/intermediates/incremental/debug/mergeDebugResources/stripped.dir
+com.nkabeh.momosms.pocket-guard-momo-sms-debug-4 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/build/intermediates/merged_res/debug/mergeDebugResources
+com.nkabeh.momosms.pocket-guard-momo-sms-debug-5 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/build/intermediates/packaged_res/debug/packageDebugResources
+com.nkabeh.momosms.pocket-guard-momo-sms-debug-6 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/src/debug/res
+com.nkabeh.momosms.pocket-guard-momo-sms-main-7 /Users/hopedev/Documents/CodeWorld/Nkabeh-ExpenceBudgetGoals-Tracker/app/modules/momo-sms/android/src/main/res
+gradleHome-0 /Users/hopedev/.gradle

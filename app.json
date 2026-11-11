@@ -13,8 +13,14 @@
     "android": {
       "package": "com.nkabeh.pocketguard",
       "versionCode": 1,
-      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM", "android.permission.READ_CONTACTS", "android.permission.RECORD_AUDIO"],
-      "blockedPermissions": ["android.permission.WRITE_CONTACTS"],
+      "permissions": [
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.READ_CONTACTS",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -65,7 +71,14 @@
           "cameraPermission": false
         }
       ],
-      "expo-sharing"
+      "expo-sharing",
+      [
+        "./plugins/withMomoSms.js",
+        {
+          "senderId": "MobileMoney"
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "extra": {
       "eas": {

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { LineKind } from '@/src/data/plan';
 import type { ExpenseLineOption } from '@/src/data/transaction-entry';
@@ -29,6 +30,7 @@ export function BudgetLinePicker({
   // Returns an error message, or null when the line was created and selected.
   onCreate: (name: string, kind: LineKind) => string | null;
 }) {
+  const insets = useSafeAreaInsets();
   const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState('');
@@ -98,7 +100,10 @@ export function BudgetLinePicker({
       <Modal transparent animationType="slide" visible={open} onRequestClose={close}>
         <View className="flex-1 justify-end bg-black/50">
           <Pressable accessibilityLabel="Close" className="flex-1" onPress={close} />
-          <View className="max-h-[80%] rounded-t-3xl bg-white dark:bg-slate-900 px-4 pb-6 pt-3">
+          <View
+            style={{ maxHeight: '84%', paddingBottom: Math.max(insets.bottom, 12) }}
+            className="rounded-t-3xl bg-white dark:bg-slate-900 px-4 pt-3"
+          >
             <View className="mb-3 h-1.5 w-12 self-center rounded-full bg-slate-300" />
             <View className="mb-2 flex-row items-center justify-between">
               <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
@@ -115,7 +120,11 @@ export function BudgetLinePicker({
             </View>
 
             {adding ? (
-              <View>
+              <ScrollView
+                style={{ flexShrink: 1 }}
+                contentContainerStyle={{ paddingBottom: 12 }}
+                keyboardShouldPersistTaps="handled"
+              >
                 <TextInput
                   accessibilityLabel="New budget line name"
                   autoCapitalize="words"
@@ -182,65 +191,71 @@ export function BudgetLinePicker({
                     Back to list
                   </Text>
                 </Pressable>
-              </View>
+              </ScrollView>
             ) : (
-              <ScrollView keyboardShouldPersistTaps="handled">
-                {lines.map((line) => {
-                  const active = line.id === selectedId;
-                  const style = icons.get(line.id)!;
-                  const label = kindLabels[line.kind] ?? '';
-                  return (
-                    <Pressable
-                      key={line.id}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      accessibilityLabel={`${line.name}, ${label}`}
-                      onPress={() => choose(line.id)}
-                      className={`mb-2 min-h-16 flex-row items-center rounded-2xl border px-3 py-2 ${
-                        active
-                          ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30'
-                          : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
-                      }`}
-                    >
-                      <View
-                        className="h-11 w-11 items-center justify-center rounded-xl"
-                        style={{ backgroundColor: style.bg }}
+              <>
+                <ScrollView
+                  style={{ flexShrink: 1 }}
+                  contentContainerStyle={{ paddingBottom: 8 }}
+                  keyboardShouldPersistTaps="handled"
+                >
+                  {lines.map((line) => {
+                    const active = line.id === selectedId;
+                    const style = icons.get(line.id)!;
+                    const label = kindLabels[line.kind] ?? '';
+                    return (
+                      <Pressable
+                        key={line.id}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: active }}
+                        accessibilityLabel={`${line.name}, ${label}`}
+                        onPress={() => choose(line.id)}
+                        className={`mb-2 min-h-16 flex-row items-center rounded-xl border px-3 py-2 ${
+                          active
+                            ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-900/30'
+                            : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900'
+                        }`}
                       >
-                        <Ionicons name={style.icon} size={22} color={style.tint} />
-                      </View>
-                      <View className="ml-3 flex-1">
-                        <Text
-                          className="text-base font-bold text-slate-900 dark:text-slate-100"
-                          numberOfLines={1}
+                        <View
+                          className="h-11 w-11 items-center justify-center rounded-xl"
+                          style={{ backgroundColor: style.bg }}
                         >
-                          {line.name}
-                        </Text>
-                        <Text
-                          className="text-xs text-slate-500 dark:text-slate-400"
-                          numberOfLines={1}
-                        >
-                          {label}
-                          {line.planned > 0 ? ` · ${formatXAF(line.planned)} planned` : ''}
-                        </Text>
-                      </View>
-                      {active ? (
-                        <Ionicons name="checkmark-circle" size={24} color="#059669" />
-                      ) : null}
-                    </Pressable>
-                  );
-                })}
+                          <Ionicons name={style.icon} size={22} color={style.tint} />
+                        </View>
+                        <View className="ml-3 flex-1">
+                          <Text
+                            className="text-base font-bold text-slate-900 dark:text-slate-100"
+                            numberOfLines={1}
+                          >
+                            {line.name}
+                          </Text>
+                          <Text
+                            className="text-xs text-slate-500 dark:text-slate-400"
+                            numberOfLines={1}
+                          >
+                            {label}
+                            {line.planned > 0 ? ` · ${formatXAF(line.planned)} planned` : ''}
+                          </Text>
+                        </View>
+                        {active ? (
+                          <Ionicons name="checkmark-circle" size={24} color="#059669" />
+                        ) : null}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel="Add a new budget line"
                   onPress={() => setAdding(true)}
-                  className="mt-1 min-h-14 flex-row items-center justify-center rounded-2xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 px-4 py-3"
+                  className="mt-2 min-h-14 flex-row items-center justify-center rounded-xl border-2 border-dashed border-emerald-400 bg-emerald-50/40 px-4 py-3"
                 >
                   <Ionicons name="add-circle" size={24} color="#059669" />
                   <Text className="ml-2 text-base font-bold text-emerald-700 dark:text-emerald-400">
                     Add new budget line
                   </Text>
                 </Pressable>
-              </ScrollView>
+              </>
             )}
           </View>
         </View>

@@ -16,6 +16,7 @@ import {
   needsOnboarding,
 } from './bootstrap';
 import { getHomeDashboardSnapshot } from './dashboard';
+import { addIncomeStream } from './income';
 import {
   addDebt,
   deleteDebt,
@@ -144,6 +145,45 @@ describe('hard-stop override (FR-16)', () => {
 });
 
 describe('debts', () => {
+  it('records each payment once with its selected income stream and derives fully-paid status', () => {
+    const stream = addIncomeStream(d(), hh, { kind: 'salary', name: 'Monthly salary' });
+    const debtId = addDebt(d(), hh, {
+      creditor: 'Aline',
+      originalAmount: 5000,
+      incomeStreamId: stream.id,
+    });
+
+    recordDebtPayment(d(), hh, {
+      debtId,
+      amount: 2000,
+      incomeStreamId: stream.id,
+      note: 'First installment',
+    });
+    let debt = listDebts(d(), hh).find((item) => item.id === debtId)!;
+    expect(debt).toMatchObject({
+      incomeStreamId: stream.id,
+      paid: 2000,
+      balance: 3000,
+      status: 'OPEN',
+    });
+    expect(debt.payments[0]).toMatchObject({
+      amount: 2000,
+      incomeStreamId: stream.id,
+      incomeStreamName: 'Monthly salary',
+      note: 'First installment',
+    });
+    expect(
+      db.prepare('SELECT COUNT(*) AS count FROM transactions WHERE debt_id = ?;').get(debtId),
+    ).toEqual({ count: 1 });
+
+    recordDebtPayment(d(), hh, { debtId, amount: 3000, incomeStreamId: stream.id });
+    debt = listDebts(d(), hh).find((item) => item.id === debtId)!;
+    expect(debt).toMatchObject({ paid: 5000, balance: 0, status: 'PAID' });
+    expect(
+      db.prepare('SELECT COUNT(*) AS count FROM transactions WHERE debt_id = ?;').get(debtId),
+    ).toEqual({ count: 2 });
+  });
+
   it('derives balance, rejects overpay, tags payments and marks PAID', () => {
     const mom = listDebts(d(), hh).find((x) => x.id === 'debt-mom')!;
     expect(() =>

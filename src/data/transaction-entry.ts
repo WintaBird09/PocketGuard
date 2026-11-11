@@ -38,7 +38,7 @@ export type ExpenseDraft = {
   amount: number;
   note: string;
   occurredOn: string;
-  source?: 'manual' | 'voice';
+  source?: 'manual' | 'voice' | 'MANUAL' | 'VOICE';
   rawText?: string | null;
 };
 

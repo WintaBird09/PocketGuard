@@ -14,6 +14,7 @@ import {
 } from './persisted-alerts';
 import { getPersistedLoanReminders } from './loan-alerts';
 import { getPersistedDailySummaries, getPersistedDailySummaryTime } from './daily-summary';
+import { scheduleSmartNotificationRefresh } from './smartSchedule';
 import {
   createDebouncedRescheduler,
   createNotificationScheduler,
@@ -72,6 +73,7 @@ const enqueueReschedule = createDebouncedRescheduler(
 export function scheduleNotificationRefresh(): void {
   if (Platform.OS === 'web' || getLocalDateOverride() !== null || !hasActiveDatabase()) return;
   enqueueReschedule();
+  scheduleSmartNotificationRefresh();
 }
 
 // Alerts are built from one account's data, so they must not outlive that account's session.

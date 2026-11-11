@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import { extractAmount, localExpenseItem, matchLine, parseLocally } from './localParse';
+import {
+  extractAmount,
+  localExpenseItem,
+  matchLine,
+  parseLocally,
+  parseVoiceTransaction,
+} from './localParse';
 
 const lines = [
   { id: 'fuel', name: 'Fuel' },
@@ -39,5 +45,25 @@ describe('local voice parsing', () => {
       'check_spend',
     );
     expect(localExpenseItem('hello there', lines, '2026-11-01')).toBeNull();
+  });
+
+  it('extracts voice direction, description, amount and a relative date', () => {
+    expect(
+      parseVoiceTransaction('Spent 2500 on transport today', lines, '2026-11-11'),
+    ).toMatchObject({
+      amount: 2500,
+      direction: 'expense',
+      description: 'transport',
+      occurredOn: '2026-11-11',
+      lineId: null,
+    });
+    expect(
+      parseVoiceTransaction('Received 2,000 from Hope yesterday', lines, '2026-11-11'),
+    ).toMatchObject({
+      amount: 2000,
+      direction: 'income',
+      description: 'Hope',
+      occurredOn: '2026-11-10',
+    });
   });
 });

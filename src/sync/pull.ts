@@ -110,6 +110,7 @@ const tableColumns: Record<PullTable, string[]> = {
     'creditor',
     'original_amount',
     'deadline',
+    'income_stream_id',
     'note',
     'device_id',
     'created_at',
@@ -161,6 +162,7 @@ const referenceTables: Partial<Record<PullTable, Record<string, PullTable>>> = {
     debt_id: 'debts',
     income_stream_id: 'income_streams',
   },
+  debts: { income_stream_id: 'income_streams' },
   savings_commitments: { goal_id: 'savings_goals', line_id: 'budget_lines' },
 };
 

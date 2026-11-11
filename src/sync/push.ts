@@ -69,6 +69,7 @@ const idReferences: Partial<Record<SupportedTable, Record<string, SupportedTable
     debt_id: 'debts',
     income_stream_id: 'income_streams',
   },
+  debts: { income_stream_id: 'income_streams' },
   savings_commitments: { goal_id: 'savings_goals', line_id: 'budget_lines' },
 };
 

@@ -112,9 +112,9 @@ export function createNotificationScheduler(adapter: SchedulerAdapter) {
   };
 }
 
-export function createDebouncedRescheduler(
-  loadAlerts: () => Promise<readonly Alert[]>,
-  reschedule: (alerts: readonly Alert[]) => Promise<string[]>,
+export function createDebouncedRescheduler<T>(
+  loadAlerts: () => Promise<readonly T[]>,
+  reschedule: (alerts: readonly T[]) => Promise<string[]>,
   onError: (error: unknown) => void,
   delayMs = 500,
 ): () => void {

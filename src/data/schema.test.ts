@@ -4,8 +4,10 @@ import { describe, expect, it } from 'vitest';
 import {
   allocations,
   budgetLines,
+  debts,
   households,
   incomeStreams,
+  loans,
   outbox,
   transactions,
 } from './schema';
@@ -21,6 +23,8 @@ describe('schema + migrations', () => {
     expect(allocations.columns.income_stream_id).toBe('TEXT NULL');
     expect(transactions.columns.income_stream_id).toBe('TEXT NULL');
     expect(transactions.columns.recurring_income_month).toBe('TEXT NULL');
+    expect(debts.columns.income_stream_id).toBe('TEXT NULL');
+    expect(loans.columns.income_stream_id).toBe('TEXT NULL');
     expect(transactions).toBeDefined();
     expect(outbox).toBeDefined();
   });
@@ -109,8 +113,30 @@ describe('schema + migrations', () => {
         override_reason TEXT NULL, device_id TEXT NULL,
         created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, deleted_at TEXT NULL
+      );
+      CREATE TABLE debts (
+        id TEXT PRIMARY KEY, household_id TEXT NOT NULL, creditor TEXT NOT NULL,
+        original_amount INTEGER NOT NULL, deadline TEXT NULL, note TEXT NULL,
+        device_id TEXT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, deleted_at TEXT NULL
+      );
+      CREATE TABLE loans (
+        id TEXT PRIMARY KEY, household_id TEXT NOT NULL, person_name TEXT NOT NULL,
+        person_phone TEXT NULL, contact_id TEXT NULL, lent_on TEXT NOT NULL,
+        amount INTEGER NOT NULL, plan TEXT NOT NULL DEFAULT 'flexible', deadline TEXT NULL,
+        note TEXT NULL, written_off_at TEXT NULL, device_id TEXT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, deleted_at TEXT NULL
       );`,
     );
+    db.prepare(
+      `INSERT INTO debts (id, household_id, creditor, original_amount)
+       VALUES ('legacy-debt', 'h1', 'Aline', 3000);`,
+    ).run();
+    db.prepare(
+      `INSERT INTO loans (id, household_id, person_name, lent_on, amount)
+       VALUES ('legacy-loan', 'h1', 'Hope', '2026-10-25', 2000);`,
+    ).run();
     runMigrations(db as never);
     runMigrations(db as never);
     const allocationColumns = (
@@ -122,11 +148,27 @@ describe('schema + migrations', () => {
     const incomeStreamColumns = (
       db.prepare('PRAGMA table_info(income_streams);').all() as { name: string }[]
     ).map(({ name }) => name);
+    const loanColumns = (db.prepare('PRAGMA table_info(loans);').all() as { name: string }[]).map(
+      ({ name }) => name,
+    );
+    const debtColumns = (db.prepare('PRAGMA table_info(debts);').all() as { name: string }[]).map(
+      ({ name }) => name,
+    );
     expect(allocationColumns.filter((name) => name === 'income_stream_id')).toHaveLength(1);
     expect(transactionColumns.filter((name) => name === 'income_stream_id')).toHaveLength(1);
     expect(transactionColumns.filter((name) => name === 'recurring_income_month')).toHaveLength(1);
     expect(incomeStreamColumns.filter((name) => name === 'recurring_amount')).toHaveLength(1);
     expect(incomeStreamColumns.filter((name) => name === 'recurring_day')).toHaveLength(1);
     expect(incomeStreamColumns.filter((name) => name === 'recurring_start_month')).toHaveLength(1);
+    expect(loanColumns.filter((name) => name === 'income_stream_id')).toHaveLength(1);
+    expect(debtColumns.filter((name) => name === 'income_stream_id')).toHaveLength(1);
+    expect(
+      db.prepare('SELECT income_stream_id FROM loans WHERE id = ?').get('legacy-loan'),
+    ).toEqual({
+      income_stream_id: null,
+    });
+    expect(
+      db.prepare('SELECT income_stream_id FROM debts WHERE id = ?').get('legacy-debt'),
+    ).toEqual({ income_stream_id: null });
   });
 });

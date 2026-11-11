@@ -24,6 +24,7 @@ export type LoanInput = {
   lentOn: string;
   amount: number;
   plan: LoanPlan;
+  incomeStreamId?: string | null;
   // single / flexible: the expected deadline. installments: derived from the schedule.
   deadline?: string | null;
   firstDueOn?: string | null;
@@ -42,6 +43,7 @@ export type LoanSummary = LoanState & {
   amount: number;
   plan: LoanPlan;
   deadline: string | null;
+  incomeStreamId: string | null;
   note: string;
   writtenOffAt: string | null;
   installments: Installment[];
@@ -70,6 +72,7 @@ type LoanRow = {
   amount: number;
   plan: string;
   deadline: string | null;
+  income_stream_id: string | null;
   note: string | null;
   written_off_at: string | null;
 };
@@ -92,6 +95,7 @@ type Normalized = {
   amount: number;
   plan: LoanPlan;
   deadline: string | null;
+  incomeStreamId: string | null;
   note: string | null;
   installments: Installment[];
 };
@@ -134,9 +138,22 @@ function normalize(input: LoanInput): Normalized {
     amount: input.amount,
     plan: input.plan,
     deadline,
+    incomeStreamId: input.incomeStreamId?.trim() || null,
     note: input.note?.trim() || null,
     installments,
   };
+}
+
+function assertIncomeStreamExists(
+  db: DatabaseLike,
+  householdId: string,
+  incomeStreamId: string | null,
+): void {
+  if (!incomeStreamId) return;
+  const stream = requirePrepared(db)(
+    `SELECT id FROM income_streams WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
+  ).get(incomeStreamId, householdId);
+  if (!stream) throw new Error('Income source was not found.');
 }
 
 function insertInstallments(
@@ -186,7 +203,7 @@ function paidTotal(db: DatabaseLike, householdId: string, loanId: string): numbe
 
 function requireLoan(db: DatabaseLike, householdId: string, loanId: string): LoanRow {
   const row = requirePrepared(db)(
-    `SELECT id, person_name, person_phone, contact_id, lent_on, amount, plan, deadline, note, written_off_at
+    `SELECT id, person_name, person_phone, contact_id, lent_on, amount, plan, deadline, income_stream_id, note, written_off_at
        FROM loans WHERE id = ? AND household_id = ? AND deleted_at IS NULL;`,
   ).get(loanId, householdId) as LoanRow | undefined;
   if (!row) throw new Error('Loan was not found.');
@@ -195,6 +212,7 @@ function requireLoan(db: DatabaseLike, householdId: string, loanId: string): Loa
 
 export function createLoan(db: DatabaseLike, householdId: string, input: LoanInput): string {
   const loan = normalize(input);
+  assertIncomeStreamExists(db, householdId, loan.incomeStreamId);
   return inTransaction(db, () => {
     const cap = checkLendingCap(db, householdId, { amount: loan.amount, lentOn: loan.lentOn });
     if (cap.status === 'BLOCKED') throw new Error(cap.reason);
@@ -202,8 +220,8 @@ export function createLoan(db: DatabaseLike, householdId: string, input: LoanInp
     const now = new Date().toISOString();
     requirePrepared(db)(
       `INSERT INTO loans
-        (id, household_id, person_name, person_phone, contact_id, lent_on, amount, plan, deadline, note, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+        (id, household_id, person_name, person_phone, contact_id, lent_on, amount, plan, deadline, income_stream_id, note, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
     ).run(
       id,
       householdId,
@@ -214,6 +232,7 @@ export function createLoan(db: DatabaseLike, householdId: string, input: LoanInp
       loan.amount,
       loan.plan,
       loan.deadline,
+      loan.incomeStreamId,
       loan.note,
       now,
       now,
@@ -231,6 +250,7 @@ export function updateLoan(
   input: LoanInput,
 ): void {
   const loan = normalize(input);
+  assertIncomeStreamExists(db, householdId, loan.incomeStreamId);
   inTransaction(db, () => {
     requireLoan(db, householdId, loanId);
     const paid = paidTotal(db, householdId, loanId);
@@ -248,7 +268,7 @@ export function updateLoan(
     const now = new Date().toISOString();
     requirePrepared(db)(
       `UPDATE loans SET person_name = ?, person_phone = ?, contact_id = ?, lent_on = ?, amount = ?,
-         plan = ?, deadline = ?, note = ?, updated_at = ?
+        plan = ?, deadline = ?, income_stream_id = ?, note = ?, updated_at = ?
        WHERE id = ? AND household_id = ?;`,
     ).run(
       loan.personName,
@@ -258,6 +278,7 @@ export function updateLoan(
       loan.amount,
       loan.plan,
       loan.deadline,
+      loan.incomeStreamId,
       loan.note,
       now,
       loanId,
@@ -385,7 +406,7 @@ export function listLoans(
 ): LoanSummary[] {
   const prepare = requirePrepared(db);
   const rows = prepare(
-    `SELECT id, person_name, person_phone, contact_id, lent_on, amount, plan, deadline, note, written_off_at
+    `SELECT id, person_name, person_phone, contact_id, lent_on, amount, plan, deadline, income_stream_id, note, written_off_at
        FROM loans WHERE household_id = ? AND deleted_at IS NULL ORDER BY lent_on DESC, created_at DESC;`,
   ).all(householdId) as LoanRow[];
   const installmentRows = prepare(
@@ -433,6 +454,7 @@ export function listLoans(
       amount,
       plan: row.plan as LoanPlan,
       deadline: row.deadline,
+      incomeStreamId: row.income_stream_id,
       note: row.note ?? '',
       writtenOffAt: row.written_off_at,
       installments,

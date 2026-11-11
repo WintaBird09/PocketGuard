@@ -87,6 +87,22 @@ export const transactions = {
   },
 };
 
+export const momoImports = {
+  name: 'momo_imports',
+  columns: {
+    id: 'TEXT PRIMARY KEY',
+    household_id: 'TEXT NOT NULL',
+    transaction_id: 'TEXT NULL',
+    source: 'TEXT NOT NULL',
+    parsed_json: 'TEXT NOT NULL',
+    raw_sms: 'TEXT NOT NULL',
+    state: 'TEXT NOT NULL DEFAULT "pending"',
+    transaction_row_id: 'TEXT NULL',
+    created_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+    updated_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
+  },
+};
+
 export const debts = {
   name: 'debts',
   columns: {
@@ -95,6 +111,7 @@ export const debts = {
     creditor: 'TEXT NOT NULL',
     original_amount: 'INTEGER NOT NULL',
     deadline: 'TEXT NULL',
+    income_stream_id: 'TEXT NULL',
     note: 'TEXT NULL',
     device_id: 'TEXT NULL',
     created_at: 'TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP',
@@ -192,6 +209,7 @@ export const loans = {
     amount: 'INTEGER NOT NULL',
     plan: 'TEXT NOT NULL DEFAULT "flexible"',
     deadline: 'TEXT NULL',
+    income_stream_id: 'TEXT NULL',
     note: 'TEXT NULL',
     written_off_at: 'TEXT NULL',
     device_id: 'TEXT NULL',
@@ -238,6 +256,7 @@ const definitions = [
   incomeStreams,
   allocations,
   transactions,
+  momoImports,
   debts,
   savingsGoals,
   savingsCommitments,

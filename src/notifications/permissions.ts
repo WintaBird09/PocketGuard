@@ -28,6 +28,21 @@ export async function configureNotificationChannels(): Promise<void> {
       name: 'Savings and debt reminders',
       importance: Notifications.AndroidImportance.DEFAULT,
     }),
+    Notifications.setNotificationChannelAsync('momo-alerts', {
+      name: 'Mobile Money transactions',
+      description: 'Prompts to review new Mobile Money transactions.',
+      importance: Notifications.AndroidImportance.HIGH,
+    }),
+    Notifications.setNotificationChannelAsync('morning-greeting', {
+      name: 'Morning greeting',
+      description: 'A daily greeting and finance tip.',
+      importance: Notifications.AndroidImportance.DEFAULT,
+    }),
+    Notifications.setNotificationChannelAsync('evening-reminder', {
+      name: 'Evening transaction reminder',
+      description: 'A reminder to record today’s transactions.',
+      importance: Notifications.AndroidImportance.DEFAULT,
+    }),
   ]);
 }
 

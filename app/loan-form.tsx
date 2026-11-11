@@ -20,6 +20,8 @@ import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
 import { getCurrencyCode } from '@/src/domain/currency';
+import { listIncomeStreams } from '@/src/data/income';
+import { confirmMomoImport } from '@/src/momo/store';
 
 const plans: { key: LoanPlan; label: string }[] = [
   { key: 'single', label: 'One payment' },
@@ -46,7 +48,17 @@ function Label({ children }: { children: string }) {
 
 export default function LoanFormScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id?: string }>();
+  const params = useLocalSearchParams<{
+    id?: string;
+    momoImportId?: string;
+    amount?: string;
+    personName?: string;
+    personPhone?: string;
+    lentOn?: string;
+    time?: string;
+    note?: string;
+  }>();
+  const { id } = params;
   const { db, householdId, loading, error: dbError } = useDatabase();
   const [edits, setEdits] = useState<LoanFormFields | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,8 +72,22 @@ export default function LoanFormScreen() {
       : { fields: null, failure: 'Loan was not found.' };
   }, [db, householdId, id]);
 
-  const form = edits ?? existing.fields ?? emptyLoanForm(localDateString());
+  const draftDefaults = useMemo(
+    () => ({
+      ...emptyLoanForm(params.lentOn || localDateString()),
+      amount: params.amount ?? '',
+      personName: params.personName ?? '',
+      personPhone: params.personPhone ?? '',
+      note: params.note ?? '',
+    }),
+    [params.amount, params.lentOn, params.note, params.personName, params.personPhone],
+  );
+  const form = edits ?? existing.fields ?? draftDefaults;
   const loaded = !id || existing.fields !== null;
+  const incomeStreams = useMemo(
+    () => (db && householdId ? listIncomeStreams(db, householdId) : []),
+    [db, householdId],
+  );
 
   const update = (change: Partial<LoanFormFields>) => setEdits({ ...form, ...change });
   const set = <K extends keyof LoanFormFields>(key: K, value: LoanFormFields[K]) =>
@@ -104,10 +130,22 @@ export default function LoanFormScreen() {
     setError(null);
     try {
       const input = buildLoanInput(form);
-      if (id) updateLoan(db, householdId, id, input);
+      if (params.momoImportId) {
+        confirmMomoImport(db, householdId, params.momoImportId, {
+          amount: input.amount,
+          direction: 'loan',
+          note: input.note ?? '',
+          occurredAt: new Date(`${input.lentOn}T${params.time || '12:00:00'}+01:00`).toISOString(),
+          counterpartyName: input.personName,
+          counterpartyPhone: input.personPhone,
+          incomeStreamId: input.incomeStreamId,
+          loanInput: input,
+        });
+      } else if (id) updateLoan(db, householdId, id, input);
       else createLoan(db, householdId, input);
       scheduleNotificationRefresh();
-      router.back();
+      if (params.momoImportId) router.replace('/momo-review');
+      else router.back();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to save the loan.');
     }
@@ -166,6 +204,29 @@ export default function LoanFormScreen() {
                 : `Monthly lending cap ${formatXAF(cap)} · ${formatXAF(capPreview.remaining ?? 0)} left`}
             </Text>
           ) : null}
+
+          <Label>Income stream (optional)</Label>
+          {incomeStreams.length ? (
+            <View className="mb-3 flex-row flex-wrap gap-2">
+              <Chip
+                label="Unassigned"
+                active={!form.incomeStreamId}
+                onPress={() => set('incomeStreamId', '')}
+              />
+              {incomeStreams.map((stream) => (
+                <Chip
+                  key={stream.id}
+                  label={stream.name}
+                  active={form.incomeStreamId === stream.id}
+                  onPress={() => set('incomeStreamId', stream.id)}
+                />
+              ))}
+            </View>
+          ) : (
+            <Text className="mb-3 text-sm text-slate-500 dark:text-slate-400">
+              No income streams yet. This loan can be linked later by editing it.
+            </Text>
+          )}
 
           <DatePickerField
             label="Date lent"

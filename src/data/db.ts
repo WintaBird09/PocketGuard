@@ -86,16 +86,22 @@ export function runMigrations(db: DatabaseLike): void {
   addColumnIfMissing(db, 'income_streams', 'recurring_start_month', 'TEXT NULL');
   addColumnIfMissing(db, 'transactions', 'income_stream_id', 'TEXT NULL');
   addColumnIfMissing(db, 'transactions', 'recurring_income_month', 'TEXT NULL');
+  addColumnIfMissing(db, 'loans', 'income_stream_id', 'TEXT NULL');
+  addColumnIfMissing(db, 'debts', 'income_stream_id', 'TEXT NULL');
   runSql(
     `CREATE UNIQUE INDEX IF NOT EXISTS transactions_recurring_income_month_unique
        ON transactions (household_id, income_stream_id, recurring_income_month)
        WHERE recurring_income_month IS NOT NULL AND deleted_at IS NULL;`,
   );
+  runSql(
+    `CREATE UNIQUE INDEX IF NOT EXISTS momo_imports_transaction_id_unique
+       ON momo_imports (transaction_id) WHERE transaction_id IS NOT NULL;`,
+  );
 }
 
 function addColumnIfMissing(
   db: DatabaseLike,
-  table: 'allocations' | 'income_streams' | 'transactions',
+  table: 'allocations' | 'income_streams' | 'transactions' | 'loans' | 'debts',
   column: string,
   definition: string,
 ): void {

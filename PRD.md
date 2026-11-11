@@ -1,6 +1,6 @@
 # PRD — Pocket Guard (working title): Offline-first Personal Budget Enforcer
 
-**Owner:** Hope Chenui · **Status:** Draft v1 · **Date:** 2026-10-18
+**Owner:** Hope Chenui · **Status:** Draft v1 · **Last updated:** 2026-11-11
 **Audience:** AI coding agents (Claude Code, Cursor) and the owner. Read this fully before writing code. Build order lives in `TASKS.md`.
 
 ## Implementation conventions (locked in)
@@ -28,7 +28,7 @@ A **phone-first, offline-first Android app** that makes the budget _enforceable 
 3. Every spend is tied to a budget line, with live remaining balance and pace.
 4. Savings goals are followed up until the owner confirms the money was actually saved.
 
-Later: automatic capture of MoMo SMS (Phase 2), family/shared households and SaaS (Phase 3).
+MTN MoMo SMS capture and smart local notifications are implemented for Android. Later: additional money operators, family/shared households and SaaS (Phase 3).
 
 ## 3. Goals and non-goals
 
@@ -45,7 +45,7 @@ Later: automatic capture of MoMo SMS (Phase 2), family/shared households and Saa
 
 ### Non-goals for MVP
 
-- No SMS or WhatsApp reading (Phase 2; WhatsApp reading is not planned at all). The Loans reminder (FR-L2) only opens a pre-filled WhatsApp link; nothing is read or integrated.
+- No reading or processing of personal SMS. On Android, the owner may explicitly enable MTN MoMo sender-only capture (default sender `MobileMoney`); all SMS parsing is on-device, other senders are ignored, and raw SMS is never synced. WhatsApp reading is not planned; the Loans reminder (FR-L2) only opens a pre-filled WhatsApp link.
 - No web app / Next.js, no admin backend, no billing (Phase 3).
 - No iOS build (code stays cross-platform, but only Android is tested).
 - No bank/MoMo API integration; the app cannot move money or block a MoMo payment.
@@ -115,6 +115,8 @@ Notes for agents: use the latest stable Expo SDK at scaffold time and follow cur
 - FR-12b. **Transactions screen:** view by **Day, Week (Mon–Sun), Month or a Custom From–To range** with previous/next navigation and a Spent / Income / Entries summary for the range. History is grouped by day, and each expense shows the balance left on its budget line after that transaction ("X left on <line> · N% used"), coloured green below 40% used, orange from 40% to 80%, red above 80% ("over" when over budget). Range filtering uses the local day, not the UTC timestamp.
 - FR-13. Income streams can be created as Salary, Business, Rental, or Other (with a custom name such as "Income from Salary") and income can be recorded against a stream. The Income screen supports previous/next month navigation and shows month-specific income totals and sources. A fixed monthly income can be scheduled with an expected payday; it remains planned until the user confirms receipt, which records at most one recurring income transaction per source per month. Monthly budget allocations and expenses can reference an income stream so spending can be traced to its funding source. Transfers (bank → MoMo) are recorded as `transfer` and **do not count as spending**; they exist so the owner can reconcile cash on hand.
 - FR-14. Inbox screen lists pending voice drafts and unassigned items.
+- FR-14a. **Add transaction methods:** the Transactions Add action offers Manual, Voice and From MTN Mobile Money. MoMo supports paste/clipboard, Android text sharing, sender-filtered inbox scan and optional automatic capture. Each parsed message remains pending until the owner reviews and confirms it in the shared editable form. IDs are deduplicated across import methods and dismissals; unknown transaction-shaped messages remain reviewable. SMS permission is only requested for inbox/automatic capture; manual, voice, paste and share do not require it.
+- FR-14b. **Transactions history:** duplicate category names across historical budget-line records appear once as a filter, and selecting a category includes all matching line IDs. Each history item distinguishes description, amount, category/source and time; the Add menu remains scrollable and safe-area padded on short screens.
 
 ### 7.4 Spend check and hard stop (important semantics)
 
@@ -166,6 +168,9 @@ else OK
 - FR-25. **Savings reminder** on configured days until the commitment is confirmed.
 - FR-26. **Debt reminder** 7 and 2 days before a deadline.
 - FR-27. Notifications are scheduled/rescheduled on every data change, using Android exact-alarm rules per current Expo docs; degrade gracefully if exact alarms are denied.
+- FR-27a. **Smart local notifications:** Settings has independent opt-in switches and time controls for MoMo transaction alerts, morning greeting (default 07:00), and evening reminder (default 20:00). Notification permission is explained before requesting it; denial leaves the selected feature off. Each type has its own Android channel. Scheduled tasks are replaced/canceled when settings change, use device-local time, and are restored by Expo Notifications after Android reboot. MoMo alerts additionally require SMS permission and the MoMo SMS toggle.
+- FR-27b. **Morning greeting and evening reminder:** morning greetings use a local offline pool of at least 50 finance tips and 50 motivational lines, cycle without repeating until the pool is exhausted, and do not repeat the prior day’s quote. The evening reminder uses positive wording (“If you’ve already logged everything, nice work”) instead of checking transaction state at delivery time.
+- FR-27c. **MoMo transaction alert:** a new transaction-shaped SMS from the configured MoMo sender produces one notification, deduplicated by Financial Transaction ID. Tapping opens the matching pending item in the review form; it is not saved until confirmed. The notification may include parsed amount and counterparty, but never includes the raw SMS.
 
 ### 7.7 Savings follow-up
 
@@ -180,6 +185,7 @@ else OK
 - FR-32. Debts with creditor, original amount, deadline, schedule per month. Payments are transactions tagged to the debt; balance is derived (never typed in).
 - FR-33. Status: OPEN / PAID / OVERDUE derived from balance and deadline.
 - FR-33b. **Debts screen:** "Add debt" is at the top with a calendar deadline picker; a debt can be deleted by swiping it left (confirm, soft delete). Planned schedule rows can be **removed** or **rescheduled** to another month with a calendar (the month's allocation moves; recorded payments are untouched). The screen uses an amber "You owe" hero card.
+- FR-33c. A debt may optionally store the income stream planned for repayment. Record payment preselects that stream, allows the owner to choose another stream, and records the selected stream with the payment. Payments remain a single transaction linked to the debt, so Transactions history and the Debt screen share one record and the derived balance reaches PAID at zero. Existing debts without a stream remain valid. Transactions → Repay debt opens the Debt screen’s Record payment form with amount/date/note prefilled and the debt selected there before confirmation.
 
 ### 7.8b Loans (money lent to friends and family) — Epic 10
 
@@ -267,8 +273,8 @@ All tables: `id uuid pk (client-generated)`, `household_id uuid`, `created_at`, 
 - `budget_lines(id, name, kind, hard_cap, sort_order, archived)`
 - `income_streams(id, name, kind 'salary|business|rental|other')`
 - `allocations(id, line_id, month, planned_amount, income_stream_id null)` — unique (line_id, month)
-- `transactions(id, occurred_at, amount, direction 'expense|income|transfer', line_id null, debt_id null, income_stream_id null, note, source 'manual|voice|sms', raw_text null, status 'confirmed|draft', override_reason null)`
-- `debts(id, creditor, original_amount, deadline null, note)`
+- `transactions(id, occurred_at, amount, direction 'expense|income|transfer', line_id null, debt_id null, income_stream_id null, note, source 'manual|voice|sms|MOMO_PASTE|MOMO_SHARE|MOMO_INBOX|MOMO_AUTO', raw_text null, status 'confirmed|draft', override_reason null)`
+- `debts(id, creditor, original_amount, deadline null, income_stream_id null, note)`
 - `savings_goals(id, name, target_amount, due_date, include_kids_savings bool)`
 - `savings_commitments(id, goal_id, line_id, month, planned_amount, saved_amount null, saved_at null)`
 - `settings(id, key, value)` — summary time, thresholds, pace margin
@@ -278,6 +284,7 @@ All tables: `id uuid pk (client-generated)`, `household_id uuid`, `created_at`, 
 - `loans(id, person_name, person_phone null, contact_id null, lent_on, amount, plan 'single|installments|flexible', deadline null, note, written_off_at null)` — Epic 10
 - `loan_installments(id, loan_id, due_on, amount)` — Epic 10
 - `loan_payments(id, loan_id, paid_at, amount, note)` — Epic 10; loan balance and status are derived from these
+- `momo_imports(...)` — local-only MoMo pending/confirmed/dismissed ledger; raw SMS and dedupe IDs are not synced.
 - Phase 2 (create later, not now): `payee_rules(id, payee_key, line_id)`, `sms_messages(...)`
 
 Derived values are computed from queries (spent per line per month, debt balance, goal progress); **never store derived totals**.
@@ -322,13 +329,13 @@ Open data items for the owner to confirm (do not block the build; seed and let t
 2. **Add transaction** — voice fill, amount, budget-line dropdown, note, date, save; override flow when blocked.
 3. **Voice entry** — mic with listening animation, live transcript, example phrases, confirm card(s).
 4. **Inbox** — pending voice drafts and unclassified items.
-5. **Transactions** — Day / Week / Month / Custom range, summary strip, history with line balance left, filter by line, edit/delete.
+5. **Transactions** — Day / Week / Month / Custom range, summary strip, history with line balance left, unique category filters, edit/delete, and an Add menu for Manual / Voice / MTN Mobile Money (paste/share/inbox/pending review).
 6. **Budget** — month strip, income summary, collapsible categories, allocations per line, copy forward, add line in header.
 7. **Savings** — add new savings, monthly and annual views, goal cards, "I have saved", gap analysis.
-8. **Debts** — balances, add at top, swipe to delete, reschedulable schedule, payment history, status.
+8. **Debts** — balances, add at top, optional repay-from income stream, swipe to delete, reschedulable schedule, shared Record payment form with debt/source/date/note selection, payment history, status.
 9. **Loans** (Epic 10) — visual list with cap progress, add/edit loan, lending cap, detail with repayments and write-off, per-person summary.
    10a. **Profile** — photo, personal details, email change, invite, password, sign-out.
-10. **Settings** — account/profile, Appearance (bright / dark / schedule), Currency, sign-in/sync status, notification times and thresholds, app lock, CSV export, seed reload.
+10. **Settings** — account/profile, Appearance (bright / dark / schedule), Currency, sign-in/sync status, separate MoMo/morning/evening notification switches and times, existing thresholds, app lock, CSV export, seed reload.
 
 UX principles: one-handed use; large numbers; amounts always `120,000 CODE` (the chosen currency code); light and dark themes; no tables on phone; the most-used action (add) is always reachable in one tap.
 
@@ -353,7 +360,7 @@ UX principles: one-handed use; large numbers; amounts always `120,000 CODE` (the
 ## 14. Roadmap
 
 - **Phase 1 (MVP):** everything in §7.
-- **Phase 2 — SMS capture:** `READ_SMS`/receiver permission via a small native Android module (Expo config plugin + Kotlin), on-device regex parser for MTN MoMo messages, payee → line memory (`payee_rules`): first time ask "What was this for?", then auto-categorize. SMS content is parsed on device and never sent to a server. Needs 15–20 sample MoMo messages (names and numbers redacted) from the owner. Also reconcile with the pre-payment check ("this payment bypassed the check").
+- **Phase 2 — SMS capture:** MTN MoMo paste/share/inbox/auto capture, on-device parsing, pending review, transaction-ID dedupe, sender filtering, and local notification are implemented. Remaining Phase 2 work: verify SMS permissions and real incoming-message delivery on an Android device; gather additional redacted message variants; add `payee_rules` and first-seen payee categorisation; reconcile SMS payments with the pre-payment check; assess Play Store policy and possible notification-listener alternative before public release. SMS content remains on-device.
 - **Phase 3 — Family and SaaS:** invites and shared households (RLS already supports), roles, web dashboard (Next.js then, not now), subscription billing, Play Store release, privacy policy.
 
 ## 15. Risks and mitigations
@@ -376,3 +383,6 @@ UX principles: one-handed use; large numbers; amounts always `120,000 CODE` (the
 5. "I have saved" updates goal progress and stops the reminder.
 6. Debt balances derive from payments; Mom shows OVERDUE after 2026-11-30 if unpaid.
 7. All pure-logic unit tests pass; `tsc --noEmit` and lint are clean.
+8. Smart notification unit tests pass; each switch persists/cancels its own task; morning quotes cycle offline without adjacent repeats; evening reminders use positive wording.
+9. A newly received sender-matched MoMo transaction sends one alert per transaction ID, opens its pending review, and creates no transaction until confirmation.
+10. Debt repayment from Transactions opens the Debt payment form; one linked transaction stores the selected debt and income stream, updates payment history, and derives PAID at zero.

@@ -1,6 +1,11 @@
 import type { ParseExpenseItem } from './contract';
 
 export type LocalVoiceResult = { amount: number | null; lineId: string | null };
+export type LocalVoiceTransaction = LocalVoiceResult & {
+  direction: 'expense' | 'income';
+  description: string;
+  occurredOn: string;
+};
 
 const multipliers: Record<string, number> = {
   k: 1_000,
@@ -47,6 +52,33 @@ export function parseLocally(
   lines: readonly { id: string; name: string }[],
 ): LocalVoiceResult {
   return { amount: extractAmount(transcript), lineId: matchLine(transcript, lines) };
+}
+
+export function parseVoiceTransaction(
+  transcript: string,
+  lines: readonly { id: string; name: string }[],
+  today: string,
+): LocalVoiceTransaction {
+  const parsed = parseLocally(transcript, lines);
+  const yesterday = /\byesterday\b/i.test(transcript);
+  let occurredOn = today;
+  if (yesterday) {
+    const date = new Date(`${today}T12:00:00Z`);
+    date.setUTCDate(date.getUTCDate() - 1);
+    occurredOn = date.toISOString().slice(0, 10);
+  }
+  const capture = transcript.match(/\b(?:on|for|from|to)\s+([^,.;]+)/i)?.[1] ?? '';
+  const description = capture
+    .replace(/\b(?:today|yesterday|tomorrow)\b.*$/i, '')
+    .replace(/\s+at\s+\d{1,2}(?::\d{2})?.*$/i, '')
+    .trim();
+
+  return {
+    ...parsed,
+    direction: /\b(received|got|earned|salary|income)\b/i.test(transcript) ? 'income' : 'expense',
+    description,
+    occurredOn,
+  };
 }
 
 // Builds a reviewable item when the online parser is unavailable. Returns null without an amount.

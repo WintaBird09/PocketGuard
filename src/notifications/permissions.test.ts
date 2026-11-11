@@ -43,7 +43,7 @@ describe('notification permission and test notification flow', () => {
   it('creates the required Android channels and requests permission when not granted', async () => {
     await expect(requestNotificationPermission()).resolves.toBe('granted');
 
-    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledTimes(3);
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledTimes(6);
     expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
       'daily',
       expect.objectContaining({ name: 'Daily summaries' }),
@@ -55,6 +55,18 @@ describe('notification permission and test notification flow', () => {
     expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
       'reminders',
       expect.objectContaining({ name: 'Savings and debt reminders' }),
+    );
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'momo-alerts',
+      expect.objectContaining({ name: 'Mobile Money transactions' }),
+    );
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'morning-greeting',
+      expect.objectContaining({ name: 'Morning greeting' }),
+    );
+    expect(notifications.setNotificationChannelAsync).toHaveBeenCalledWith(
+      'evening-reminder',
+      expect.objectContaining({ name: 'Evening transaction reminder' }),
     );
     expect(notifications.requestPermissionsAsync).toHaveBeenCalledOnce();
   });

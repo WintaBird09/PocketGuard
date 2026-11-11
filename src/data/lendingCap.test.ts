@@ -2,6 +2,7 @@ import Database from 'better-sqlite3';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { initializeLocalApp } from './bootstrap';
+import { addIncomeStream } from './income';
 import { buildLoanInput, emptyLoanForm, loanToForm } from './loanForm';
 import { checkLendingCap, getLendingCap, setLendingCap } from './lendingCap';
 import { createLoan, getLoan, listLoans, updateLoan } from './loans';
@@ -124,6 +125,23 @@ describe('loan form', () => {
       updateLoan(d(), hh, id, buildLoanInput({ ...back, installmentCount: '5' })),
     ).not.toThrow();
     expect(getLoan(d(), hh, id)!.installments).toHaveLength(5);
+  });
+
+  it('saves and restores the selected income stream', () => {
+    const stream = addIncomeStream(d(), hh, { kind: 'salary', name: 'Salary' });
+    const form = {
+      ...emptyLoanForm(today),
+      personName: 'Petra',
+      amount: '10000',
+      deadline: '2026-11-30',
+      incomeStreamId: stream.id,
+    };
+    const loanId = createLoan(d(), hh, buildLoanInput(form));
+
+    expect(getLoan(d(), hh, loanId)?.incomeStreamId).toBe(stream.id);
+    expect(loanToForm(getLoan(d(), hh, loanId)!)).toMatchObject({
+      incomeStreamId: stream.id,
+    });
   });
 
   it('requires a deadline for single payment and a person name', () => {

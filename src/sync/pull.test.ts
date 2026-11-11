@@ -59,6 +59,52 @@ function createPullApi(rowsByTable: Partial<Record<PullTable, Record<string, unk
 }
 
 describe('remote pull sync', () => {
+  it('restores a debt income stream before applying the debt reference', async () => {
+    const db = createDatabase();
+    const streamId = 'f6000000-0000-4000-8000-000000000006';
+    const debtId = 'a7000000-0000-4000-8000-000000000007';
+    const row = (id: string, values: Record<string, unknown>) => ({
+      id,
+      household_id: householdId,
+      created_at: lastPull,
+      updated_at: remoteUpdate,
+      deleted_at: null,
+      ...values,
+    });
+    const { api } = createPullApi({
+      income_streams: [
+        row(streamId, {
+          name: 'Monthly salary',
+          kind: 'salary',
+          recurring_amount: null,
+          recurring_day: null,
+          recurring_start_month: null,
+          device_id: null,
+        }),
+      ],
+      debts: [
+        row(debtId, {
+          creditor: 'Aline',
+          original_amount: 12000,
+          deadline: null,
+          income_stream_id: streamId,
+          note: null,
+          device_id: null,
+        }),
+      ],
+    });
+
+    const result = await pullRemoteChanges(db as never, api, householdId);
+
+    expect(result).toMatchObject({ fetched: 2, applied: 2, error: null });
+    const debt = db.prepare('SELECT income_stream_id FROM debts WHERE creditor = ?;').get('Aline');
+    const stream = db
+      .prepare('SELECT id FROM income_streams WHERE name = ?;')
+      .get('Monthly salary') as { id: string } | undefined;
+    expect(debt).toEqual({ income_stream_id: stream?.id });
+    db.close();
+  });
+
   it('restores a source before applying linked allocations and transactions', async () => {
     const db = createDatabase();
     const lineId = 'd4000000-0000-4000-8000-000000000004';

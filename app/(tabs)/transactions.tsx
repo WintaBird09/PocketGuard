@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import {
   deleteTransaction,
@@ -21,6 +22,7 @@ import {
 } from '@/src/domain/dateRange';
 import { balancesAfterEachExpense } from '@/src/domain/lineBalance';
 import { localDateString } from '@/src/domain/dates';
+import { groupTransactionCategories } from '@/src/domain/transactionCategories';
 import { useDateOverrideRevision } from '@/src/domain/useDateOverrideRevision';
 import { scheduleNotificationRefresh } from '@/src/notifications/schedule';
 import { Banner, Button, Chip } from '@/src/ui/controls';
@@ -50,6 +52,7 @@ function localDay(item: ActivityItem): string {
 
 export default function TransactionsScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { db, householdId, loading, error: dbError, tick, refresh } = useDatabase();
   const dateRevision = useDateOverrideRevision();
   const today = localDateString();
@@ -76,6 +79,7 @@ export default function TransactionsScreen() {
   const [lineId, setLineId] = useState('');
   const [deleted, setDeleted] = useState<{ id: string; label: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const loaded = useMemo(() => {
     if (!db || !householdId) return { data: null, failure: null };
     try {
@@ -106,11 +110,14 @@ export default function TransactionsScreen() {
           balances.set(id, value);
         }
       }
+      const categories = groupTransactionCategories([...lines.values()]);
+      const selectedCategory = categories.find((category) => category.key === filter);
       const items = allItems.filter(inRange).filter((item) => {
         if (filter === 'overrides') return item.overrideReason !== null;
-        return filter === 'all' || item.lineId === filter;
+        if (filter === 'all') return true;
+        return selectedCategory?.lineIds.includes(item.lineId ?? '') ?? false;
       });
-      return { data: { items, lines: [...lines.values()], balances }, failure: null };
+      return { data: { items, lines: [...lines.values()], categories, balances }, failure: null };
     } catch (cause) {
       return {
         data: null,
@@ -215,7 +222,7 @@ export default function TransactionsScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Add a new transaction"
-        onPress={() => router.push('/add-transaction')}
+        onPress={() => setAddMenuOpen(true)}
         className="mb-5 min-h-14 flex-row items-center justify-center rounded-2xl bg-emerald-600 px-5 py-4 active:bg-emerald-700"
       >
         <Ionicons name="add-circle" size={24} color="#ffffff" />
@@ -312,6 +319,9 @@ export default function TransactionsScreen() {
         </View>
       )}
 
+      <Text className="mb-2 text-xs font-bold uppercase text-slate-500 dark:text-slate-400">
+        Overview
+      </Text>
       <View className="mb-5 flex-row gap-3">
         <View className="flex-1 rounded-2xl bg-red-50 dark:bg-red-900/30 p-3">
           <Text className="text-xs font-semibold text-red-700 dark:text-red-400">Spent</Text>
@@ -343,7 +353,15 @@ export default function TransactionsScreen() {
         </View>
       </View>
 
-      <Text className="mb-3 text-lg font-bold text-slate-900 dark:text-slate-100">History</Text>
+      <View className="mb-4 border-t border-slate-200 dark:border-slate-700" />
+      <View className="mb-3 flex-row items-end justify-between">
+        <View>
+          <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">History</Text>
+          <Text className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+            {totals.count} {totals.count === 1 ? 'transaction' : 'transactions'}
+          </Text>
+        </View>
+      </View>
 
       {failure ? <Banner tone="error">{failure}</Banner> : null}
       {error ? <Banner tone="error">{error}</Banner> : null}
@@ -351,12 +369,12 @@ export default function TransactionsScreen() {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="mb-4">
         <View className="flex-row gap-2">
           <Chip label="All" active={filter === 'all'} onPress={() => setFilter('all')} />
-          {(data?.lines ?? []).map((line) => (
+          {(data?.categories ?? []).map((category) => (
             <Chip
-              key={line.id}
-              label={line.name}
-              active={filter === line.id}
-              onPress={() => setFilter(line.id)}
+              key={category.key}
+              label={category.name}
+              active={filter === category.key}
+              onPress={() => setFilter(category.key)}
             />
           ))}
           <Chip
@@ -383,17 +401,20 @@ export default function TransactionsScreen() {
       ) : null}
 
       {groups.map(([day, items]) => (
-        <View key={day} className="mb-3">
-          <Text className="mb-2 text-slate-500 dark:text-slate-400">
+        <View key={day} className="mb-5">
+          <Text className="mb-2 text-sm font-bold text-slate-500 dark:text-slate-400">
             {dayHeading(items[0]!.occurredAt)}
           </Text>
+          <View className="mb-3 h-px bg-slate-200 dark:bg-slate-800" />
           {items.map((item) => {
             const editing = editingId === item.id;
             const isTransfer = item.direction === 'transfer';
+            const isExpense = item.direction === 'expense';
+            const color = isExpense ? '#b91c1c' : isTransfer ? '#475569' : '#047857';
             return (
               <View
                 key={item.id}
-                className={`mb-2 rounded-2xl border bg-white dark:bg-slate-900 p-3 ${
+                className={`mb-3 overflow-hidden rounded-xl border bg-white dark:bg-slate-900 ${
                   item.overrideReason
                     ? 'border-red-300 dark:border-red-800'
                     : isTransfer
@@ -401,40 +422,73 @@ export default function TransactionsScreen() {
                       : 'border-slate-200 dark:border-slate-700'
                 }`}
               >
-                <Text
+                <Pressable
                   accessibilityRole="button"
+                  accessibilityLabel={`Edit transaction ${item.note || item.lineName || 'transaction'}`}
+                  accessibilityState={{ expanded: editing }}
                   onPress={() => (editing ? setEditingId(null) : startEdit(item))}
-                  className="text-base text-slate-900 dark:text-slate-100"
+                  className="flex-row items-center px-4 py-4"
                 >
-                  {item.note || item.lineName || (isTransfer ? 'Transfer' : 'Income')}
-                </Text>
-                <View className="mt-1 flex-row items-center justify-between">
-                  <Text className="text-sm text-slate-500 dark:text-slate-400">
-                    {isTransfer
-                      ? 'Transfer · not counted as spending'
-                      : `${item.lineName ?? (item.direction === 'income' ? 'Income' : 'No line')} · ${
-                          item.overrideReason ? 'override' : item.source
-                        }`}
-                  </Text>
-                  <Text
-                    className={`text-base font-bold ${
-                      item.direction === 'expense'
-                        ? 'text-slate-900 dark:text-slate-100'
-                        : 'text-emerald-700 dark:text-emerald-400'
+                  <View
+                    className={`h-11 w-11 items-center justify-center rounded-full ${
+                      isExpense
+                        ? 'bg-red-50 dark:bg-red-950'
+                        : isTransfer
+                          ? 'bg-slate-100 dark:bg-slate-800'
+                          : 'bg-emerald-50 dark:bg-emerald-950'
                     }`}
                   >
-                    {item.direction === 'expense' ? '-' : ''}
-                    {formatXAF(item.amount)}
-                  </Text>
-                </View>
+                    <Ionicons
+                      name={
+                        isExpense
+                          ? 'arrow-up-outline'
+                          : isTransfer
+                            ? 'swap-horizontal-outline'
+                            : 'arrow-down-outline'
+                      }
+                      size={20}
+                      color={color}
+                    />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <View className="flex-row items-start justify-between gap-3">
+                      <Text
+                        numberOfLines={2}
+                        className="flex-1 text-base font-bold text-slate-900 dark:text-slate-100"
+                      >
+                        {item.note || item.lineName || (isTransfer ? 'Transfer' : 'Income')}
+                      </Text>
+                      <Text className="text-base font-extrabold" style={{ color }}>
+                        {isExpense ? '-' : isTransfer ? '' : '+'}
+                        {formatXAF(item.amount)}
+                      </Text>
+                    </View>
+                    <View className="mt-2 flex-row items-center justify-between gap-3">
+                      <Text
+                        numberOfLines={1}
+                        className="flex-1 text-sm text-slate-600 dark:text-slate-300"
+                      >
+                        {isTransfer
+                          ? 'Transfer · not counted as spending'
+                          : `${item.lineName ?? (item.direction === 'income' ? 'Income' : 'No category')} · ${item.overrideReason ? 'Override' : item.source}`}
+                      </Text>
+                      <Text className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {new Date(item.occurredAt).toLocaleTimeString('en-GB', {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </Text>
+                    </View>
+                  </View>
+                </Pressable>
                 {item.incomeStreamName ? (
-                  <Text className="mt-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  <Text className="mx-4 mb-3 border-t border-slate-100 dark:border-slate-800 pt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                     Funded by {item.incomeStreamName}
                   </Text>
                 ) : null}
                 {balances?.get(item.id) ? (
                   <Text
-                    className={`mt-1 text-sm font-semibold ${
+                    className={`mx-4 mb-3 border-t border-slate-100 dark:border-slate-800 pt-2 text-sm font-semibold ${
                       {
                         green: 'text-emerald-600 dark:text-emerald-400',
                         orange: 'text-orange-500',
@@ -449,42 +503,42 @@ export default function TransactionsScreen() {
                   </Text>
                 ) : null}
                 {item.overrideReason ? (
-                  <Text className="mt-1 text-xs text-red-700 dark:text-red-400">
+                  <Text className="mx-4 mb-3 border-t border-red-100 dark:border-red-950 pt-2 text-xs text-red-700 dark:text-red-400">
                     Override reason: {item.overrideReason}
                   </Text>
                 ) : null}
 
                 {editing ? (
-                  <View className="mt-3 border-t border-slate-200 dark:border-slate-700 pt-3">
+                  <View className="border-t border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 p-4">
                     <TextInput
                       accessibilityLabel="Edit amount"
                       keyboardType="number-pad"
                       value={amount}
                       onChangeText={setAmount}
-                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-base"
                     />
                     <TextInput
                       accessibilityLabel="Edit note"
                       value={note}
                       onChangeText={setNote}
                       placeholder="Note"
-                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-base"
                     />
                     <TextInput
                       accessibilityLabel="Edit date"
                       value={date}
                       onChangeText={setDate}
                       placeholder="YYYY-MM-DD"
-                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 px-3 py-3 text-base"
+                      className="mb-2 min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-3 text-base"
                     />
                     {item.direction === 'expense' ? (
                       <View className="mb-2 flex-row flex-wrap gap-2">
-                        {(data?.lines ?? []).map((line) => (
+                        {(data?.categories ?? []).map((category) => (
                           <Chip
-                            key={line.id}
-                            label={line.name}
-                            active={lineId === line.id}
-                            onPress={() => setLineId(line.id)}
+                            key={category.key}
+                            label={category.name}
+                            active={category.lineIds.includes(lineId)}
+                            onPress={() => setLineId(category.preferredLineId)}
                           />
                         ))}
                       </View>
@@ -505,8 +559,94 @@ export default function TransactionsScreen() {
         </View>
       ))}
       <Text className="mt-2 text-center text-xs text-slate-500 dark:text-slate-400">
-        Tap a row to edit or delete.
+        Tap a transaction to edit or delete.
       </Text>
+
+      <Modal
+        transparent
+        animationType="slide"
+        visible={addMenuOpen}
+        onRequestClose={() => setAddMenuOpen(false)}
+      >
+        <View className="flex-1 justify-end bg-black/50">
+          <Pressable
+            accessibilityLabel="Close add transaction menu"
+            className="flex-1"
+            onPress={() => setAddMenuOpen(false)}
+          />
+          <View style={{ maxHeight: '88%' }} className="rounded-t-3xl bg-white dark:bg-slate-900">
+            <ScrollView
+              bounces={false}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={{
+                paddingHorizontal: 20,
+                paddingTop: 12,
+                paddingBottom: Math.max(insets.bottom, 16) + 12,
+              }}
+            >
+              <View className="mb-4 h-1.5 w-12 self-center rounded-full bg-slate-300 dark:bg-slate-600" />
+              <View className="mb-3 flex-row items-center justify-between">
+                <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                  Add transaction
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close"
+                  onPress={() => setAddMenuOpen(false)}
+                  className="h-10 w-10 items-center justify-center rounded-full bg-slate-100 dark:bg-slate-800"
+                >
+                  <Ionicons name="close" size={20} color="#334155" />
+                </Pressable>
+              </View>
+              {(
+                [
+                  {
+                    label: 'Manual',
+                    detail: 'Enter the details yourself',
+                    icon: 'create-outline',
+                    href: '/add-transaction' as const,
+                  },
+                  {
+                    label: 'Voice',
+                    detail: 'Speak a transaction to fill the form',
+                    icon: 'mic-outline',
+                    href: '/add-transaction?autostart=1&source=VOICE' as const,
+                  },
+                  {
+                    label: 'From MTN Mobile Money',
+                    detail: 'Paste, share, scan, or review pending SMS',
+                    icon: 'phone-portrait-outline',
+                    href: '/momo-import' as const,
+                  },
+                ] as const
+              ).map((option) => (
+                <Pressable
+                  key={option.label}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setAddMenuOpen(false);
+                    router.push(option.href);
+                  }}
+                  className="mb-2 min-h-16 flex-row items-center rounded-xl border border-slate-200 dark:border-slate-700 px-4 py-4 active:bg-slate-50 dark:active:bg-slate-800"
+                >
+                  <View className="h-10 w-10 items-center justify-center rounded-lg bg-emerald-50 dark:bg-emerald-900/30">
+                    <Ionicons name={option.icon} size={20} color="#059669" />
+                  </View>
+                  <View className="ml-3 flex-1">
+                    <Text className="text-base font-bold text-slate-900 dark:text-slate-100">
+                      {option.label}
+                    </Text>
+                    <Text className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
+                      {option.detail}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={18} color="#64748b" />
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </PageLayout>
   );
 }

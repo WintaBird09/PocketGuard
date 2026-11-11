@@ -11,6 +11,7 @@ export type LoanFormFields = {
   amount: string;
   plan: LoanPlan;
   deadline: string;
+  incomeStreamId: string;
   firstDueOn: string;
   installmentCount: string;
   note: string;
@@ -25,6 +26,7 @@ export function emptyLoanForm(today: string): LoanFormFields {
     amount: '',
     plan: 'single',
     deadline: '',
+    incomeStreamId: '',
     firstDueOn: '',
     installmentCount: String(defaultInstallmentCount),
     note: '',
@@ -40,6 +42,7 @@ export function loanToForm(loan: LoanSummary): LoanFormFields {
     amount: String(loan.amount),
     plan: loan.plan,
     deadline: loan.plan === 'installments' ? '' : (loan.deadline ?? ''),
+    incomeStreamId: loan.incomeStreamId ?? '',
     firstDueOn: loan.installments[0]?.dueOn ?? '',
     installmentCount: String(loan.installments.length || defaultInstallmentCount),
     note: loan.note,
@@ -65,6 +68,7 @@ export function buildLoanInput(fields: LoanFormFields): LoanInput {
     amount: Number(amountText),
     plan: fields.plan,
     deadline: fields.plan === 'installments' ? null : fields.deadline.trim() || null,
+    incomeStreamId: fields.incomeStreamId || null,
     firstDueOn: fields.plan === 'installments' ? fields.firstDueOn.trim() : null,
     installmentCount: fields.plan === 'installments' ? count : undefined,
     note: fields.note || null,

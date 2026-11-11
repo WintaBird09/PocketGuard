@@ -24,6 +24,7 @@ import { PageLayout } from '@/src/ui/PageLayout';
 import { formatXAF } from '@/src/ui/theme';
 import { useDatabase } from '@/src/ui/useDatabase';
 import { getCurrencyCode } from '@/src/domain/currency';
+import { confirmMomoImport } from '@/src/momo/store';
 
 const kindLabels: Record<IncomeKind, string> = {
   salary: 'Salary',
@@ -129,6 +130,7 @@ export default function IncomeScreen() {
   const [stripWidth, setStripWidth] = useState(0);
   const [recording, setRecording] = useState(false);
   const [recordDate, setRecordDate] = useState('');
+  const [pendingMomoImportId, setPendingMomoImportId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [editingSourceId, setEditingSourceId] = useState<string | null>(null);
   const [sourceEditName, setSourceEditName] = useState('');
@@ -275,14 +277,31 @@ export default function IncomeScreen() {
     setRecording((value) => !value);
   };
 
-  const params = useLocalSearchParams<{ add?: string }>();
+  const params = useLocalSearchParams<{
+    add?: string;
+    amount?: string;
+    note?: string;
+    date?: string;
+    momoImportId?: string;
+  }>();
   const router = useRouter();
   useEffect(() => {
     if (params.add !== '1') return;
     router.setParams({ add: undefined });
     // Opening the form in response to a navigation param is an external event.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!recording) openRecording();
+    if (!recording) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      openRecording();
+      setAmount(params.amount ?? '');
+      setNote(params.note ?? '');
+      setPendingMomoImportId(params.momoImportId || null);
+      if (params.momoImportId) setFixedIncome(false);
+      const date = params.date;
+      if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        setMonth(date.slice(0, 7));
+        setRecordDate(date);
+      }
+    }
     // openRecording only reads state that is current when the param arrives
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params.add]);
@@ -406,14 +425,24 @@ export default function IncomeScreen() {
       if (creating && fixedIncome) {
         setMessage(`${sourceName} added as planned monthly income. Confirm it when received.`);
       } else {
-        transactions.add(db, householdId, {
-          occurred_at: day.toISOString(),
-          amount: parsedAmount,
-          direction: 'income',
-          income_stream_id: streamId,
-          note: note.trim() || null,
-          source: 'manual',
-        });
+        if (pendingMomoImportId) {
+          confirmMomoImport(db, householdId, pendingMomoImportId, {
+            amount: parsedAmount,
+            direction: 'income',
+            note: note.trim() || sourceName,
+            occurredAt: day.toISOString(),
+            incomeStreamId: streamId,
+          });
+        } else {
+          transactions.add(db, householdId, {
+            occurred_at: day.toISOString(),
+            amount: parsedAmount,
+            direction: 'income',
+            income_stream_id: streamId,
+            note: note.trim() || null,
+            source: 'MANUAL',
+          });
+        }
         scheduleNotificationRefresh();
         setMessage(`${formatXAF(parsedAmount)} recorded from ${sourceName}.`);
       }
@@ -425,6 +454,7 @@ export default function IncomeScreen() {
       setStreamName(sourceNames[kind]);
       setRecording(false);
       refresh();
+      if (pendingMomoImportId) router.replace('/momo-review');
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to record this income.');
     }
@@ -682,30 +712,34 @@ export default function IncomeScreen() {
                     placeholder="For example, Income from Salary"
                     className="min-h-12 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-4 py-3 text-base text-slate-900 dark:text-slate-100"
                   />
-                  <Pressable
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: fixedIncome }}
-                    onPress={() => setFixedIncome((value) => !value)}
-                    className="mt-3 min-h-12 flex-row items-center gap-3 rounded-xl bg-white dark:bg-slate-900 px-3 py-2"
-                  >
-                    <View
-                      className={`h-5 w-5 items-center justify-center rounded border ${
-                        fixedIncome
-                          ? 'border-emerald-700 bg-emerald-700'
-                          : 'border-slate-400 bg-white dark:bg-slate-900'
-                      }`}
+                  {!pendingMomoImportId ? (
+                    <Pressable
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: fixedIncome }}
+                      onPress={() => setFixedIncome((value) => !value)}
+                      className="mt-3 min-h-12 flex-row items-center gap-3 rounded-xl bg-white dark:bg-slate-900 px-3 py-2"
                     >
-                      {fixedIncome ? <Ionicons name="checkmark" size={14} color="#ffffff" /> : null}
-                    </View>
-                    <View className="flex-1">
-                      <Text className="text-sm font-semibold text-slate-800 dark:text-slate-200">
-                        Fixed income every month (optional)
-                      </Text>
-                      <Text className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                        Planned each month until you confirm receipt.
-                      </Text>
-                    </View>
-                  </Pressable>
+                      <View
+                        className={`h-5 w-5 items-center justify-center rounded border ${
+                          fixedIncome
+                            ? 'border-emerald-700 bg-emerald-700'
+                            : 'border-slate-400 bg-white dark:bg-slate-900'
+                        }`}
+                      >
+                        {fixedIncome ? (
+                          <Ionicons name="checkmark" size={14} color="#ffffff" />
+                        ) : null}
+                      </View>
+                      <View className="flex-1">
+                        <Text className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+                          Fixed income every month (optional)
+                        </Text>
+                        <Text className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+                          Planned each month until you confirm receipt.
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ) : null}
                 </View>
               ) : null}
 

@@ -107,6 +107,10 @@ Companion to `PRD.md`. Work top to bottom. Each task is small enough for one age
   _Done when:_ adding expenses that cross 80% and 100% each fire exactly one notification.
 - **4.5 Savings and debt reminders:** per PRD FR-25/26.
   _Done when:_ an unconfirmed commitment past due triggers a reminder; confirming cancels it.
+- **4.6 Smart notifications (implemented; physical-device timing verification pending):** independent local MoMo alert, morning greeting, and evening reminder settings; per-type channels; default morning 07:00 and evening 20:00 local time; persisted toggles/times; OS-restored scheduled reminders; reschedule after settings changes, app start, timezone/app foreground refresh, and reboot. Morning uses an offline 100+ quote cycle with no repeat until the cycle completes. Evening uses positive wording whether or not a transaction was logged. Android 13+ notification permission is preceded by an explanation; denied permission leaves all smart notification switches off and cancels their scheduled work.
+  _Done when:_ unit tests cover defaults, persistence, no-repeat quote cycling, schedule replacement/cancellation, local-time triggers, and evening wording; a device check confirms morning/evening delivery after app close and reboot.
+- **4.7 MoMo transaction alerts (implemented; physical SMS delivery verification pending):** the Android receiver processes only the configured MoMo sender, matches transaction messages, deduplicates by Financial Transaction ID in a no-backup local ledger, queues the SMS on-device, and sends a per-transaction notification only when MoMo alerts and SMS permission are enabled. Tapping opens the matching pending item in the shared editable review form; nothing is committed until confirmation. SMS content is never synced.
+  _Done when:_ parser/store tests cover duplicate IDs and confirmation; Android module and full debug app compile; on-device test confirms one alert per message and review navigation.
 
 ## EPIC 5 — Supabase backend and auth
 
@@ -181,6 +185,8 @@ Approved by the owner, to be done **before Task 6.3**. Rules: no change to finis
 - **10.9 Add/edit loan form:** date, person, amount, plan, deadline; optional Lending line check (E4, off by default).
 - **10.10 Loan detail:** repayments, write-off, per-person summary, WhatsApp "Send reminder" link.
 - **10.11 Reminders (done):** `loan_due` alert kind (7d, 2d, due day, weekly overdue) added to the Epic 4 scheduler without changing existing alerts. Reminders are future-dated at 09:00 and rebuilt on every refresh; a reminder whose time has passed is skipped, never fired late.
+- **10.16 Income-source attribution (done):** Add/edit loan can optionally link an income stream; a nullable local migration preserves existing loans, and the selected stream is retained in loan form data. Transactions → Repay debt now opens the Debt screen's shared Record payment form; debt/source/date/note/amount are editable, and one debt-linked transaction records the payment and updates derived balance/history. Debt stream references are included in push/pull sync and a Supabase migration.
+  _Done when:_ migration preserves legacy rows; tests cover source push/pull, payment history attribution, one transaction per payment, and fully-paid status.
 - **Postponed:** 10.4 sync push/pull for loan tables (after 6.3–6.5), 10.12 "Owed to you" Home tile, 10.13 loan rows in Activity, 10.14 voice (with Epic 7), 10.15 CSV export and acceptance (with Epic 8).
 
 ---
@@ -207,21 +213,23 @@ Done as small, verified changes (typecheck, lint, all tests). Visual changes are
 - **11.16 Home Add menu (done):** `AddMenu` bottom sheet (Transaction, Savings, Budget, Income); `?add=1` opens forms directly.
 - **11.17 Currency (done):** `src/domain/currency.ts` (~95 currencies, region detection, tested), `CurrencyProvider`, Settings → Currency, per-device storage; display only, no conversion. `formatXAF` now formats with the active currency; hard-coded "XAF" strings use `getCurrencyCode()`.
 - **11.18 Home overhaul (done):** mic beside +, smaller greeting, "Just say it" removed; `HomeCarousel` (Spending, Savings & goals with Week/Month/Year via `goalPeriod.ts` (tested), Income vs spending, Net worth); `financeInsights.ts` (nine insights, tested), `homeFacts.ts`, `InsightCards` with a working-shown detail sheet.
+- **11.19 Transactions history and Add menu (done):** category filter chips collapse duplicate names such as Miscellaneous while retaining all matching historical line IDs; transaction rows now separate title, category/source, time and amount; the Add menu is scrollable and safe-area padded on short screens.
+- **11.20 MoMo transaction capture (implemented; device walkthrough pending):** Android share target, paste/clipboard, sender-filtered inbox scan, auto-import switch, on-device MTN MoMo parser, durable duplicate/dismiss ledger, and shared pending/review flow. All imports remain pending until confirmation; raw SMS stays local. Configurable sender default is `MobileMoney` in `app.json` under `plugins` → `./plugins/withMomoSms.js`.
+- **11.21 Smart notification preferences (implemented; device walkthrough pending):** Settings → Notifications has separate MoMo, morning and evening switches, native time pickers, permission rationale, per-type Android channels, offline quote cycling, and schedule cancellation when disabled.
 - **Bug fixes this round:** a bulk currency replacement corrupted `formatXAF` calls in income, loan and lending-cap screens (restored); loan-form label type error; Savings Week view now prorates both saved and target consistently.
 - **New open follow-ups:** device check of 11.12–11.18 (nothing seen on a device yet); debt interest-cost insight needs an interest-rate field; currency is display-only; carrier proxy blocks mobile data (use `adb reverse tcp:8081 tcp:8081`).
 - **Open follow-ups:** apply the line icons to `can-i-spend`; diagnose the "sync error" (check `loan_repayments` vs `loan_payments` naming); store link in the invite message; demo account needs "Confirm email" turned off in Supabase; device verification of all Epic 11 screens.
 
 ---
 
-## Phase 2 backlog — SMS capture (do not start until the owner asks)
+## Phase 2 backlog — MoMo capture extensions (do not start until the owner asks)
 
-- P2.1 👤 Collect 15–20 redacted MTN MoMo SMS samples (payments, withdrawals, deposits, fees, airtime).
-- P2.2 Parser in `src/domain/momoParser.ts` (regex, unit-tested against samples; amount, fee, counterparty, balance, txn id, date).
-- P2.3 Native Android module / config plugin for SMS receiver + permission flow; messages processed on-device only.
+- P2.1 (implemented): Android MTN MoMo parsing, paste/share/inbox capture, on-device SMS listener, permission flow, and transaction-ID dedupe. Physical-device permission/broadcast verification remains.
+- P2.2 👤 Collect additional redacted MoMo samples for uncommon message variants and validate parser accuracy on-device.
+- P2.3 Add Orange Money as a separate operator parser after the MTN flow is verified.
 - P2.4 `payee_rules` table + "What was this for?" prompt on first-seen payee, automatic categorisation next time.
-- P2.5 De-duplicate against manually/voice-entered transactions (amount + time window).
-- P2.6 Reconcile screen: payments that bypassed the pre-payment check.
-- P2.7 Decide Play Store route for SMS permission vs notification-listener alternative before any public release.
+- P2.5 Reconcile SMS payments that bypassed the pre-payment spend check.
+- P2.6 Decide Play Store route for SMS permission vs notification-listener alternative before any public release.
 
 ## Phase 3 backlog — Family and SaaS
 

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ensureRemoteHouseholdMapping } from '../auth/householdBootstrap';
 import { deleteTransaction, restoreTransaction, updateTransaction } from '../data/activity';
 import { initializeLocalApp } from '../data/bootstrap';
+import { addDebt } from '../data/debts';
 import { addIncomeStream, confirmRecurringIncome } from '../data/income';
 import { setAllocation } from '../data/plan';
 import { transactions } from '../data/repos';
@@ -101,6 +102,26 @@ describe('persisted outbox push', () => {
     const pushedStream = calls[0]?.[1];
     expect(calls[1]?.[1].income_stream_id).toBe(pushedStream?.id);
     expect(calls[2]?.[1].income_stream_id).toBe(pushedStream?.id);
+  });
+
+  it('pushes a debt after its income stream and resolves the stream reference', async () => {
+    fixture.db.prepare('DELETE FROM outbox;').run();
+    const stream = addIncomeStream(fixture.db as never, fixture.householdId, {
+      kind: 'salary',
+      name: 'Monthly salary',
+    });
+    addDebt(fixture.db as never, fixture.householdId, {
+      creditor: 'Aline',
+      originalAmount: 12000,
+      incomeStreamId: stream.id,
+    });
+
+    const result = await pushOutbox(fixture.db as never, apiState.api, { now: startTime });
+
+    expect(result).toMatchObject({ sent: 2, remaining: 0, error: null });
+    const calls = vi.mocked(apiState.api.upsert).mock.calls;
+    expect(calls.map(([table]) => table)).toEqual(['income_streams', 'debts']);
+    expect(calls[1]?.[1].income_stream_id).toBe(calls[0]?.[1].id);
   });
 
   it('pushes recurring income configuration before its monthly confirmation', async () => {

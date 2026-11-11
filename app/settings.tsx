@@ -1,5 +1,14 @@
 import { useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import {
+  Linking,
+  PermissionsAndroid,
+  Platform,
+  Pressable,
+  Switch,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { Link, useRouter } from 'expo-router';
 
 import { CurrencySettings } from '@/src/ui/CurrencySettings';
@@ -44,6 +53,9 @@ import { getLocalDateOverride, localDateString } from '@/src/domain/dates';
 import { loadTimeTravelDate, saveTimeTravelDate } from '@/src/dev/timeTravel';
 import { Button } from '@/src/ui/controls';
 import { PageLayout } from '@/src/ui/PageLayout';
+import { getMomoNativeModule } from '@/src/momo/native';
+import { MOMO_SENDER_ID, momoAutoImportSettingKey } from '@/src/momo/constants';
+import { SmartNotificationSettings } from '@/src/notifications/SmartNotificationSettings';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -60,6 +72,7 @@ export default function SettingsScreen() {
   const [exactAlarmMessage, setExactAlarmMessage] = useState<string | null>(null);
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null);
   const [notificationError, setNotificationError] = useState<string | null>(null);
+  const [notificationPermissionExplainer, setNotificationPermissionExplainer] = useState(false);
   const [openingSettings, setOpeningSettings] = useState(false);
   const [dailySummaryTime, setDailySummaryTime] = useState(defaultDailySummaryTime);
   const [loadingDailySummaryTime, setLoadingDailySummaryTime] = useState(true);
@@ -74,6 +87,9 @@ export default function SettingsScreen() {
   const [simulatedDate, setSimulatedDate] = useState('');
   const [timeTravelMessage, setTimeTravelMessage] = useState<string | null>(null);
   const [timeTravelError, setTimeTravelError] = useState<string | null>(null);
+  const [momoAutoImport, setMomoAutoImport] = useState(false);
+  const [momoPermissionExplainer, setMomoPermissionExplainer] = useState(false);
+  const [momoSettingsMessage, setMomoSettingsMessage] = useState<string | null>(null);
 
   const toggleAppLock = async () => {
     setAppLockError(null);
@@ -104,6 +120,7 @@ export default function SettingsScreen() {
           setDailySummaryTime(savedTime);
           setPaceMargin(String(getPersistedPaceAlertMargin(db, household.id)));
           setSavingsReminderDays(getPersistedSavingsReminderDays(db, household.id).join(', '));
+          setMomoAutoImport(settings.get(db, household.id, momoAutoImportSettingKey) === 'true');
         }
       } catch (cause) {
         if (active) {
@@ -228,6 +245,11 @@ export default function SettingsScreen() {
   };
 
   const enableNotifications = async () => {
+    setNotificationPermissionExplainer(true);
+  };
+
+  const continueEnableNotifications = async () => {
+    setNotificationPermissionExplainer(false);
     setNotificationError(null);
     try {
       const status = await requestNotificationPermission();
@@ -269,6 +291,10 @@ export default function SettingsScreen() {
   const sendTestNotification = async () => {
     setNotificationError(null);
     setNotificationMessage(null);
+    if (permission !== 'granted') {
+      setNotificationPermissionExplainer(true);
+      return;
+    }
     try {
       await scheduleTestNotification();
       setPermission('granted');
@@ -291,6 +317,58 @@ export default function SettingsScreen() {
       );
     } finally {
       setOpeningSettings(false);
+    }
+  };
+
+  const toggleMomoAutoImport = async (enabled: boolean) => {
+    setMomoSettingsMessage(null);
+    if (enabled) {
+      setMomoPermissionExplainer(true);
+      return;
+    }
+    try {
+      const db = await openAppDatabase();
+      const householdId = getActiveHouseholdId(db);
+      await getMomoNativeModule()?.setAutoImportEnabled(false);
+      settings.set(db, householdId, momoAutoImportSettingKey, false);
+      setMomoAutoImport(false);
+      setMomoSettingsMessage('Automatic MoMo import is off.');
+    } catch (cause) {
+      setMomoSettingsMessage(
+        cause instanceof Error ? cause.message : 'Unable to turn off auto-import.',
+      );
+    }
+  };
+
+  const enableMomoAutoImport = async () => {
+    setMomoSettingsMessage(null);
+    if (Platform.OS !== 'android') {
+      setMomoSettingsMessage('Automatic SMS import is available on Android only.');
+      setMomoPermissionExplainer(false);
+      return;
+    }
+    try {
+      const result = await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.RECEIVE_SMS);
+      if (result !== PermissionsAndroid.RESULTS.GRANTED) {
+        setMomoSettingsMessage(
+          'SMS permission was not granted. Other transaction methods remain available.',
+        );
+        setMomoPermissionExplainer(false);
+        return;
+      }
+      const native = getMomoNativeModule();
+      if (!native) throw new Error('Rebuild the Android app to enable the MoMo SMS module.');
+      const db = await openAppDatabase();
+      const householdId = getActiveHouseholdId(db);
+      await native.setAutoImportEnabled(true);
+      settings.set(db, householdId, momoAutoImportSettingKey, true);
+      setMomoAutoImport(true);
+      setMomoPermissionExplainer(false);
+      setMomoSettingsMessage(`Automatic import is enabled for ${MOMO_SENDER_ID}.`);
+    } catch (cause) {
+      setMomoSettingsMessage(
+        cause instanceof Error ? cause.message : 'Unable to enable auto-import.',
+      );
     }
   };
 
@@ -353,7 +431,54 @@ export default function SettingsScreen() {
       <CurrencySettings />
 
       <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
+        <View className="flex-row items-center justify-between">
+          <View className="mr-3 flex-1">
+            <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">
+              Automatic MoMo import
+            </Text>
+            <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
+              Detect new messages from “{MOMO_SENDER_ID}” on this device.
+            </Text>
+          </View>
+          <Switch
+            accessibilityLabel="Automatic MoMo import"
+            value={momoAutoImport}
+            onValueChange={(enabled) => void toggleMomoAutoImport(enabled)}
+            disabled={Platform.OS !== 'android'}
+          />
+        </View>
+        {momoPermissionExplainer ? (
+          <View className="mt-4 rounded-xl bg-emerald-50 dark:bg-emerald-950 p-3">
+            <Text className="text-sm text-emerald-900 dark:text-emerald-200">
+              Pocket Guard will watch for messages from “{MOMO_SENDER_ID}” only. Other SMS are
+              ignored; message text is processed on-device and is not synced.
+            </Text>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => void enableMomoAutoImport()}
+              className="mt-3 min-h-11 items-center justify-center rounded-xl bg-emerald-700 px-3"
+            >
+              <Text className="font-bold text-white">Continue to Android permission</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setMomoPermissionExplainer(false)}
+              className="mt-2 min-h-10 items-center justify-center"
+            >
+              <Text className="font-semibold text-emerald-900 dark:text-emerald-200">Not now</Text>
+            </Pressable>
+          </View>
+        ) : null}
+        {momoSettingsMessage ? (
+          <Text className="mt-3 text-sm text-slate-600 dark:text-slate-300">
+            {momoSettingsMessage}
+          </Text>
+        ) : null}
+      </View>
+
+      <View className="mb-5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 shadow-sm">
         <Text className="text-lg font-bold text-slate-900 dark:text-slate-100">Notifications</Text>
+        <SmartNotificationSettings />
         <Text className="mt-2 text-sm text-slate-600 dark:text-slate-300">
           Permission: {permission === 'checking' ? 'Checking…' : permission}
         </Text>
@@ -365,6 +490,32 @@ export default function SettingsScreen() {
           >
             <Text className="text-center font-bold text-white">Enable notifications</Text>
           </Pressable>
+        ) : null}
+        {notificationPermissionExplainer ? (
+          <View className="mt-3 rounded-xl bg-emerald-50 dark:bg-emerald-950 p-3">
+            <Text className="text-sm text-emerald-900 dark:text-emerald-200">
+              Notifications show local reminders and transaction alerts you choose to enable. Their
+              message details are created on this device.
+            </Text>
+            <View className="mt-3 flex-row gap-2">
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setNotificationPermissionExplainer(false)}
+                className="min-h-11 flex-1 items-center justify-center rounded-xl border border-emerald-700 px-3"
+              >
+                <Text className="font-semibold text-emerald-900 dark:text-emerald-200">
+                  Not now
+                </Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => void continueEnableNotifications()}
+                className="min-h-11 flex-1 items-center justify-center rounded-xl bg-emerald-700 px-3"
+              >
+                <Text className="font-bold text-white">Continue</Text>
+              </Pressable>
+            </View>
+          </View>
         ) : null}
         <Pressable
           accessibilityRole="button"
